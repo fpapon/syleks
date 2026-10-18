@@ -1,0 +1,30 @@
+{
+  "permission": {
+    "chat": "allow",
+    "task": {
+      "*": "deny",
+      "reviewer": "ask"
+    },
+    "save": "ask",
+    "read": "allow",
+    "edit": "deny",
+    "bash": "ask"
+  },
+  "agent": {
+    "plan": {
+      "permission": {
+        "task": "deny",
+        "save": "deny"
+      }
+    },
+    "reviewer": {
+      "mode": "subagent",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "edit": "deny",
+        "bash": "deny"
+      }
+    }
+  }
+}

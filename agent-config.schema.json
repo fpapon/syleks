@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Syleks TUI configuration",
+  "description": "Configuration for ~/.config/syleks/agent-config.json. Provider/model references, default agent availability and output <= context are checked by the application at startup.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Local path or URI of this JSON Schema."
+    },
+    "model": {
+      "type": "string",
+      "maxLength": 240,
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._:/-]+$",
+      "description": "Default configured provider-id/model-id. Both must exist under provider."
+    },
+    "provider": {
+      "type": "object",
+      "description": "Any number of named OpenAI-compatible providers.",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9._-]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/provider"
+      }
+    },
+    "ollama_url": {
+      "$ref": "#/$defs/nonBlank",
+      "default": "http://127.0.0.1:11434",
+      "description": "Legacy Ollama base URL; overridden by OLLAMA_URL."
+    },
+    "ollama_model": {
+      "$ref": "#/$defs/modelId",
+      "default": "qwen3:8b",
+      "description": "Legacy Ollama model; model takes precedence, and OLLAMA_MODEL overrides both."
+    },
+    "default_agent": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+      "default": "build",
+      "description": "Must resolve to a primary or all-mode agent, including Markdown definitions."
+    },
+    "max_rounds": {
+      "$ref": "#/$defs/rounds",
+      "default": 12
+    },
+    "permission": {
+      "$ref": "#/$defs/permission"
+    },
+    "agent": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/agent"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nonBlank": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "modelId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:/-]{1,240}$"
+    },
+    "rounds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "positiveInteger": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "npm": {
+          "const": "@ai-sdk/openai-compatible",
+          "default": "@ai-sdk/openai-compatible",
+          "description": "Protocol identifier only; no npm packages are installed or executed."
+        },
+        "options": {
+          "type": "object",
+          "properties": {
+            "baseURL": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https?://(?:\\[[0-9A-Fa-f:.]+\\]|[^\\s/?#@:]+)(?::[0-9]+)?(?:/[^\\s?#]*)?$",
+              "description": "HTTP(S) base URL, without credentials, query or fragment. /chat/completions is appended."
+            },
+            "apiKey": {
+              "type": "string",
+              "pattern": "^[^\\u0000-\\u001f\\u007f]*$",
+              "allOf": [
+                {
+                  "$ref": "#/$defs/nonBlank"
+                }
+              ],
+              "description": "Optional Bearer token; omit when authentication is unnecessary."
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "baseURL"
+          ]
+        },
+        "models": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/modelId"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/model"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "options"
+      ]
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "limit": {
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/positiveInteger"
+            },
+            "output": {
+              "$ref": "#/$defs/positiveInteger"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Output must not exceed context when both are set; checked at startup."
+        }
+      },
+      "additionalProperties": false
+    },
+    "agent": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "mode": {
+          "type": "string",
+          "pattern": "^([Pp][Rr][Ii][Mm][Aa][Rr][Yy]|[Ss][Uu][Bb][Aa][Gg][Ee][Nn][Tt]|[Aa][Ll][Ll])$",
+          "description": "primary, subagent or all (case insensitive). Existing build/plan modes are inherited; new agents default to all."
+        },
+        "model": {
+          "$ref": "#/$defs/modelId",
+          "description": "Configured provider/model or legacy Ollama model ID."
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "prompt": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "permission": {
+          "$ref": "#/$defs/permission"
+        },
+        "max_rounds": {
+          "$ref": "#/$defs/rounds"
+        }
+      },
+      "additionalProperties": false
+    },
+    "decision": {
+      "type": "string",
+      "pattern": "^([Aa][Ll][Ll][Oo][Ww]|[Aa][Ss][Kk]|[Dd][Ee][Nn][Yy])$",
+      "description": "allow, ask or deny (case insensitive)."
+    },
+    "permission": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/decision"
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "*",
+              "chat",
+              "task",
+              "save",
+              "read",
+              "edit",
+              "write",
+              "bash",
+              "webfetch",
+              "websearch",
+              "glob",
+              "grep",
+              "list"
+            ]
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/decision"
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/$defs/nonBlank"
+                },
+                "additionalProperties": {
+                  "$ref": "#/$defs/decision"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

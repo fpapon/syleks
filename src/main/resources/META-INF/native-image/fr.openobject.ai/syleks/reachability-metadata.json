@@ -1,0 +1,6 @@
+{
+  "resources": [
+    { "glob": "META-INF/services/**" },
+    { "module": "java.desktop", "glob": "javax/swing/text/html/parser/html32.bdtd" }
+  ]
+}

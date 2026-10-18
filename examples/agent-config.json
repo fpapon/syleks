@@ -1,0 +1,51 @@
+{
+  "$schema": "../agent-config.schema.json",
+  "model": "local/qwen3:8b",
+  "provider": {
+    "local": {
+      "name": "Local server",
+      "options": {
+        "baseURL": "http://127.0.0.1:8000/v1"
+      },
+      "models": {
+        "qwen3:8b": {
+          "name": "Qwen 3 8B",
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
+        }
+      }
+    },
+    "remote": {
+      "name": "Remote server",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://models.example.com/v1",
+        "apiKey": "replace-with-your-api-key"
+      },
+      "models": {
+        "qwen3:8b": {
+          "name": "Remote Qwen 3 8B",
+          "limit": {
+            "context": 65536,
+            "output": 16384
+          }
+        },
+        "team/reasoner": {
+          "name": "Reasoning model"
+        }
+      }
+    }
+  },
+  "agent": {
+    "build": {
+      "model": "local/qwen3:8b",
+      "temperature": 0.1
+    },
+    "plan": {
+      "model": "remote/team/reasoner",
+      "temperature": 0.2
+    }
+  }
+}
