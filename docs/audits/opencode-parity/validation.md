@@ -1,3 +1,5 @@
+> Suivi du 19 octobre 2026 : [phase 5 — tools](tools.md). Les résultats et scores de l’audit initial ci-dessous restent historiques.
+
 # Résultats techniques de validation
 
 > **Campagne historique :** les commandes, empreintes et résultats ci-dessous décrivent l’audit initial. Après le correctif P0, utiliser [le suivi shell et sa campagne de validation](shell-security.md) ; le vérificateur des anciennes empreintes signale volontairement la modification du code.

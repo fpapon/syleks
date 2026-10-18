@@ -22,7 +22,16 @@ public record PermissionPolicy(List<Rule> rules) {
                     "websearch",
                     "glob",
                     "grep",
-                    "list");
+                    "list",
+                    "apply_patch",
+                    "skill",
+                    "todoread",
+                    "todowrite",
+                    "question");
+
+    public static boolean validOperation(String operation) {
+        return OPERATIONS.contains(operation) || operation.matches("custom_[a-z][a-z0-9_]{0,55}");
+    }
 
     public enum Decision {
         ALLOW,
@@ -57,7 +66,7 @@ public record PermissionPolicy(List<Rule> rules) {
         } else if (value instanceof Map<?, ?> operations) {
             for (var entry : operations.entrySet()) {
                 if (!(entry.getKey() instanceof String operation)
-                        || !(operation.equals("*") || OPERATIONS.contains(operation))) {
+                        || !(operation.equals("*") || validOperation(operation))) {
                     throw invalid(file, "unknown operation: " + entry.getKey());
                 }
                 if (entry.getValue() instanceof Map<?, ?> targets) {
@@ -83,7 +92,7 @@ public record PermissionPolicy(List<Rule> rules) {
     }
 
     public Decision evaluate(String operation, String target) {
-        if (!OPERATIONS.contains(operation))
+        if (!validOperation(operation))
             throw new IllegalArgumentException("Unknown permission operation: " + operation);
         if (operation.equals("bash") && !target.isBlank())
             return ShellCommandPolicy.assess(this, target).decision();

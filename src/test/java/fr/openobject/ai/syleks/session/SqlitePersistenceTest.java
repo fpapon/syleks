@@ -22,7 +22,7 @@ class SqlitePersistenceTest {
                         for (var item :
                                 Map.of(
                                                 "user_version",
-                                                "4",
+                                                "5",
                                                 "journal_mode",
                                                 "wal",
                                                 "foreign_keys",
@@ -77,6 +77,7 @@ class SqlitePersistenceTest {
                     c -> {
                         try (var statement = c.createStatement()) {
                             statement.execute("DROP TABLE llm_usage");
+                            statement.execute("DROP TABLE session_todos");
                             statement.execute("DROP TABLE agent_tasks");
                             statement.execute("DROP TABLE agent_task_budgets");
                             statement.execute("ALTER TABLE sessions DROP COLUMN account_id");
@@ -103,6 +104,7 @@ class SqlitePersistenceTest {
                         try (var statement = c.createStatement()) {
                             statement.execute("DROP TABLE llm_usage");
                             statement.execute("PRAGMA user_version=2");
+                            statement.execute("DROP TABLE session_todos");
                             statement.execute("DROP TABLE agent_tasks");
                             statement.execute("DROP TABLE agent_task_budgets");
                         }
@@ -155,6 +157,7 @@ class SqlitePersistenceTest {
             f.database.write(
                     c -> {
                         try (var statement = c.createStatement()) {
+                            statement.execute("DROP TABLE session_todos");
                             statement.execute("DROP TABLE agent_tasks");
                             statement.execute("DROP TABLE agent_task_budgets");
                             statement.execute("PRAGMA user_version=3");

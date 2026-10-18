@@ -14,10 +14,24 @@ public class ToolExecutor {
     private final LocalCommandRunner commands;
     @io.yupiik.fusion.framework.build.api.scanning.Injection TaskManager manager;
     private TaskManager fallbackManager;
+    @io.yupiik.fusion.framework.build.api.scanning.Injection ToolRegistry registry;
+
+    @io.yupiik.fusion.framework.build.api.scanning.Injection
+    fr.openobject.ai.syleks.session.repository.TodoRepository todos;
+
+    private ToolRegistry fallbackRegistry;
+
+    public synchronized ToolRegistry registry() {
+        if (registry != null) return registry;
+        if (fallbackRegistry == null)
+            fallbackRegistry = new ToolRegistry(config, java.util.List.of());
+        return fallbackRegistry;
+    }
 
     @io.yupiik.fusion.framework.build.api.lifecycle.Init
     void initialize() {
         if (manager != null) manager.ready();
+        if (registry != null) registry.ready();
     }
 
     public synchronized TaskManager manager() {
@@ -40,11 +54,59 @@ public class ToolExecutor {
     public ToolResult execute(
             String actor, ToolCall call, AgentTools.Gate approvals, Started started)
             throws InterruptedException {
-        return manager().effect(call, () -> executeEffect(actor, call, approvals, started));
+        return execute(actor, call, approvals, started, null, null);
+    }
+
+    public ToolResult execute(
+            String actor,
+            ToolCall call,
+            AgentTools.Gate approvals,
+            Started started,
+            String session,
+            ToolContext.Questioner questions)
+            throws InterruptedException {
+        final ToolRegistry.Invocation invocation;
+        try {
+            invocation = registry().resolve(call);
+        } catch (Exception e) {
+            return ToolResult.failed(e);
+        }
+        return manager()
+                .effect(
+                        invocation.exclusive(),
+                        () ->
+                                executeEffect(
+                                        actor,
+                                        call,
+                                        approvals,
+                                        started,
+                                        session,
+                                        questions,
+                                        invocation.extension()));
+    }
+
+    private static ToolResult bounded(ToolResult result) {
+        if (result == null) throw new IllegalArgumentException("Tool returned no result");
+        if (result.content().length() <= 32000) return result;
+        int end = 32000;
+        if (Character.isHighSurrogate(result.content().charAt(end - 1))) end--;
+        return new ToolResult(
+                result.status(),
+                result.content().substring(0, end) + "\n[Output truncated]",
+                result.exitCode(),
+                result.timedOut(),
+                true,
+                result.childSessionIds());
     }
 
     private ToolResult executeEffect(
-            String actor, ToolCall call, AgentTools.Gate approvals, Started started)
+            String actor,
+            ToolCall call,
+            AgentTools.Gate approvals,
+            Started started,
+            String session,
+            ToolContext.Questioner questions,
+            CustomTool extension)
             throws InterruptedException {
         if (Thread.currentThread().isInterrupted())
             throw new InterruptedException("Tool cancelled");
@@ -66,8 +128,22 @@ public class ToolExecutor {
                     return allowed;
                 };
         try {
+            var context = new ToolContext(config.workspace(), session, actor, gate, questions);
+            if (AuxiliaryTools.NAMES.contains(call.name()))
+                return bounded(new AuxiliaryTools(config, todos).execute(call, context));
+            if (extension != null) {
+                var details = extension.approvalDetails(call.arguments());
+                if (details == null || details.length() > 8000)
+                    throw new IllegalArgumentException(
+                            "Extension approval details exceed 8000 characters");
+                context.require(
+                        call.name(),
+                        extension.target(call.arguments()),
+                        "Invoke extension " + call.name() + "\n" + details);
+                return bounded(extension.execute(context, call.arguments()));
+            }
             if (AgentTools.NAMES.contains(call.name()))
-                return ToolResult.success(files.execute(call, gate));
+                return bounded(ToolResult.success(files.execute(call, gate)));
             if (!call.name().equals("bash"))
                 return ToolResult.failed("Tool error: unsupported tool " + call.name());
             var args = call.arguments();

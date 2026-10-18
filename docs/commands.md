@@ -56,6 +56,7 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | `/approve`, `/approve once` | Allow the pending action once |
 | `/approve always` | Remember a tool approval for this agent while this session stays open |
 | `/deny` | Reject a pending action |
+| `/answer TEXT` | Answer a tool question; a suggested option number or free text is accepted |
 | `/save PATH` | Export displayed messages as Markdown; never overwrite a file |
 | `/demo` | Preview simulated tool cards and highlighted code |
 | `/quit`, `/exit` | Quit |

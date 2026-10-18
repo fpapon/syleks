@@ -14,6 +14,13 @@ import java.util.*;
 
 /** Official Responses HTTP transport. It never falls back to another endpoint or billing path. */
 public abstract class ResponsesLlmProvider implements LlmProvider {
+    private ToolRegistry fallbackTools;
+
+    protected synchronized ToolRegistry tools() {
+        if (fallbackTools == null) fallbackTools = new ToolRegistry(config, List.of());
+        return fallbackTools;
+    }
+
     private final AgentRuntime fallbackRuntime = new AgentRuntime();
 
     protected AgentRuntime runtime() {
@@ -98,6 +105,11 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     }
 
     public Map<String, Object> payload(ChatRequest request) throws IOException {
+        return payload(request, tools().forAgent(request.agent()));
+    }
+
+    private Map<String, Object> payload(ChatRequest request, List<Map<String, Object>> schemas)
+            throws IOException {
         var input = new ArrayList<Map<String, Object>>();
         var instructions = new StringBuilder();
         for (var message : request.messages()) {
@@ -144,7 +156,7 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
         body.put("stream", true);
         if (!instructions.isEmpty()) body.put("instructions", instructions.toString());
         var definitions = new ArrayList<Map<String, Object>>();
-        for (var schema : ToolSchemas.forAgent(config, request.agent())) {
+        for (var schema : schemas) {
             var function = (Map<?, ?>) schema.get("function");
             definitions.add(
                     Map.of(
@@ -171,12 +183,13 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                     request.messages(),
                     config.maxRounds(request.agent()),
                     messages -> {
+                        var schemas = tools().forAgent(request.agent());
                         var bounded =
                                 fr.openobject.ai.syleks.session.ContextService.limit(
                                         messages,
                                         config.contextWindow(id() + "/" + request.model()),
                                         config.responseTokens(id() + "/" + request.model()),
-                                        json.toString(ToolSchemas.forAgent(config, request.agent()))
+                                        json.toString(schemas)
                                                 .getBytes(StandardCharsets.UTF_8)
                                                 .length);
                         if (bounded.omittedMessages() > 0 && request.observer() != null)
@@ -225,7 +238,8 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                                                                                         json
                                                                                                 .toString(
                                                                                                         payload(
-                                                                                                                turnRequest))))
+                                                                                                                turnRequest,
+                                                                                                                schemas))))
                                                                 .build(),
                                                         HttpResponse.BodyHandlers.ofInputStream());
                             } catch (InterruptedException e) {

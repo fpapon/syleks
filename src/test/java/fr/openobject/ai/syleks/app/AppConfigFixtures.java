@@ -13,6 +13,11 @@ public final class AppConfigFixtures {
     }
 
     public static AppConfig atWorkspace(JsonMapper json, Path directory, Path workspace) {
-        return new AppConfig(json, directory.resolve("home"), Map.of(), workspace);
+        return atWorkspace(json, directory, workspace, Map.of());
+    }
+
+    public static AppConfig atWorkspace(
+            JsonMapper json, Path directory, Path workspace, Map<String, String> environment) {
+        return new AppConfig(json, directory.resolve("home"), environment, workspace);
     }
 }

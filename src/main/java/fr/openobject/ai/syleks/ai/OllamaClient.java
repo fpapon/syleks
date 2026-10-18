@@ -26,6 +26,15 @@ import java.util.function.Consumer;
 @DefaultScoped
 public class OllamaClient {
     @io.yupiik.fusion.framework.build.api.scanning.Injection AgentRuntime runtime;
+    @io.yupiik.fusion.framework.build.api.scanning.Injection ToolRegistry tools;
+    private ToolRegistry fallbackTools;
+
+    private synchronized ToolRegistry tools() {
+        if (tools != null) return tools;
+        if (fallbackTools == null) fallbackTools = new ToolRegistry(config, List.of());
+        return fallbackTools;
+    }
+
     private final ThreadLocal<Observer> observer = new ThreadLocal<>();
     private final ThreadLocal<Boolean> persistentRequest = ThreadLocal.withInitial(() -> false);
     private final AppConfig config;
@@ -75,7 +84,7 @@ public class OllamaClient {
         } else if (temperature != null) {
             request.put("options", Map.of("temperature", temperature));
         }
-        var definitions = ToolSchemas.forAgent(config, agent);
+        var definitions = tools().forAgent(agent);
         if (!definitions.isEmpty()) request.put("tools", definitions);
         if (persistentRequest.get()) {
             int window = config.contextWindow(model);

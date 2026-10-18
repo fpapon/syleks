@@ -634,6 +634,7 @@ public class TerminalApp implements AutoCloseable {
                 case "/permissions" -> session.listPermissions(arg);
                 case "/approve" -> session.approve(arg);
                 case "/deny" -> session.deny();
+                case "/answer" -> session.answer(arg);
                 case "/subagent" -> {
                     var request = arg.split("\\s+", 2);
                     if (request.length < 2) session.info("Usage: /subagent name task");

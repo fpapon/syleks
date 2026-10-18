@@ -8,11 +8,14 @@ public final class ToolSchemas {
     private ToolSchemas() {}
 
     public static List<Map<String, Object>> forAgent(AppConfig config, String agent) {
+        return new ToolRegistry(config, List.of()).forAgent(agent);
+    }
+
+    static List<Map<String, Object>> builtins(AppConfig config) {
         var definitions = new ArrayList<Map<String, Object>>();
-        if (config.delegationAvailable(agent)) definitions.add(task(config, agent));
-        for (var name : AgentTools.NAMES)
-            if (config.toolAvailable(agent, name)) definitions.add(AgentTools.schema(name));
-        if (config.commandToolAvailable(agent)) {
+        definitions.add(task(config, config.defaultAgent()));
+        for (var name : AgentTools.NAMES) definitions.add(AgentTools.schema(name));
+        {
             definitions.add(
                     Map.of(
                             "type",
@@ -50,10 +53,11 @@ public final class ToolSchemas {
                                             "additionalProperties",
                                             false))));
         }
+        definitions.addAll(AuxiliaryTools.schemas());
         return List.copyOf(definitions);
     }
 
-    private static Map<String, Object> task(AppConfig config, String actor) {
+    static Map<String, Object> task(AppConfig config, String actor) {
         var names = new StringBuilder();
         for (var candidate : config.agents()) {
             if (!candidate.mode().subagent()

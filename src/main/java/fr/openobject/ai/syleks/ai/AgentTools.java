@@ -202,7 +202,7 @@ public class AgentTools {
         if (!edit && exists && !flag)
             throw new IOException("File exists; overwrite=true is required");
         String content = replacement;
-        byte[] before = exists ? Files.readAllBytes(checkedFile(path)) : null;
+        byte[] before = exists ? bytes(path) : null;
         if (before != null && before.length > MAX_BYTES) throw new IOException("File exceeds 1 MB");
         if (edit) {
             if (!exists) throw new IOException("File does not exist");
@@ -228,7 +228,7 @@ public class AgentTools {
         if (before == null) {
             Files.writeString(path, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
         } else {
-            if (!java.util.Arrays.equals(before, Files.readAllBytes(path)))
+            if (!java.util.Arrays.equals(before, bytes(path)))
                 throw new IOException("File changed during edit; retry");
             // Preserve permissions and other file attributes rather than replacing the inode.
             Files.writeString(
@@ -303,7 +303,7 @@ public class AgentTools {
                 output + "[" + hits + " results; bounded scan, denied/unreadable entries omitted]");
     }
 
-    private Path path(String value) throws IOException {
+    Path path(String value) throws IOException {
         var path = workspace.resolve(value).toAbsolutePath().normalize();
         var realRoot = workspace.toRealPath();
         if (!path.startsWith(workspace)) throw new IOException("Path is outside workspace");
@@ -328,8 +328,21 @@ public class AgentTools {
         return path;
     }
 
-    private String text(Path path) throws IOException {
-        var content = Files.readString(checkedFile(path), StandardCharsets.UTF_8);
+    byte[] bytes(Path path) throws IOException {
+        checkedFile(path);
+        try (var input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
+            var value = input.readNBytes(MAX_BYTES + 1);
+            if (value.length > MAX_BYTES) throw new IOException("File exceeds 1 MB");
+            return value;
+        }
+    }
+
+    String text(Path path) throws IOException {
+        var content =
+                StandardCharsets.UTF_8
+                        .newDecoder()
+                        .decode(java.nio.ByteBuffer.wrap(bytes(path)))
+                        .toString();
         if (content.indexOf(0) >= 0) throw new IOException("Binary files are not supported");
         return content;
     }

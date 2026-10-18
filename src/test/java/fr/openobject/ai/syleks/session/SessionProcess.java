@@ -7,7 +7,64 @@ import java.nio.file.Path;
 public final class SessionProcess {
     public static void main(String[] args) throws Exception {
         try (var f = new SessionFixture(Path.of(args[0]))) {
-            if (args[1].equals("fusion-subagents")) {
+            if (args[1].equals("fusion-tools")) {
+                try (var registry =
+                                f.container.lookup(fr.openobject.ai.syleks.ai.ToolRegistry.class);
+                        var executor =
+                                f.container.lookup(fr.openobject.ai.syleks.ai.ToolExecutor.class);
+                        var client =
+                                f.container.lookup(fr.openobject.ai.syleks.ai.OllamaClient.class)) {
+                    var payload =
+                            client.instance()
+                                    .createPayload("qwen3:8b", "build", java.util.List.of());
+                    if (!payload.contains("custom_fixture"))
+                        throw new AssertionError("Fusion extension not advertised");
+                    var result =
+                            executor.instance()
+                                    .execute(
+                                            "build",
+                                            new fr.openobject.ai.syleks.ai.ToolCall(
+                                                    "fixture",
+                                                    "custom_fixture",
+                                                    java.util.Map.of()),
+                                            null,
+                                            () -> {});
+                    if (!result.content().equals("FUSION_EXTENSION_OK"))
+                        throw new AssertionError(result);
+                    registry.instance().unregister("custom_fixture");
+                    if (executor.instance()
+                                    .execute(
+                                            "build",
+                                            new fr.openobject.ai.syleks.ai.ToolCall(
+                                                    "removed",
+                                                    "custom_fixture",
+                                                    java.util.Map.of()),
+                                            null,
+                                            () -> {})
+                                    .status()
+                            != fr.openobject.ai.syleks.ai.ToolResult.Status.FAILED)
+                        throw new AssertionError("Executor has a stale registry");
+                    if (client.instance()
+                            .createPayload("qwen3:8b", "build", java.util.List.of())
+                            .contains("custom_fixture"))
+                        throw new AssertionError("Stale catalogue");
+                    var patch =
+                            executor.instance()
+                                    .execute(
+                                            "build",
+                                            new fr.openobject.ai.syleks.ai.ToolCall(
+                                                    "patch",
+                                                    "apply_patch",
+                                                    java.util.Map.of(
+                                                            "patch",
+                                                            "*** Begin Patch\n*** Add File: fusion-patch\n+fixture\n*** End Patch\n")),
+                                            null,
+                                            () -> {});
+                    if (patch.status() != fr.openobject.ai.syleks.ai.ToolResult.Status.SUCCESS)
+                        throw new AssertionError(patch);
+                    System.out.println("FUSION_TOOLS_OK");
+                }
+            } else if (args[1].equals("fusion-subagents")) {
                 try (var managed =
                                 f.container.lookup(fr.openobject.ai.syleks.ai.ChatSession.class);
                         var executor =

@@ -58,6 +58,8 @@ public class ChatSession {
     private Thread task;
     private long revision = 0;
     private PendingPermission pendingPermission;
+    private CompletableFuture<String> pendingQuestion;
+    private List<String> questionOptions = List.of();
     private long permissionRevision;
     private final java.util.Set<ToolGrant> toolGrants = new java.util.LinkedHashSet<>();
     private int commandLogIndex = -1;
@@ -146,6 +148,10 @@ public class ChatSession {
     }
 
     public synchronized boolean send(String text) {
+        if (pendingQuestion != null) {
+            answer(text);
+            return true;
+        }
         if (task != null || retiring != null || pendingPermission != null || text.isBlank())
             return false;
         requireWritableSession();
@@ -631,8 +637,10 @@ public class ChatSession {
         final ToolExecutor service;
         synchronized (this) {
             checkActive(id);
-            if (executor == null && fallbackExecutor == null)
+            if (executor == null && fallbackExecutor == null) {
                 fallbackExecutor = new ToolExecutor(config);
+                if (persistence != null) fallbackExecutor.todos = persistence.sessions().todos();
+            }
             service = executor == null ? fallbackExecutor : executor;
         }
         var result =
@@ -661,7 +669,11 @@ public class ChatSession {
                                             status = "Running command";
                                         }
                                     }
-                                });
+                                },
+                                persistence == null || persistence.current() == null
+                                        ? null
+                                        : persistence.current().id(),
+                                (question, options) -> askQuestion(id, actor, question, options));
         synchronized (this) {
             checkActive(id);
             if (call.name().equals("bash")) {
@@ -734,8 +746,22 @@ public class ChatSession {
                 persistence,
                 scope,
                 call,
-                (child, op, target, details, decision) ->
-                        toolPermission(id, child, op, target, details, decision),
+                new SubagentExecutor.Approval() {
+                    public boolean allow(
+                            String child,
+                            String op,
+                            String target,
+                            String details,
+                            PermissionPolicy.Decision decision)
+                            throws Exception {
+                        return toolPermission(id, child, op, target, details, decision);
+                    }
+
+                    public String question(String child, String text, List<String> options)
+                            throws Exception {
+                        return askQuestion(id, child, text, options);
+                    }
+                },
                 (model, child, account, history, handler, observer, receive) -> {
                     if (providers == null)
                         ollama.streamPrepared(model, child, history, receive, handler, observer);
@@ -769,6 +795,69 @@ public class ChatSession {
                     + (task.get("diagnostic") == null ? "" : "\n" + task.get("diagnostic"));
         }
         return result.content();
+    }
+
+    private String askQuestion(long id, String actor, String text, List<String> options)
+            throws Exception {
+        CompletableFuture<String> answer;
+        synchronized (this) {
+            checkActive(id);
+            while (pendingQuestion != null) {
+                wait();
+                checkActive(id);
+            }
+            answer = new CompletableFuture<>();
+            pendingQuestion = answer;
+            questionOptions = options;
+            status = "Awaiting answer";
+            executionState = AgentState.WAITING_TOOL;
+            var display = new StringBuilder("Question / " + actor + "\n" + text);
+            for (int i = 0; i < options.size(); i++)
+                display.append("\n").append(i + 1).append(". ").append(options.get(i));
+            info(
+                    display
+                            + "\nReply with /answer text (or an option number). Escape cancels generation.");
+        }
+        try {
+            return answer.get();
+        } finally {
+            synchronized (this) {
+                if (pendingQuestion == answer) {
+                    pendingQuestion = null;
+                    questionOptions = List.of();
+                    updateQuestionStatus();
+                    notifyAll();
+                }
+            }
+        }
+    }
+
+    private void updateQuestionStatus() {
+        status =
+                pendingPermission != null
+                        ? "Awaiting permission"
+                        : pendingQuestion != null ? "Awaiting answer" : "Generating";
+        executionState =
+                pendingPermission != null ? AgentState.WAITING_PERMISSION : AgentState.WAITING_TOOL;
+    }
+
+    public synchronized void answer(String text) {
+        if (pendingQuestion == null) {
+            info("No pending question.");
+            return;
+        }
+        if (text.isBlank() || text.length() > 4000 || text.indexOf(0) >= 0)
+            throw new IllegalArgumentException(
+                    "Answer must contain 1..4000 characters without NUL");
+        String value = text;
+        if (text.matches("[1-8]") && Integer.parseInt(text) <= questionOptions.size())
+            value = questionOptions.get(Integer.parseInt(text) - 1);
+        messages.add(ChatMessage.now("user", value));
+        pendingQuestion.complete(value);
+        pendingQuestion = null;
+        questionOptions = List.of();
+        updateQuestionStatus();
+        notifyAll();
     }
 
     private boolean toolPermission(
@@ -920,6 +1009,8 @@ public class ChatSession {
         boolean hadPermissionRequest = pendingPermission != null;
         if (pendingPermission != null) pendingPermission.refuse().run();
         pendingPermission = null;
+        pendingQuestion = null;
+        questionOptions = List.of();
         notifyAll();
         if (task == null) {
             if (hadPermissionRequest) {

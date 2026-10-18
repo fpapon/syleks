@@ -1,6 +1,6 @@
 # Tools and approvals
 
-[User guide](README.md) · [Agents](agents.md) · [Configuration](configuration.md)
+[User guide](README.md) · [Agents](agents.md) · [Configuration](configuration.md) · [Extensions, patch, skills and todos](tools.md)
 
 Tools let the assistant act on your project or retrieve information. They require a model/server with structured function-call support. Text that merely looks like a shell command in a reply is never executed automatically.
 
@@ -45,7 +45,7 @@ The **generated starter configuration** changes these rules:
 | `edit` | Deny | Deny | Deny |
 | `bash` | Deny | Ask | Ask |
 
-Unlisted tools (`write`, `list`, `glob`, `grep`, `webfetch`, `websearch`) remain denied unless enabled. Build's `task: allow` overrides the global delegation rule, including for Reviewer. These are starter settings; customized agent files or configuration may change them.
+Unlisted tools (`write`, `list`, `glob`, `grep`, `webfetch`, `websearch`, `apply_patch`, `skill`, `todoread`, `todowrite`, `question`) remain denied unless enabled. Build's `task: allow` overrides the global delegation rule, including for Reviewer. These are starter settings; customized agent files or configuration may change them.
 
 ## Respond to an approval request
 
@@ -77,6 +77,10 @@ You normally describe what you want in ordinary language; the model chooses tool
 | `list` | List one directory level | Optional `path`, result `limit` |
 | `glob` | Find paths by a filesystem glob | `pattern`, optional `path` and `limit`; `*.java` matches the root, `**/*.java` nested files |
 | `grep` | Search file content with a Java regular expression | `pattern`, optional `path` and `limit`; also requires `read` permission |
+| `apply_patch` | Apply exact UTF-8 patches | Workspace-confined; requires `apply_patch` plus `edit`/`write`; [format and limits](tools.md#patches) |
+| `skill` | Discover/load skill references | Project `.syleks/skills` and user configuration; `skill` and `read` permissions |
+| `todoread` / `todowrite` | Read/replace session todos | Persistent independent parent/child lists; [entry format](tools.md#todos-and-questions) |
+| `question` | Ask the user and wait | `/answer text`, option number or ordinary text; Escape cancels |
 | `write` | Create a text file, or replace it explicitly | `path`, `content`; existing files require `overwrite: true`; parent directory must exist |
 | `edit` | Replace exact text in a file | `path`, `old_text`, `new_text`; match must be unique unless `replace_all: true` |
 | `bash` | Run a local command and return its output/status | `command`, optional `timeout_seconds` (default 60, range 1–300) |

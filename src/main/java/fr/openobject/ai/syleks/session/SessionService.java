@@ -40,6 +40,10 @@ public class SessionService {
         this.tasks = new TaskRepository(database, json);
     }
 
+    public TodoRepository todos() {
+        return new TodoRepository(database);
+    }
+
     public Session create(String model, String provider) {
         return sessions.createSession(
                 projects.currentId(), null, "New conversation", provider, model, null);

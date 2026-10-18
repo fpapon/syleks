@@ -56,6 +56,7 @@ class ConfigSchemaTest {
         for (var content :
                 List.of(
                         "{}",
+                        "{\"permission\":{\"apply_patch\":\"ask\",\"skill\":\"ask\",\"todoread\":\"allow\",\"todowrite\":\"allow\",\"question\":\"allow\",\"custom_fixture\":\"deny\"}}",
                         "{\"subagents\":{\"max_depth\":3,\"max_parallel\":2,\"max_tasks\":32,\"max_rounds\":16,\"max_session_rounds\":128,\"timeout_seconds\":120}}",
                         "{\"agent\":{\"reviewer\":{\"disable\":true,\"hidden\":false}}}",
                         "{\"max_rounds\":-1}",

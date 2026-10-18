@@ -529,4 +529,30 @@ class ResponsesProviderTest {
             assertTrue(error.getMessage().contains("Invalid stored access token"));
         }
     }
+
+    @Test
+    void snapshotsTheDynamicToolCatalogueOncePerTurnForBothBudgetAndRequest() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var account = f.login(null).account().id();
+            var reads = new AtomicInteger();
+            var catalogue =
+                    new fr.openobject.ai.syleks.ai.ToolRegistry(f.config, List.of()) {
+                        @Override
+                        public synchronized List<Map<String, Object>> forAgent(String actor) {
+                            if (reads.incrementAndGet() > 1)
+                                fail(
+                                        "Catalogue changed between context budgeting and request serialization");
+                            return super.forAgent(actor);
+                        }
+                    };
+            var provider = new ChatGptLlmProvider(f.auth, f.json, f.config, f.base.resolve("v1/"));
+            provider.registry = catalogue;
+            f.responsesHandler.set(
+                    ex ->
+                            AuthFixture.respond(
+                                    ex, 200, "data: {\"type\":\"response.completed\"}\n\n"));
+            provider.chat(request(account), e -> {});
+            assertEquals(1, reads.get());
+        }
+    }
 }

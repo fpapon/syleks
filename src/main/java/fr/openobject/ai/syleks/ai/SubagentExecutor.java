@@ -22,6 +22,10 @@ public class SubagentExecutor {
                 String details,
                 PermissionPolicy.Decision decision)
                 throws Exception;
+
+        default String question(String actor, String text, List<String> options) throws Exception {
+            throw new IllegalStateException("Interactive questions unavailable");
+        }
     }
 
     @FunctionalInterface
@@ -400,7 +404,13 @@ public class SubagentExecutor {
                                             call,
                                             (op, target, details) ->
                                                     authorize(service, scope, op, target, details),
-                                            scope::check);
+                                            scope::check,
+                                            scope.session,
+                                            approval == null
+                                                    ? null
+                                                    : (text, options) ->
+                                                            approval.question(
+                                                                    scope.actor(), text, options));
                                 } finally {
                                     tools.manager().release();
                                 }

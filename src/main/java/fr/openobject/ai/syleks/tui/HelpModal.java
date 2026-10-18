@@ -41,6 +41,8 @@ final class HelpModal {
                             "/approve [once|always]",
                             "Allow a pending action once or for this session."),
                     new Entry("/deny", "Reject the pending action."),
+                    new Entry(
+                            "/answer TEXT", "Answer a tool question; option numbers are accepted."),
                     new Entry("/save PATH", "Export displayed chat as Markdown; never overwrite."),
                     new Entry("Settings & help", ""),
                     new Entry("/config [init|edit]", "Open the configuration form."),

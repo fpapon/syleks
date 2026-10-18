@@ -515,6 +515,167 @@ class AgentEngineParityTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"ollama", "compat", "chatgpt", "openai-api"})
+    void patchesLoadsSkillsPersistsTodosAndAnswersAQuestionThroughEachTransport(String provider)
+            throws Exception {
+        try (var auth = new AuthFixture(root.resolve("auth"))) {
+            var steps = new ConcurrentLinkedQueue<ToolCall>();
+            var requests = new CopyOnWriteArrayList<Map<?, ?>>();
+            var failure = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+            auth.server.createContext(
+                    "/api/chat", ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.server.createContext(
+                    "/v1/chat/completions",
+                    ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.responsesHandler.set(ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.modelsHandler.set(
+                    ex ->
+                            AuthFixture.respond(
+                                    ex,
+                                    200,
+                                    provider.equals("openai-api")
+                                            ? "{\"data\":[{\"id\":\"test-model\"}]}"
+                                            : "{\"models\":[{\"slug\":\"test-model\",\"visibility\":\"list\"}]}"));
+            String account =
+                    provider.equals("chatgpt")
+                            ? auth.login(null).account().id()
+                            : provider.equals("openai-api")
+                                    ? auth.auth.apiKey("sk-fictional-tools").account().id()
+                                    : null;
+            Path config = root.resolve("home/.config/syleks/agent-config.json");
+            Files.createDirectories(config.getParent());
+            Files.writeString(
+                    config,
+                    auth.json.toString(
+                            Map.of(
+                                    "model",
+                                    provider + "/test-model",
+                                    "ollama_url",
+                                    auth.base.toString(),
+                                    "provider",
+                                    Map.of(
+                                            "compat",
+                                            Map.of(
+                                                    "options",
+                                                    Map.of(
+                                                            "baseURL",
+                                                            auth.base.resolve("v1").toString()),
+                                                    "models",
+                                                    Map.of(
+                                                            "test-model",
+                                                            Map.of(
+                                                                    "limit",
+                                                                    Map.of("context", 32768))))),
+                                    "permission",
+                                    "allow",
+                                    "agent",
+                                    Map.of(
+                                            "plan",
+                                            Map.of(
+                                                    "permission",
+                                                    Map.of("edit", "deny", "write", "deny"))))));
+            Files.createDirectories(root.resolve("project/.syleks/skills/java"));
+            Files.writeString(
+                    root.resolve("project/.syleks/skills/java/SKILL.md"), "SKILL_FIXTURE");
+            Files.writeString(
+                    root.resolve("project/Probe.java"), "class Probe { int value = 1; }\n");
+            String id;
+            try (var db =
+                    new SessionFixture(
+                            root,
+                            root.resolve("project"),
+                            Map.of("SYLEKS_CONTEXT_WINDOW", "32768"))) {
+                var chat = chat(db, auth, provider, account);
+                try {
+                    steps.add(
+                            new ToolCall(
+                                    "patch",
+                                    "apply_patch",
+                                    Map.of(
+                                            "patch",
+                                            "*** Begin Patch\n*** Update File: Probe.java\n@@\n-class Probe { int value = 1; }\n+class Probe { int value = 2; }\n*** End Patch\n")));
+                    steps.add(new ToolCall("skill", "skill", Map.of("name", "java")));
+                    steps.add(
+                            new ToolCall(
+                                    "todo",
+                                    "todowrite",
+                                    Map.of(
+                                            "todos",
+                                            List.of(
+                                                    Map.of(
+                                                            "id",
+                                                            "one",
+                                                            "content",
+                                                            "Verify patch",
+                                                            "status",
+                                                            "completed",
+                                                            "priority",
+                                                            "high")))));
+                    steps.add(new ToolCall("todos", "todoread", Map.of()));
+                    steps.add(
+                            new ToolCall(
+                                    "ask",
+                                    "question",
+                                    Map.of(
+                                            "question",
+                                            "Which validation?",
+                                            "options",
+                                            List.of("Unit tests", "Full suite"))));
+                    steps.add(answer());
+                    assertTrue(
+                            chat.send(
+                                    "Patch, inspect skill, track progress, and ask for validation"));
+                    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                    while (!chat.snapshot().status().equals("Awaiting answer")
+                            && chat.snapshot().busy()
+                            && System.nanoTime() < deadline) Thread.sleep(10);
+                    assertEquals(
+                            "Awaiting answer",
+                            chat.snapshot().status(),
+                            chat.snapshot().toString());
+                    chat.answer("2");
+                    await(chat, failure);
+                    id = db.agent.current().id();
+                    assertEquals(6, requests.size());
+                    assertTrue(requests.getFirst().toString().contains("apply_patch"));
+                    assertTrue(requests.get(2).toString().contains("SKILL_FIXTURE"));
+                    assertTrue(requests.getLast().toString().contains("Full suite"));
+                    assertEquals(
+                            "class Probe { int value = 2; }\n",
+                            Files.readString(root.resolve("project/Probe.java")));
+                    assertEquals(5, db.repositories.listExecutions(id).size());
+                    assertTrue(
+                            db.repositories.listExecutions(id).stream()
+                                    .allMatch(t -> t.status() == ToolStatus.SUCCESS));
+                    steps.add(
+                            new ToolCall(
+                                    "denied",
+                                    "apply_patch",
+                                    Map.of(
+                                            "patch",
+                                            "*** Begin Patch\n*** Add File: denied\n+no\n*** End Patch\n")));
+                    steps.add(answer());
+                    chat.agent("plan");
+                    chat.send("Try a forbidden patch");
+                    await(chat, failure);
+                    assertFalse(Files.exists(root.resolve("project/denied")));
+                    assertTrue(toolParts(db, id).toString().contains("DENIED"));
+                } finally {
+                    chat.shutdown();
+                }
+            }
+            try (var db =
+                    new SessionFixture(
+                            root,
+                            root.resolve("project"),
+                            Map.of("SYLEKS_CONTEXT_WINDOW", "32768"))) {
+                assertTrue(db.sessions.todos().read(id).contains("Verify patch"));
+                assertTrue(toolParts(db, id).toString().contains("Full suite"));
+            }
+        }
+    }
+
     private ChatSession chat(SessionFixture db, AuthFixture auth, String provider, String account)
             throws Exception {
         var legacy = new OllamaClient(db.config, db.mapper.instance());

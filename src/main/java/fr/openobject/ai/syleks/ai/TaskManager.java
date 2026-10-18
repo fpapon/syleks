@@ -44,7 +44,13 @@ public class TaskManager {
     }
 
     public ToolResult effect(ToolCall call, Effect effect) throws InterruptedException {
-        boolean writes = java.util.Set.of("write", "edit", "bash").contains(call.name());
+        return effect(
+                java.util.Set.of("write", "edit", "bash", "apply_patch", "todowrite")
+                        .contains(call.name()),
+                effect);
+    }
+
+    public ToolResult effect(boolean writes, Effect effect) throws InterruptedException {
         var lock = writes ? workspace.writeLock() : workspace.readLock();
         lock.lockInterruptibly();
         try {

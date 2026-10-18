@@ -11,6 +11,14 @@ public class OpenAiApiLlmProvider extends ResponsesLlmProvider {
     @io.yupiik.fusion.framework.build.api.scanning.Injection
     fr.openobject.ai.syleks.ai.AgentRuntime engine;
 
+    @io.yupiik.fusion.framework.build.api.scanning.Injection
+    fr.openobject.ai.syleks.ai.ToolRegistry registry;
+
+    @Override
+    protected fr.openobject.ai.syleks.ai.ToolRegistry tools() {
+        return registry == null ? super.tools() : registry;
+    }
+
     @Override
     protected fr.openobject.ai.syleks.ai.AgentRuntime runtime() {
         return engine == null ? super.runtime() : engine;

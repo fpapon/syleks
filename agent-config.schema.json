@@ -255,20 +255,32 @@
         {
           "type": "object",
           "propertyNames": {
-            "enum": [
-              "*",
-              "chat",
-              "task",
-              "save",
-              "read",
-              "edit",
-              "write",
-              "bash",
-              "webfetch",
-              "websearch",
-              "glob",
-              "grep",
-              "list"
+            "anyOf": [
+              {
+                "enum": [
+                  "*",
+                  "chat",
+                  "task",
+                  "save",
+                  "read",
+                  "edit",
+                  "write",
+                  "bash",
+                  "webfetch",
+                  "websearch",
+                  "glob",
+                  "grep",
+                  "list",
+                  "apply_patch",
+                  "skill",
+                  "todoread",
+                  "todowrite",
+                  "question"
+                ]
+              },
+              {
+                "pattern": "^custom_[a-z][a-z0-9_]{0,55}$"
+              }
             ]
           },
           "additionalProperties": {
