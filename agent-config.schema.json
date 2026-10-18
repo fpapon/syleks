@@ -69,8 +69,11 @@
     },
     "rounds": {
       "type": "integer",
-      "minimum": 1,
-      "maximum": 1000
+      "description": "Maximum model/tool rounds per turn; -1 allows unlimited rounds.",
+      "anyOf": [
+        { "const": -1 },
+        { "minimum": 1, "maximum": 1000 }
+      ]
     },
     "positiveInteger": {
       "type": "integer",

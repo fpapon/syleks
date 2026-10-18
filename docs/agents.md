@@ -61,7 +61,7 @@ The text after frontmatter is the agent prompt. Supported fields are:
 | `mode` | `primary`, `subagent`, or `all`; new agents default to `all` |
 | `model` | Optional declared `provider/model` or Ollama model ID |
 | `temperature` | Optional number from `0` to `2` |
-| `max_rounds` | Optional integer from `1` to `1000` |
+| `max_rounds` | Optional `-1` for unlimited rounds, or integer from `1` to `1000` |
 | `permission` | Operation rules; see [Tools and approvals](tools-and-permissions.md) |
 
 Frontmatter supports simple plain/quoted values, comments, literal/folded multiline descriptions, and nested permission maps. It is a limited format, not a complete YAML implementation: other nested objects, aliases, tags, or tool declarations are unsupported.

@@ -236,7 +236,7 @@ Set `max_rounds` in `$HOME/.config/syleks/agent-config.json` to limit model/tool
 }
 ```
 
-Merge these settings into your existing configuration, then restart. Values must be integers from 1 to 1000; the default is 12. Agents without an override inherit the global value. Agent Markdown frontmatter also accepts `max_rounds: 10`; global and project Markdown definitions override JSON using the usual agent precedence.
+Merge these settings into your existing configuration, then restart. Values must be `-1` for unlimited rounds or integers from 1 to 1000; the default is 12. For example, set `"max_rounds": -1` globally or on an individual agent to disable its round limit. Agents without an override inherit the global value. Agent Markdown frontmatter also accepts `max_rounds: -1`; global and project Markdown definitions override JSON using the usual agent precedence.
 
 A round is one model response, including execution of any tools requested in that response. Multiple tool calls in one response count as one round; permission approvals do not count as rounds. An answer without tool calls finishes the turn immediately, including on the last permitted round. If that last response requests tools, their results are recorded and generation stops with the configured limit in the status; send a new message to continue. The counter resets for each new user turn or subagent invocation. This setting does not limit elapsed time or total conversation length.
 

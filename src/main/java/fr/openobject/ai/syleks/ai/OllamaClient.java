@@ -163,7 +163,7 @@ public class OllamaClient {
         var connection = config.resolveModel(model);
         var messages = new ArrayList<>(history);
         int maxRounds = config.maxRounds(agent);
-        for (int round = 0; round < maxRounds; round++) {
+        for (int round = 0; maxRounds == -1 || round < maxRounds; round++) {
             checkInterrupted();
             var turn = streamTurn(model, agent, messages, receive);
             if (observer != null) observer.round(turn.content(), turn.thinking(), turn.calls());
@@ -219,7 +219,8 @@ public class OllamaClient {
                                         "content",
                                         result));
             }
-            if (observer != null && round + 1 < maxRounds) observer.nextRound();
+            if (observer != null && (maxRounds == -1 || round + 1 < maxRounds))
+                observer.nextRound();
         }
         throw new IOException(
                 "Stopped after "

@@ -688,6 +688,75 @@ class CommandToolTest {
     }
 
     @Test
+    void continuesUnlimitedRoundsUntilTheModelAnswersAcrossChatProtocols() throws Exception {
+        for (boolean openAi : List.of(false, true)) {
+            var config =
+                    config(
+                            false,
+                            openAi
+                                    ? """
+                            {"max_rounds":2,"agent":{"build":{"max_rounds":-1}},
+                             "model":"local/model","provider":{"local":{"options":{"baseURL":"http://localhost:8000/v1"},"models":{"model":{}}}}}
+                            """
+                                    : "{\"max_rounds\":-1}");
+            String call =
+                    openAi
+                            ? event(
+                                    Map.of(
+                                            "tool_calls",
+                                            List.of(
+                                                    Map.of(
+                                                            "index",
+                                                            0,
+                                                            "id",
+                                                            "call-1",
+                                                            "function",
+                                                            Map.of(
+                                                                    "name", "bash",
+                                                                    "arguments", "{}")))),
+                                    "tool_calls")
+                            : ollamaCall("printf hello");
+            var responses = new java.util.ArrayList<>(java.util.Collections.nCopies(15, call));
+            responses.add(openAi ? event(Map.of("content", "All done"), "stop") : ollamaAnswer());
+            var requests = new LinkedBlockingQueue<Map<?, ?>>();
+            var rounds = new java.util.concurrent.atomic.AtomicInteger();
+            var transitions = new java.util.concurrent.atomic.AtomicInteger();
+            var executions = new java.util.concurrent.atomic.AtomicInteger();
+            var answer = new StringBuilder();
+            client(config, requests, responses.toArray(String[]::new))
+                    .streamPrepared(
+                            config.defaultModel(),
+                            "build",
+                            List.of(Map.of("role", "user", "content", "Run commands")),
+                            answer::append,
+                            tool -> {
+                                executions.incrementAndGet();
+                                return "result";
+                            },
+                            new OllamaClient.Observer() {
+                                public void round(
+                                        String content,
+                                        String reasoning,
+                                        List<fr.openobject.ai.syleks.ai.ToolCall> calls) {
+                                    rounds.incrementAndGet();
+                                }
+
+                                public void toolResult(
+                                        fr.openobject.ai.syleks.ai.ToolCall call, String result) {}
+
+                                public void nextRound() {
+                                    transitions.incrementAndGet();
+                                }
+                            });
+            assertEquals(16, requests.size());
+            assertEquals(16, rounds.get());
+            assertEquals(15, transitions.get());
+            assertEquals(15, executions.get());
+            assertEquals("All done", answer.toString());
+        }
+    }
+
+    @Test
     void acceptsAFinalAnswerOnTheLastPermittedRound() throws Exception {
         var config = config(false, "{\"max_rounds\":2,\"permission\":{\"bash\":\"deny\"}}");
         var requests = new LinkedBlockingQueue<Map<?, ?>>();

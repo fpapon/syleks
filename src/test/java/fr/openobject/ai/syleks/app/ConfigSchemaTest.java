@@ -27,6 +27,8 @@ class ConfigSchemaTest {
         for (var content :
                 List.of(
                         "{}",
+                        "{\"max_rounds\":-1}",
+                        "{\"agent\":{\"build\":{\"max_rounds\":-1}}}",
                         "{\"ollama_url\":\"http://localhost:11434\",\"ollama_model\":\"qwen3:8b\"}",
                         "{\"permission\":\"ALLOW\",\"max_rounds\":1000}",
                         "{\"agent\":{\"reviewer\":{\"mode\":\"SUBAGENT\",\"model\":\"qwen3:8b\",\"prompt\":\"Review code\",\"max_rounds\":1,\"permission\":{\"*\":{\"*\":\"DENY\"}}}}}",
@@ -44,6 +46,7 @@ class ConfigSchemaTest {
                         "{\"providers\":{}}",
                         "{\"model\":\"bare-model\"}",
                         "{\"max_rounds\":0}",
+                        "{\"max_rounds\":-2}",
                         "{\"max_rounds\":1001}",
                         "{\"max_rounds\":1.5}",
                         "{\"ollama_model\":null}",
@@ -55,6 +58,7 @@ class ConfigSchemaTest {
                         "{\"agent\":{\"build\":{\"mode\":\"unknown\"}}}",
                         "{\"agent\":{\"build\":{\"prompt\":\" \"}}}",
                         "{\"agent\":{\"build\":{\"max_rounds\":0}}}",
+                        "{\"agent\":{\"build\":{\"max_rounds\":-2}}}",
                         "{\"agent\":{\"build\":{\"unknown\":true}}}",
                         "{\"provider\":{\"bad/id\":{}}}",
                         "{\"provider\":{\"local\":{\"models\":{}}}}")) {

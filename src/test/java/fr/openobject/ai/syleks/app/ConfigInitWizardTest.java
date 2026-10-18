@@ -20,6 +20,26 @@ class ConfigInitWizardTest {
     @TempDir Path home;
 
     @Test
+    void acceptsUnlimitedRoundsInAllRoundLimitFields() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
+            var form = new ConfigInitWizard(mapper.instance()).form(null);
+            for (int field : List.of(8, 10, 12)) {
+                for (String invalid : List.of("0", "-2", "1001", "1.5")) {
+                    form.value(field, invalid);
+                    assertFalse(form.validation(field).isEmpty());
+                }
+                form.value(field, "-1");
+                assertEquals("", form.validation(field));
+            }
+            var config = new ObjectMapper().readTree(form.configuration());
+            assertEquals(-1, config.path("max_rounds").asInt());
+            assertEquals(-1, config.path("agent").path("plan").path("max_rounds").asInt());
+            assertEquals(-1, config.path("agent").path("build").path("max_rounds").asInt());
+        }
+    }
+
+    @Test
     void generatesTheExampleShapeWithValidatedAnswersAndEffectivePermissions() throws Exception {
         try (var container = ConfiguringContainer.of().start();
                 var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
@@ -158,7 +178,7 @@ class ConfigInitWizardTest {
             assertFalse(config.path("provider").path("local").path("options").has("apiKey"));
             assertEquals(20, config.path("max_rounds").asInt());
             assertTrue(output.toString().contains("Enter an HTTP(S) base URL"));
-            assertTrue(output.toString().contains("Enter an integer"));
+            assertTrue(output.toString().contains("Enter -1 (unlimited) or an integer"));
             assertTrue(output.toString().contains("Enter a temperature"));
             new ConfigInitializer().initialize(home, content);
             assertEquals(

@@ -331,12 +331,29 @@ class AgentConfigTest {
     }
 
     @Test
+    void supportsUnlimitedRoundsWithGlobalAndAgentOverrides() throws IOException {
+        var file = home.resolve(".config/syleks/agent-config.json");
+        write(file, "{\"max_rounds\":-1,\"agent\":{\"plan\":{\"max_rounds\":3}}}");
+        assertEquals(-1, config().maxRounds("build"));
+        assertEquals(3, config().maxRounds("plan"));
+        write(file, "{\"max_rounds\":2,\"agent\":{\"build\":{\"max_rounds\":-1}}}");
+        assertEquals(-1, config().maxRounds("build"));
+        assertEquals(2, config().maxRounds("plan"));
+        agent(false, "reviewer", "---\nmax_rounds: -1\n---\nReview code.");
+        assertEquals(-1, config().maxRounds("reviewer"));
+        agent(true, "reviewer", "---\nmax_rounds: 4\n---\nReview project code.");
+        assertEquals(4, config().maxRounds("reviewer"));
+        agent(true, "reviewer", "---\nmax_rounds: -1\n---\nReview project code.");
+        assertEquals(-1, config().maxRounds("reviewer"));
+    }
+
+    @Test
     void rejectsInvalidGlobalAndAgentRoundLimits() throws IOException {
         var file = home.resolve(".config/syleks/agent-config.json");
         for (var value :
                 List.of(
                         "0",
-                        "-1",
+                        "-2",
                         "1001",
                         "1.5",
                         "2147483648",

@@ -136,7 +136,9 @@ final class AgentCatalog {
                     try {
                         fields.put(key, new java.math.BigDecimal(raw));
                     } catch (NumberFormatException e) {
-                        throw invalid(file, "max_rounds must be an integer from 1 to 1000");
+                        throw invalid(
+                                file,
+                                "max_rounds must be -1 (unlimited) or an integer from 1 to 1000");
                     }
                 } else if (key.equals("temperature")) {
                     try {

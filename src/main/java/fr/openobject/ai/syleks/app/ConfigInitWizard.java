@@ -164,7 +164,10 @@ public class ConfigInitWizard {
                         integer(value, 1, intValue(value(6), 0))
                                 ? ""
                                 : "Output must be a positive integer no greater than context.";
-                case 8, 10, 12 -> integer(value, 1, 1000) ? "" : "Enter an integer from 1 to 1000.";
+                case 8, 10, 12 ->
+                        value.equals("-1") || integer(value, 1, 1000)
+                                ? ""
+                                : "Enter -1 (unlimited) or an integer from 1 to 1000.";
                 case 9, 11 -> temperature(value) ? "" : "Enter a temperature from 0 to 2.";
                 default -> throw new IllegalArgumentException("Unknown configuration field");
             };

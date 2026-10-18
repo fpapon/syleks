@@ -141,13 +141,15 @@ public class AppConfig {
         if (value instanceof Number number) {
             try {
                 int rounds = new BigDecimal(number.toString()).intValueExact();
-                if (rounds >= 1 && rounds <= 1000) return rounds;
+                if (rounds == -1 || (rounds >= 1 && rounds <= 1000)) return rounds;
             } catch (ArithmeticException | NumberFormatException ignored) {
                 // Report invalid and overflowing values with their configuration source.
             }
         }
         throw new IllegalStateException(
-                "Invalid max_rounds in " + file + ": expected an integer from 1 to 1000");
+                "Invalid max_rounds in "
+                        + file
+                        + ": expected -1 (unlimited) or an integer from 1 to 1000");
     }
 
     public int maxRounds(String name) {

@@ -150,8 +150,9 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     public void chat(ChatRequest request, ChatEventListener listener) throws Exception {
         var c = credentials(request.accountId());
         var messages = new ArrayList<>(request.messages());
+        int maxRounds = config.maxRounds(request.agent());
         try {
-            for (int round = 0; round < config.maxRounds(request.agent()); round++) {
+            for (int round = 0; maxRounds == -1 || round < maxRounds; round++) {
                 var bounded =
                         fr.openobject.ai.syleks.session.ContextService.limit(
                                 messages,

@@ -2,8 +2,10 @@ package fr.openobject.ai.syleks.provider;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import fr.openobject.ai.syleks.app.AppConfigFixtures;
 import fr.openobject.ai.syleks.auth.AuthFixture;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -190,6 +192,62 @@ class ResponsesProviderTest {
                     e -> {});
             assertEquals(1, executions.get());
             assertEquals(2, requests.get());
+        }
+    }
+
+    @Test
+    void continuesUnlimitedToolRoundsUntilTheModelAnswers() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var c = f.login(null);
+            var file = root.resolve("home/.config/syleks/agent-config.json");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, "{\"max_rounds\":2,\"agent\":{\"plan\":{\"max_rounds\":-1}}}");
+            var config = AppConfigFixtures.defaults(f.json, root);
+            var provider = new ChatGptLlmProvider(f.auth, f.json, config, f.base.resolve("v1/"));
+            var requests = new AtomicInteger();
+            var executions = new AtomicInteger();
+            f.responsesHandler.set(
+                    ex -> {
+                        ex.getRequestBody().readAllBytes();
+                        int round = requests.incrementAndGet();
+                        String event =
+                                round <= 15
+                                        ? f.json.toString(
+                                                Map.of(
+                                                        "type",
+                                                        "response.output_item.done",
+                                                        "item",
+                                                        Map.of(
+                                                                "type", "function_call",
+                                                                "call_id", "call-" + round,
+                                                                "name", "read",
+                                                                "arguments", "{}")))
+                                        : "{\"type\":\"response.output_text.delta\",\"delta\":\"answer\"}";
+                        AuthFixture.respond(
+                                ex,
+                                200,
+                                "data: "
+                                        + event
+                                        + "\n\ndata: {\"type\":\"response.completed\"}\n\n");
+                    });
+            var base = request(c.account().id());
+            var events = new ArrayList<ChatEvent>();
+            provider.chat(
+                    new ChatRequest(
+                            base.model(),
+                            base.agent(),
+                            base.accountId(),
+                            base.messages(),
+                            call -> {
+                                executions.incrementAndGet();
+                                return "tool result";
+                            },
+                            null),
+                    events::add);
+            assertEquals(16, requests.get());
+            assertEquals(15, executions.get());
+            assertEquals(ChatEvent.Type.COMPLETED, events.getLast().type());
+            assertTrue(events.stream().anyMatch(e -> e.text().equals("answer")));
         }
     }
 
