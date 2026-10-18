@@ -42,11 +42,11 @@ public class SqliteDatabase {
                         try (var statement = current().createStatement();
                                 var version = statement.executeQuery("PRAGMA user_version")) {
                             int currentVersion = version.next() ? version.getInt(1) : 0;
-                            if (currentVersion > 1)
+                            if (currentVersion > 2)
                                 throw new IllegalStateException(
                                         "Database schema "
                                                 + currentVersion
-                                                + " is newer than supported schema 1; upgrade Syleks");
+                                                + " is newer than supported schema 2; upgrade Syleks");
                             if (currentVersion == 0) {
                                 try (var resource =
                                         SqliteDatabase.class.getResourceAsStream(
@@ -61,6 +61,22 @@ public class SqliteDatabase {
                                     for (String command : sql.split(";"))
                                         if (!command.isBlank()) statement.execute(command);
                                     statement.execute("PRAGMA user_version=1");
+                                }
+                            }
+                            if (currentVersion < 2) {
+                                try (var resource =
+                                        SqliteDatabase.class.getResourceAsStream(
+                                                "/db/migrations/V002__provider_accounts.sql")) {
+                                    if (resource == null)
+                                        throw new IllegalStateException(
+                                                "Missing account migration");
+                                    for (String command :
+                                            new String(
+                                                            resource.readAllBytes(),
+                                                            StandardCharsets.UTF_8)
+                                                    .split(";"))
+                                        if (!command.isBlank()) statement.execute(command);
+                                    statement.execute("PRAGMA user_version=2");
                                 }
                             }
                         } catch (java.io.IOException | SQLException e) {

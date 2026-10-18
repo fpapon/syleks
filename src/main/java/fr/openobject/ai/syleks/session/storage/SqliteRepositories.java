@@ -97,7 +97,14 @@ public class SqliteRepositories
                 r.getString("created_at"),
                 r.getString("updated_at"),
                 r.getString("summary"),
-                r.getInt("message_count"));
+                r.getInt("message_count"),
+                r.getString("account_id"));
+    }
+
+    @Override
+    public void account(String id, String accountId) {
+        database.write(
+                c -> execute(c, "UPDATE sessions SET account_id=? WHERE id=?", accountId, id));
     }
 
     @Override
@@ -113,7 +120,7 @@ public class SqliteRepositories
                     String key = id(), timestamp = now();
                     execute(
                             c,
-                            "INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?,?,?)",
+                            "INSERT INTO sessions(id,project_id,parent_session_id,title,provider,model,status,created_at,updated_at,summary) VALUES(?,?,?,?,?,?,?,?,?,?)",
                             key,
                             projectId,
                             parentId,

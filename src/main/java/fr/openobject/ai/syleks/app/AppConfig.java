@@ -69,8 +69,11 @@ public class AppConfig {
                                 file));
         if (settings.containsKey("model") && !environment.containsKey("OLLAMA_MODEL")) {
             if (!defaultModel.contains("/")
-                    || !providers.containsKey(
-                            defaultModel.substring(0, defaultModel.indexOf('/')))) {
+                    || !(providers.containsKey(defaultModel.substring(0, defaultModel.indexOf('/')))
+                            || java.util.Set.of("ollama", "chatgpt", "openai-api")
+                                    .contains(
+                                            defaultModel.substring(
+                                                    0, defaultModel.indexOf('/'))))) {
                 throw new IllegalStateException(
                         "Invalid model in " + file + ": expected a configured provider/model");
             }
@@ -280,6 +283,22 @@ public class AppConfig {
             throw new IllegalArgumentException("Invalid model identifier");
         }
         int slash = selection.indexOf('/');
+        if (slash > 0) {
+            String provider = selection.substring(0, slash), model = selection.substring(slash + 1);
+            if (model.isBlank()) throw new IllegalArgumentException("Select a model");
+            if (provider.equals("chatgpt") || provider.equals("openai-api"))
+                return new ModelConnection(
+                        URI.create("https://api.openai.com/v1/responses"),
+                        model,
+                        provider.equals("chatgpt") ? "ChatGPT" : "OpenAI API",
+                        model,
+                        "",
+                        null,
+                        null,
+                        true);
+            if (provider.equals("ollama"))
+                return new ModelConnection(endpoint, model, "Ollama", model, "", null, null, false);
+        }
         if (slash > 0 && !providers.isEmpty()) {
             var provider = providers.get(selection.substring(0, slash));
             if (provider == null)
@@ -323,6 +342,20 @@ public class AppConfig {
 
     public String defaultAgent() {
         return defaultAgent;
+    }
+
+    public java.util.Set<String> configuredProviders() {
+        return providers.keySet();
+    }
+
+    public String configuredProviderName(String id) {
+        return providers.get(id).name();
+    }
+
+    public List<ModelConnection> configuredModels(String provider) {
+        return providers.get(provider).models().keySet().stream()
+                .map(model -> resolveModel(provider + "/" + model))
+                .toList();
     }
 
     public String agentModel(String name, String fallback) {

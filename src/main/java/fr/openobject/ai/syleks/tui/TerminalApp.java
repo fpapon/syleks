@@ -3,6 +3,10 @@ package fr.openobject.ai.syleks.tui;
 import fr.openobject.ai.syleks.ai.ChatSession;
 import fr.openobject.ai.syleks.app.ConfigInitWizard;
 import fr.openobject.ai.syleks.app.ConfigInitializer;
+import fr.openobject.ai.syleks.app.ProviderCommands;
+import fr.openobject.ai.syleks.auth.AuthenticationService;
+import fr.openobject.ai.syleks.auth.BrowserLauncher;
+import fr.openobject.ai.syleks.provider.ProviderException;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -15,6 +19,15 @@ import org.jline.utils.NonBlockingReader;
  */
 @DefaultScoped
 public class TerminalApp implements AutoCloseable {
+    @io.yupiik.fusion.framework.build.api.scanning.Injection AuthenticationService authentication;
+
+    @io.yupiik.fusion.framework.build.api.scanning.Injection BrowserLauncher browser;
+
+    private ProviderModal providerModal;
+    private java.util.concurrent.Future<?> providerTask;
+    private long providerRevision;
+    private String selectedAccount;
+    private java.net.URI manualAuthorization;
     private final ChatSession session;
     private final ConfigInitializer configInitializer;
     private final ConfigInitWizard configWizard;
@@ -53,6 +66,7 @@ public class TerminalApp implements AutoCloseable {
     @io.yupiik.fusion.framework.build.api.lifecycle.Destroy
     @Override
     public void close() {
+        cancelProviderModal();
         try {
             session.shutdown();
         } catch (InterruptedException e) {
@@ -74,6 +88,7 @@ public class TerminalApp implements AutoCloseable {
     }
 
     public void initialize(fr.openobject.ai.syleks.app.Main.Options options) {
+        session.initializeProviders();
         if (options.action().equals("default")) {
             // Startup occurs before entering the UI loop. Opening a picker never creates an empty
             // session.
@@ -165,6 +180,7 @@ public class TerminalApp implements AutoCloseable {
                     screen.canvas()
                             .text(2, 0, "Loading…", TerminalCanvas.BLUE, TerminalCanvas.BG, false);
                 if (configurationModal != null) screen = configurationModal.paint(screen.canvas());
+                if (providerModal != null) screen = providerModal.paint(screen.canvas());
                 painter.paint(terminal, screen);
                 int input = reader.read(70);
                 if (input == -1) break;
@@ -176,6 +192,58 @@ public class TerminalApp implements AutoCloseable {
     }
 
     void handle(int key, NonBlockingReader reader) throws Exception {
+        if (providerModal != null) {
+            if (key == 27) {
+                handleEscape(reader);
+                return;
+            }
+            if (key == 3) {
+                cancelProviderModal();
+                return;
+            }
+            if (key == 4) {
+                running = false;
+                return;
+            }
+            if (paste) {
+                if (providerModal.kind() == ProviderModal.Kind.API_KEY && key >= 32)
+                    providerModal.type(key);
+                return;
+            }
+            if (providerModal.kind() == ProviderModal.Kind.AUTH) {
+                if ((key == 'c' || key == 'C') && manualAuthorization != null) {
+                    var uri = manualAuthorization;
+                    Thread.ofVirtual()
+                            .start(
+                                    () -> {
+                                        try {
+                                            java.awt.Toolkit.getDefaultToolkit()
+                                                    .getSystemClipboard()
+                                                    .setContents(
+                                                            new java.awt.datatransfer
+                                                                    .StringSelection(
+                                                                    uri.toString()),
+                                                            null);
+                                        } catch (Exception ignored) {
+                                            /* URL remains visible for manual opening. */
+                                        }
+                                    });
+                } else if ((key == 'o' || key == 'O') && manualAuthorization != null)
+                    browser.open(manualAuthorization);
+                return;
+            }
+            if (key == '\r' || key == '\n') {
+                selectProviderEntry();
+                return;
+            }
+            if (key == 127 || key == 8) providerModal.backspace();
+            else if ((key == 'r' || key == 'R')
+                    && providerModal.kind() == ProviderModal.Kind.MODELS
+                    && providerModal.input().isEmpty())
+                openProviderModal(ProviderModal.Kind.MODELS);
+            else if (key >= 32) providerModal.type(key);
+            return;
+        }
         if (configurationModal != null) {
             if (key == 27) {
                 handleEscape(reader);
@@ -298,6 +366,10 @@ public class TerminalApp implements AutoCloseable {
     private void handleEscape(NonBlockingReader reader) throws Exception {
         int second = reader.read(20);
         if (second != '[' && second != 'O') {
+            if (providerModal != null) {
+                cancelProviderModal();
+                return;
+            }
             if (configurationModal != null) {
                 configurationAction(configurationModal.key(27));
                 return;
@@ -317,6 +389,18 @@ public class TerminalApp implements AutoCloseable {
             if (end < 0) break;
             sequence.append((char) end);
             if (end >= 0x40 && end <= 0x7e) break;
+        }
+        if (providerModal != null) {
+            switch (sequence.toString()) {
+                case "A" -> providerModal.move(-1);
+                case "B" -> providerModal.move(1);
+                case "5~" -> providerModal.move(-8);
+                case "6~" -> providerModal.move(8);
+                case "200~" -> paste = true;
+                case "201~" -> paste = false;
+                default -> {}
+            }
+            return;
         }
         if (configurationModal != null) {
             configurationAction(configurationModal.sequence(sequence.toString()));
@@ -401,6 +485,22 @@ public class TerminalApp implements AutoCloseable {
         String arg = parts.length == 2 ? parts[1].strip() : "";
         try {
             switch (name) {
+                case "/connect" -> openProviderModal(ProviderModal.Kind.CONNECT);
+                case "/providers" -> {
+                    if (arg.isBlank()) openProviderModal(ProviderModal.Kind.PROVIDERS);
+                    else
+                        providerWork(
+                                () -> {
+                                    session.providers().useProvider(arg);
+                                    applyProviderModel();
+                                    return cloudNotice();
+                                });
+                }
+                case "/models" -> openProviderModal(ProviderModal.Kind.MODELS);
+                case "/accounts" -> openProviderModal(ProviderModal.Kind.ACCOUNTS);
+                case "/logout" ->
+                        logoutAccount(
+                                arg.isBlank() ? session.providers().active().accountId() : arg);
                 case "/config" -> {
                     if (!arg.isBlank() && !arg.equals("init") && !arg.equals("edit"))
                         session.info("Usage: /config [init|edit]");
@@ -414,7 +514,7 @@ public class TerminalApp implements AutoCloseable {
                 case "/fork" -> changeSession("fork", "");
                 case "/help" ->
                         session.info(
-                                "Configuration: /config (Ctrl+G) · /restart. Sessions: /new /sessions /resume /rename TITLE /fork · Ctrl+R sessions. Commandes: /help /clear /model NOM /agents /agent NOM /subagent NOM TACHE /permissions [AGENT] /approve [once|always] /deny /demo /save CHEMIN /quit | Tab mode, Ctrl+P palette, Ctrl+O nouvelle ligne, Ctrl+C annuler, Ctrl+D quitter");
+                                "Providers: /connect /providers /models /accounts /logout. Configuration: /config (Ctrl+G) · /restart. Sessions: /new /sessions /resume /rename TITLE /fork · Ctrl+R sessions. Commandes: /help /clear /model NOM /agents /agent NOM /subagent NOM TACHE /permissions [AGENT] /approve [once|always] /deny /demo /save CHEMIN /quit | Tab mode, Ctrl+P palette, Ctrl+O nouvelle ligne, Ctrl+C annuler, Ctrl+D quitter");
                 case "/model" -> {
                     if (arg.isEmpty())
                         session.info("Utilisation: /model provider/model (ou un modèle Ollama)");
@@ -444,6 +544,387 @@ public class TerminalApp implements AutoCloseable {
         } catch (IllegalArgumentException | IllegalStateException ex) {
             session.info(ex.getMessage());
         }
+    }
+
+    ProviderModal providerModal() {
+        return providerModal;
+    }
+
+    private boolean providerIdle() {
+        if (session.snapshot().busy()
+                || session.snapshot().permission() != null
+                || sessionLoading) {
+            session.info("Finish generation or resolve its permission before changing providers.");
+            return false;
+        }
+        return true;
+    }
+
+    private void cancelProviderModal() {
+        ++providerRevision;
+        if (providerTask != null) providerTask.cancel(true);
+        providerTask = null;
+        if (providerModal != null) providerModal.clearInput();
+        providerModal = null;
+        manualAuthorization = null;
+        sessionLoading = false;
+    }
+
+    private String cloudNotice() {
+        return session.providers()
+                        .registry()
+                        .get(session.providers().active().providerId())
+                        .capabilities()
+                        .local()
+                ? "Ollama · Local"
+                : ProviderCommands.CLOUD_NOTICE;
+    }
+
+    private void applyProviderModel() {
+        if (!session.providers().active().modelId().isBlank())
+            session.model(session.providers().selection());
+    }
+
+    private void openProviderModal(ProviderModal.Kind kind) {
+        if (!providerIdle()) return;
+        palette = false;
+        var providers = session.providers();
+        if (kind == ProviderModal.Kind.CONNECT || kind == ProviderModal.Kind.PROVIDERS) {
+            var entries =
+                    providers.registry().providers().stream()
+                            .map(
+                                    p ->
+                                            new ProviderModal.Entry(
+                                                    p.id(),
+                                                    p.displayName(),
+                                                    p.id().equals("chatgpt")
+                                                            ? "Continue with ChatGPT"
+                                                            : p.capabilities().local()
+                                                                    ? "Local provider"
+                                                                    : p.id().equals("openai-api")
+                                                                            ? "API key · separate API billing"
+                                                                            : "Configured provider"))
+                            .toList();
+            providerModal =
+                    new ProviderModal(
+                            kind,
+                            kind == ProviderModal.Kind.CONNECT
+                                    ? "Connect to a provider"
+                                    : "Select a provider",
+                            entries);
+            return;
+        }
+        long revision = ++providerRevision;
+        providerModal =
+                new ProviderModal(ProviderModal.Kind.MESSAGE, "Loading…", java.util.List.of());
+        providerTask =
+                sessionWorker.submit(
+                        () -> {
+                            try {
+                                java.util.List<ProviderModal.Entry> entries;
+                                if (kind == ProviderModal.Kind.MODELS) {
+                                    entries =
+                                            providers.models(true).stream()
+                                                    .map(
+                                                            m ->
+                                                                    new ProviderModal.Entry(
+                                                                            m.selection(),
+                                                                            m.displayName(),
+                                                                            m.selection()
+                                                                                    + (m.selection()
+                                                                                                    .equals(
+                                                                                                            session.snapshot()
+                                                                                                                    .model())
+                                                                                            ? " · current"
+                                                                                            : "")
+                                                                                    + " · model capabilities: unknown"))
+                                                    .toList();
+                                } else {
+                                    var list = new java.util.ArrayList<ProviderModal.Entry>();
+                                    for (var c : authentication.accounts())
+                                        list.add(
+                                                new ProviderModal.Entry(
+                                                        c.account().id(),
+                                                        (c.account()
+                                                                                .id()
+                                                                                .equals(
+                                                                                        providers
+                                                                                                .active()
+                                                                                                .accountId())
+                                                                        ? "● "
+                                                                        : "  ")
+                                                                + c.account().label(),
+                                                        c.account().providerId()
+                                                                + " · "
+                                                                + ProviderCommands.status(c)
+                                                                + (c.account()
+                                                                                .id()
+                                                                                .equals(
+                                                                                        providers
+                                                                                                .active()
+                                                                                                .accountId())
+                                                                        ? " · active"
+                                                                        : "")));
+                                    list.add(
+                                            new ProviderModal.Entry(
+                                                    "add",
+                                                    "Add account",
+                                                    "Continue with ChatGPT or API key"));
+                                    entries = java.util.List.copyOf(list);
+                                }
+                                completions.add(
+                                        () -> {
+                                            if (revision == providerRevision)
+                                                providerModal =
+                                                        new ProviderModal(
+                                                                kind,
+                                                                kind == ProviderModal.Kind.MODELS
+                                                                        ? "Models · "
+                                                                                + providers
+                                                                                        .active()
+                                                                                        .providerId()
+                                                                                + " · "
+                                                                                + session.snapshot()
+                                                                                        .model()
+                                                                        : "Accounts",
+                                                                entries);
+                                        });
+                            } catch (Exception e) {
+                                completions.add(
+                                        () -> {
+                                            if (revision == providerRevision)
+                                                providerMessage(
+                                                        "Provider unavailable", e.getMessage());
+                                        });
+                            }
+                        });
+    }
+
+    private void providerMessage(String title, String message) {
+        providerModal = new ProviderModal(ProviderModal.Kind.MESSAGE, title, java.util.List.of());
+        providerModal.message(ProviderException.safe(message));
+    }
+
+    private void providerWork(java.util.concurrent.Callable<String> operation) {
+        if (!providerIdle()) return;
+        long revision = ++providerRevision;
+        providerModal =
+                new ProviderModal(ProviderModal.Kind.MESSAGE, "Connecting…", java.util.List.of());
+        providerModal.message("Please wait. Esc cancels.");
+        sessionLoading = true;
+        providerTask =
+                sessionWorker.submit(
+                        () -> {
+                            String message;
+                            try {
+                                message = operation.call();
+                            } catch (Exception e) {
+                                message = ProviderException.safe(e.getMessage());
+                            }
+                            String result = message;
+                            completions.add(
+                                    () -> {
+                                        if (revision == providerRevision) {
+                                            sessionLoading = false;
+                                            providerMessage("Provider", result);
+                                        }
+                                    });
+                        });
+    }
+
+    private void selectProviderEntry() {
+        if (providerModal.kind() == ProviderModal.Kind.MESSAGE) {
+            if (!sessionLoading) cancelProviderModal();
+            return;
+        }
+        if (providerModal.kind() == ProviderModal.Kind.API_KEY) {
+            String key = providerModal.input();
+            providerModal.clearInput();
+            providerWork(
+                    () -> {
+                        var c = authentication.apiKey(key);
+                        session.providers().useAccount(c.account().id());
+                        applyProviderModel();
+                        return "Connected to OpenAI API · separate API billing. " + cloudNotice();
+                    });
+            return;
+        }
+        var entry = providerModal.selected();
+        if (entry == null) return;
+        switch (providerModal.kind()) {
+            case CONNECT -> {
+                if (entry.id().equals("chatgpt")) startProviderLogin(null);
+                else if (entry.id().equals("openai-api")) {
+                    providerModal =
+                            new ProviderModal(
+                                    ProviderModal.Kind.API_KEY,
+                                    "OpenAI API key",
+                                    java.util.List.of());
+                    providerModal.message(
+                            ProviderCommands.CLOUD_NOTICE
+                                    + "\nThis key uses API billing independently of your ChatGPT plan.");
+                } else
+                    providerWork(
+                            () -> {
+                                session.providers().useProvider(entry.id());
+                                applyProviderModel();
+                                return cloudNotice();
+                            });
+            }
+            case PROVIDERS ->
+                    providerWork(
+                            () -> {
+                                session.providers().useProvider(entry.id());
+                                applyProviderModel();
+                                return cloudNotice();
+                            });
+            case MODELS ->
+                    providerWork(
+                            () -> {
+                                session.model(entry.id());
+                                return "Selected " + entry.id() + "\n" + cloudNotice();
+                            });
+            case ACCOUNTS -> {
+                if (entry.id().equals("add")) openProviderModal(ProviderModal.Kind.CONNECT);
+                else {
+                    selectedAccount = entry.id();
+                    providerModal =
+                            new ProviderModal(
+                                    ProviderModal.Kind.ACCOUNT_ACTIONS,
+                                    entry.label(),
+                                    java.util.List.of(
+                                            new ProviderModal.Entry(
+                                                    "use",
+                                                    "Select account",
+                                                    "Preserve conversation"),
+                                            new ProviderModal.Entry(
+                                                    "login",
+                                                    "Reconnect",
+                                                    "Saved ChatGPT registration"),
+                                            new ProviderModal.Entry(
+                                                    "logout",
+                                                    "Sign out",
+                                                    "Revoke and clear this account's tokens")));
+                }
+            }
+            case ACCOUNT_ACTIONS -> {
+                String id = selectedAccount;
+                if (entry.id().equals("login")) startProviderLogin(id);
+                else if (entry.id().equals("logout")) logoutAccount(id);
+                else
+                    providerWork(
+                            () -> {
+                                session.providers().useAccount(id);
+                                applyProviderModel();
+                                return "Selected account " + id + "\n" + cloudNotice();
+                            });
+            }
+            default -> {}
+        }
+    }
+
+    private void logoutAccount(String id) {
+        if (id == null) {
+            session.info("No active account. Use /accounts.");
+            return;
+        }
+        providerWork(
+                () -> {
+                    var account =
+                            authentication.accounts().stream()
+                                    .filter(c -> c.account().id().equals(id))
+                                    .findFirst()
+                                    .orElseThrow(
+                                            () -> new IllegalArgumentException("Unknown account"));
+                    boolean revoked = session.providers().logout(id);
+                    if (account.account().providerId().equals("openai-api"))
+                        return "Signed out. API key removed locally; revoke it separately in OpenAI API settings.";
+                    return revoked
+                            ? "Signed out. Renewable session revoked."
+                            : "Signed out locally. Remote revocation was not confirmed; disconnect Syleks in ChatGPT Settings.";
+                });
+    }
+
+    private void authorizationReady(
+            long revision, fr.openobject.ai.syleks.auth.ChatGptOAuthService.Attempt attempt) {
+        var manual = attempt.manualUri();
+        completions.add(() -> showAuthorization(revision, manual, "Waiting for authorization…"));
+        browser.open(attempt.authorizationUri())
+                .thenAccept(
+                        opened ->
+                                completions.add(
+                                        () -> {
+                                            if (manual.equals(manualAuthorization))
+                                                showAuthorization(
+                                                        revision,
+                                                        manual,
+                                                        opened
+                                                                ? "Browser opened. Waiting for authorization…"
+                                                                : "Browser unavailable. Open or copy this URL manually.");
+                                        }));
+    }
+
+    private void showAuthorization(long revision, java.net.URI manual, String message) {
+        if (revision != providerRevision
+                || providerModal == null
+                || providerModal.kind() != ProviderModal.Kind.AUTH) return;
+        manualAuthorization = manual;
+        providerModal.message(message + "\n" + ProviderCommands.CLOUD_NOTICE + "\n\n" + manual);
+    }
+
+    private void startProviderLogin(String accountId) {
+        if (!providerIdle()) return;
+        long revision = ++providerRevision;
+        providerModal =
+                new ProviderModal(
+                        ProviderModal.Kind.AUTH, "ChatGPT Authentication", java.util.List.of());
+        providerModal.message(
+                "Opening browser…\nAuthenticate with your ChatGPT account and authorize Syleks.\n"
+                        + ProviderCommands.CLOUD_NOTICE);
+        providerTask =
+                sessionWorker.submit(
+                        () -> {
+                            try {
+                                var c =
+                                        authentication.authenticate(
+                                                accountId,
+                                                attempt -> authorizationReady(revision, attempt));
+                                String catalog = "";
+                                try {
+                                    session.providers().useAccount(c.account().id());
+                                    applyProviderModel();
+                                } catch (Exception e) {
+                                    catalog =
+                                            "\nCredentials saved. Model selection pending: "
+                                                    + ProviderException.safe(e.getMessage());
+                                }
+                                String result =
+                                        "✓ Connected to ChatGPT\nAccount: "
+                                                + c.account().label()
+                                                + "\n"
+                                                + ProviderCommands.status(c)
+                                                + catalog;
+                                completions.add(
+                                        () -> {
+                                            if (revision == providerRevision) {
+                                                manualAuthorization = null;
+                                                providerMessage("ChatGPT Authentication", result);
+                                            }
+                                        });
+                            } catch (Exception e) {
+                                String message = ProviderException.safe(e.getMessage());
+                                completions.add(
+                                        () -> {
+                                            if (revision == providerRevision) {
+                                                manualAuthorization = null;
+                                                providerMessage(
+                                                        "Authentication failed",
+                                                        message
+                                                                + "\nUse /connect or /accounts to retry.");
+                                            }
+                                        });
+                            }
+                        });
     }
 
     private void openConfiguration() {

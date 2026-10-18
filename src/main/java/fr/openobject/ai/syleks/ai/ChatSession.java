@@ -5,6 +5,9 @@ import fr.openobject.ai.syleks.app.PermissionPolicy;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.model.PermissionRequest;
+import fr.openobject.ai.syleks.provider.ChatEvent;
+import fr.openobject.ai.syleks.provider.ChatRequest;
+import fr.openobject.ai.syleks.provider.ProviderService;
 import fr.openobject.ai.syleks.session.AgentService;
 import fr.openobject.ai.syleks.session.model.MessageStatus;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
@@ -24,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 @DefaultScoped
 public class ChatSession {
     @Injection AgentService persistence;
+    @Injection ProviderService providers;
     private String sessionId;
     private String sessionTitle;
     private String projectName;
@@ -112,7 +116,10 @@ public class ChatSession {
                 status,
                 task != null,
                 task == null ? agent : runningAgent,
-                connection.providerName(),
+                connection.providerName()
+                        + (providers == null
+                                ? ""
+                                : " · " + providers.connectionStatus(displayedModel)),
                 connection.displayName(),
                 pendingPermission == null
                         ? null
@@ -364,12 +371,45 @@ public class ChatSession {
                                     String error = null;
                                     try {
                                         if (persistence == null) {
-                                            ollama.stream(
-                                                    selectedModel,
-                                                    selectedAgent,
-                                                    history,
-                                                    delta -> append(id, delta),
-                                                    call -> executeTool(id, selectedAgent, call));
+                                            if (providers == null)
+                                                ollama.stream(
+                                                        selectedModel,
+                                                        selectedAgent,
+                                                        history,
+                                                        delta -> append(id, delta),
+                                                        call ->
+                                                                executeTool(
+                                                                        id, selectedAgent, call));
+                                            else {
+                                                var context =
+                                                        new ArrayList<
+                                                                java.util.Map<String, Object>>();
+                                                context.add(
+                                                        java.util.Map.of(
+                                                                "role",
+                                                                "system",
+                                                                "content",
+                                                                config.systemPrompt(
+                                                                        selectedAgent)));
+                                                for (var message : history)
+                                                    if (message.role().equals("user")
+                                                            || message.role().equals("assistant"))
+                                                        context.add(
+                                                                java.util.Map.of(
+                                                                        "role",
+                                                                        message.role(),
+                                                                        "content",
+                                                                        message.content()));
+                                                streamPrepared(
+                                                        selectedModel,
+                                                        selectedAgent,
+                                                        context,
+                                                        delta -> append(id, delta),
+                                                        call ->
+                                                                executeTool(
+                                                                        id, selectedAgent, call),
+                                                        null);
+                                            }
                                         } else {
                                             generation =
                                                     persistence.begin(
@@ -398,7 +438,7 @@ public class ChatSession {
                                                                             + " older messages omitted; full history remains in SQLite.");
                                                         }
                                                     });
-                                            ollama.streamPrepared(
+                                            streamPrepared(
                                                     selectedModel,
                                                     selectedAgent,
                                                     generation.context().messages(),
@@ -440,6 +480,47 @@ public class ChatSession {
                                         retiring = null;
                                     }
                                 });
+    }
+
+    public ProviderService providers() {
+        if (providers == null) throw new IllegalStateException("Provider services unavailable");
+        return providers;
+    }
+
+    public void providers(ProviderService service) {
+        this.providers = service;
+    }
+
+    public synchronized void initializeProviders() {
+        if (providers != null) model = configuredModel();
+    }
+
+    private void streamPrepared(
+            String model,
+            String agent,
+            List<java.util.Map<String, Object>> history,
+            java.util.function.Consumer<String> receive,
+            ToolHandler tools,
+            OllamaClient.Observer observer)
+            throws Exception {
+        if (providers == null) {
+            ollama.streamPrepared(model, agent, history, receive, tools, observer);
+            return;
+        }
+        String account =
+                persistence == null
+                                || persistence.current() == null
+                                || !providers
+                                        .registry()
+                                        .providerId(persistence.current().model())
+                                        .equals(providers.registry().providerId(model))
+                        ? providers.accountFor(model)
+                        : persistence.current().accountId();
+        providers.stream(
+                new ChatRequest(model, agent, account, history, tools, observer),
+                event -> {
+                    if (event.type() == ChatEvent.Type.TEXT_DELTA) receive.accept(event.text());
+                });
     }
 
     private String executeTool(long id, String actor, ToolCall call) throws Exception {
@@ -738,6 +819,19 @@ public class ChatSession {
             if (task != null || retiring != null || pendingPermission != null)
                 throw new IllegalStateException(
                         "Finish generation or resolve the pending permission first.");
+        }
+        if (providers != null) {
+            try {
+                providers.useModel(value);
+                value = providers.selection();
+            } catch (Exception e) {
+                throw new IllegalStateException(e.getMessage());
+            }
+        }
+        synchronized (this) {
+            if (task != null || retiring != null || pendingPermission != null)
+                throw new IllegalStateException(
+                        "Finish generation or resolve the pending permission first.");
             config.resolveModel(value);
         }
         if (persistence != null) persistence.model(value);
@@ -757,7 +851,9 @@ public class ChatSession {
             throw new IllegalArgumentException(
                     "Agent " + value + " is a subagent; invoke it with @" + value + " task");
         agent = value;
-        model = config.agentModel(agent, config.defaultModel());
+        model =
+                config.agentModel(
+                        agent, providers == null ? config.defaultModel() : providers.selection());
         info("Agent: " + agent);
     }
 
@@ -765,7 +861,10 @@ public class ChatSession {
         if (task == null && pendingPermission == null) {
             var names = config.primaryAgents();
             agent = names.get((names.indexOf(agent) + 1) % names.size());
-            model = config.agentModel(agent, config.defaultModel());
+            model =
+                    config.agentModel(
+                            agent,
+                            providers == null ? config.defaultModel() : providers.selection());
         }
     }
 
@@ -867,6 +966,14 @@ public class ChatSession {
             pendingPermission = null;
             responsePrefix = "";
             model = service.current().model();
+            if (providers != null) {
+                try {
+                    providers.restore(
+                            service.current().provider(), model, service.current().accountId());
+                } catch (Exception e) {
+                    info(e.getMessage());
+                }
+            }
             updateMetadata();
             status =
                     switch (service.current().status()) {
@@ -890,7 +997,9 @@ public class ChatSession {
     }
 
     public String configuredModel() {
-        return config.agentModel(config.defaultAgent(), config.defaultModel());
+        return config.agentModel(
+                config.defaultAgent(),
+                providers == null ? config.defaultModel() : providers.selection());
     }
 
     public void shutdown() throws InterruptedException {

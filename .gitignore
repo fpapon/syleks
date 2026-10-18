@@ -4,3 +4,6 @@ target/
 .DS_Store
 *.log
 .env
+**/auth/accounts/*.json
+**/auth/host.json
+**/auth/*.refresh-pending.json

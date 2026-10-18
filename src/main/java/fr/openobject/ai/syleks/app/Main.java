@@ -59,6 +59,12 @@ public final class Main {
                                syleks session list
                                syleks session delete <id>
                                syleks session export <id>
+                               syleks auth login|logout chatgpt [account-id]
+                               syleks auth login openai-api
+                               syleks auth status|accounts
+                               syleks auth use <account-id>
+                               syleks provider list|use <provider-id>
+                               syleks model list|use <model-id>
                         No option: open the TUI and offer this project's sessions.
                         -c: resume the latest session; create one if this project has none.
                         config init: open the configuration TUI to create/update provider and model settings.
@@ -70,7 +76,12 @@ public final class Main {
                         """);
                 return 0;
             }
-            if (args.length > 0 && args[0].equals("config")) {
+            if (ProviderCommands.handles(args)) {
+                try (var container = ConfiguringContainer.of().start();
+                        var instance = container.lookup(ProviderCommands.class)) {
+                    instance.instance().run(args, out);
+                }
+            } else if (args.length > 0 && args[0].equals("config")) {
                 require(
                         (args.length == 2 || args.length == 3 && args[2].equals("--defaults"))
                                 && args[1].equals("init"));

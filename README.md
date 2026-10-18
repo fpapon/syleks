@@ -1,10 +1,25 @@
 # Syleks TUI — Java 25 + Yupiik Fusion
 
-A dark, OpenCode/Codex-inspired full-screen agent TUI for **Ollama and OpenAI-compatible servers**, with permission-checked local commands.
+A dark, OpenCode/Codex-inspired full-screen agent TUI for **Ollama, ChatGPT plan usage, OpenAI API and OpenAI-compatible servers**, with permission-checked local commands.
 
 > **Status: working-source MVP.** Java 25 and Maven 3.9+ are required. The test suite covers configuration, rendering, streaming protocols, permissions, and local command execution. Verify your chosen model server and terminal in your own environment.
 
 Start with the [end-user guide](docs/README.md) for setup, configuration, chat controls, sessions, agents, tools, approvals, and troubleshooting. The [command reference](docs/commands.md) lists all CLI options and interactive commands.
+
+## Providers and authentication
+
+Ollama works locally without cloud authentication. For an eligible ChatGPT plan through the official open-source OAuth flow:
+
+```sh
+bin/syleks auth login chatgpt
+bin/syleks model list
+bin/syleks model use chatgpt/<slug-from-list>
+bin/syleks --new
+```
+
+Use `/connect`, `/providers`, `/models`, `/accounts` and `/logout` in the TUI. Accounts persist across launches with token rotation and dedicated protected storage. Identity alone does not authorize plan usage. `auth login openai-api` is a separate, explicit API billing path.
+
+Cloud requests send necessary conversation context, instructions and approved tool results outside your environment. `{"allow_cloud":false}` in `.syleks/project.json` forbids cloud providers. See [Providers](docs/providers.md) and [Authentication](docs/authentication.md) for commands, architecture, XDG/Secret Service storage, restrictions, SSH and manual checks. OAuth/inference tests use simulated servers; no real subscription request was performed here.
 
 ## Persistent sessions
 
@@ -25,12 +40,13 @@ See [Sessions](docs/sessions.md) for resume, forks, context budgets, concurrency
 
 - **Yupiik Fusion 1.2.0** (`fusion-api`, `fusion-cli`): annotation-generated dependency injection and `@Command` launcher.
 - **Fusion JSON** (`fusion-json`): request serialization and streamed JSON response parsing.
+- **Nimbus JOSE+JWT 10.10**: signed OIDC ID-token validation and JWKS caching.
 - **Java 25**, virtual thread for LLM generation, Java `HttpClient` streaming.
 - **JLine 3.30.3**: raw terminal, unicode input, alternate screen and resize.
 - **Progress indicator**: an indeterminate bar in the footer sweeps in the active agent’s color during generation and tool execution, with an Esc interrupt hint. It pauses for permission prompts and disappears when idle or cancelled.
 - **Dedicated ANSI renderer**: cell buffer, responsive layout, dark palette, row-level diff painting (no TamboUI SNAPSHOT dependency).
 - **Local commands**: a `bash` tool with permission checks, captured output, timeouts, and cancellation.
-- **Model endpoints**: Ollama NDJSON `POST /api/chat` or OpenAI-compatible SSE `POST /chat/completions`.
+- **Model endpoints**: Ollama NDJSON `POST /api/chat`, public Responses SSE `POST /v1/responses`, or configured OpenAI-compatible `POST /chat/completions`.
 
 ## Quick start
 

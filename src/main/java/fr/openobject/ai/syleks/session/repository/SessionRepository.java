@@ -25,5 +25,7 @@ public interface SessionRepository {
 
     void deleteSession(String id);
 
+    void account(String id, String accountId);
+
     void recoverSession(String id);
 }

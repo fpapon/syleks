@@ -22,7 +22,7 @@ class SqlitePersistenceTest {
                         for (var item :
                                 Map.of(
                                                 "user_version",
-                                                "1",
+                                                "2",
                                                 "journal_mode",
                                                 "wal",
                                                 "foreign_keys",
@@ -64,6 +64,28 @@ class SqlitePersistenceTest {
                             .getMessage()
                             .contains("newer"));
             assertEquals(1, f.repositories.listSessions(f.projects.currentId()).size());
+        }
+    }
+
+    @Test
+    void upgradesVersionOneWithoutLosingSessionsOrMessages() throws Exception {
+        String id;
+        try (var f = new SessionFixture(root)) {
+            id = f.sessions.create("qwen3:8b", "Ollama").id();
+            f.conversation.add(id, "user", "existing conversation", MessageStatus.COMPLETE);
+            f.database.write(
+                    c -> {
+                        try (var statement = c.createStatement()) {
+                            statement.execute("ALTER TABLE sessions DROP COLUMN account_id");
+                            statement.execute("PRAGMA user_version=1");
+                        }
+                        return null;
+                    });
+        }
+        try (var f = new SessionFixture(root)) {
+            assertNull(f.sessions.load(id).accountId());
+            assertEquals("existing conversation", f.conversation.history(id).getFirst().content());
+            assertEquals("qwen3:8b", f.sessions.load(id).model());
         }
     }
 

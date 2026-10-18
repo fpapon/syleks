@@ -119,7 +119,7 @@ public final class ChatRenderer {
         canvas.text(right - textWidth(path) + 1, layout.header(), path, SUB, BG, false);
         canvas.text(left, layout.divider(), "─".repeat(bodyWidth), BORDER, BG, false);
 
-        var details = fit(snapshot.providerName() + " · Java 25", Math.max(0, bodyWidth / 3));
+        var details = fit(snapshot.providerName() + " · Java 25", Math.max(0, bodyWidth / 2));
         int titleWidth = bodyWidth - textWidth(details) - 3;
         canvas.text(
                 left,

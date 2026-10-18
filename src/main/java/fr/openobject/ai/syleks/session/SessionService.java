@@ -111,6 +111,22 @@ public class SessionService {
         }
     }
 
+    public void model(String id, String model, String provider, String accountId) {
+        try (var lease = locks.acquire(id)) {
+            database.transaction(
+                    () -> {
+                        var s = load(id);
+                        update(s, s.title(), provider, model, s.status());
+                        sessions.account(id, accountId);
+                        return null;
+                    });
+        }
+    }
+
+    void account(String id, String accountId) {
+        sessions.account(id, accountId);
+    }
+
     public void update(
             Session s, String title, String provider, String model, SessionStatus status) {
         sessions.updateSession(s.id(), title, provider, model, status, s.summary());
@@ -138,6 +154,7 @@ public class SessionService {
                                         source.model(),
                                         source.summary());
                         var ids = new HashMap<String, String>();
+                        sessions.account(copy.id(), source.accountId());
                         for (var message : messages.listMessages(id)) {
                             var target =
                                     messages.addMessage(
@@ -226,6 +243,7 @@ public class SessionService {
                     metadata.put("title", s.title());
                     metadata.put("provider", s.provider());
                     metadata.put("model", s.model());
+                    metadata.put("accountId", s.accountId());
                     metadata.put("status", s.status().name());
                     metadata.put("createdAt", s.createdAt());
                     metadata.put("updatedAt", s.updatedAt());

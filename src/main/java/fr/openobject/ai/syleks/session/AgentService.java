@@ -3,6 +3,7 @@ package fr.openobject.ai.syleks.session;
 import fr.openobject.ai.syleks.ai.*;
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.model.ChatMessage;
+import fr.openobject.ai.syleks.provider.ProviderService;
 import fr.openobject.ai.syleks.session.model.*;
 import fr.openobject.ai.syleks.session.repository.ToolExecutionRepository;
 import fr.openobject.ai.syleks.session.storage.SessionLocks;
@@ -16,6 +17,8 @@ import java.util.concurrent.*;
 /** Persistence companion to ChatSession's existing agent execution and permission state machine. */
 @DefaultScoped
 public class AgentService implements AutoCloseable {
+    @io.yupiik.fusion.framework.build.api.scanning.Injection ProviderService providers;
+
     private final SessionService sessions;
     private final ConversationService conversation;
     private final ContextService context;
@@ -44,6 +47,10 @@ public class AgentService implements AutoCloseable {
         return current;
     }
 
+    public void providers(ProviderService service) {
+        this.providers = service;
+    }
+
     public SessionService sessions() {
         return sessions;
     }
@@ -55,6 +62,14 @@ public class AgentService implements AutoCloseable {
     public Session create(String model) {
         ensureIdle();
         current = sessions.create(model, config.resolveModel(model).providerName());
+        if (providers != null) {
+            sessions.model(
+                    current.id(),
+                    model,
+                    providers.registry().providerId(model),
+                    providers.accountFor(model));
+            current = sessions.load(current.id());
+        }
         return current;
     }
 
@@ -65,6 +80,7 @@ public class AgentService implements AutoCloseable {
     }
 
     public Session resume(String model) {
+        if (providers != null && sessions.latest().isEmpty()) return create(model);
         return open(
                 sessions.latest()
                         .orElseGet(
@@ -91,7 +107,14 @@ public class AgentService implements AutoCloseable {
     public void model(String model) {
         ensureIdle();
         if (current != null) {
-            sessions.model(current.id(), model, config.resolveModel(model).providerName());
+            if (providers == null)
+                sessions.model(current.id(), model, config.resolveModel(model).providerName());
+            else
+                sessions.model(
+                        current.id(),
+                        model,
+                        providers.registry().providerId(model),
+                        providers.accountFor(model));
             current = sessions.load(current.id());
         }
     }
@@ -139,9 +162,18 @@ public class AgentService implements AutoCloseable {
                                         title,
                                         isolated
                                                 ? s.provider()
-                                                : config.resolveModel(model).providerName(),
+                                                : providers == null
+                                                        ? config.resolveModel(model).providerName()
+                                                        : providers.registry().providerId(model),
                                         isolated ? s.model() : model,
                                         SessionStatus.ACTIVE);
+                                if (!isolated
+                                        && providers != null
+                                        && !providers
+                                                .registry()
+                                                .providerId(s.model())
+                                                .equals(providers.registry().providerId(model)))
+                                    sessions.account(s.id(), providers.accountFor(model));
                                 return sessions.load(s.id());
                             });
             var prepared =

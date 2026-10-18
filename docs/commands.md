@@ -58,3 +58,22 @@ Type a command into the composer and press Enter. Internal commands are handled 
 When the approval panel has focus, use its keyboard controls to approve or reject; the commands above also describe the session's approval actions. See [Tools and approvals](tools-and-permissions.md) for approval scope and [Chat controls](chat.md) for shortcuts.
 
 Configuration and agent files are loaded at startup. After saving changes, choose **Restart chat** or use `/restart`. Restart applies the configured default model; ordinary session resume uses the session's saved model. Restarting does not send a message automatically.
+
+## Providers and accounts
+
+CLI commands work without opening the TUI:
+
+```sh
+bin/syleks auth login chatgpt [account-id]
+bin/syleks auth login openai-api
+bin/syleks auth logout chatgpt [account-id]
+bin/syleks auth status
+bin/syleks auth accounts
+bin/syleks auth use <account-id>
+bin/syleks provider list
+bin/syleks provider use <provider-id>
+bin/syleks model list
+bin/syleks model use <provider/model-or-model-id>
+```
+
+TUI: `/connect` opens login choices, `/providers` selects a provider, `/models` filters/selects account models, `/accounts` manages individual registrations, `/logout [account-id]` signs out. Existing `/model provider/model` still works. Cloud use and API billing require explicit choices; see [Providers](providers.md) and [Authentication](authentication.md).
