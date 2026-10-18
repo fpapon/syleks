@@ -2,6 +2,7 @@ package fr.openobject.ai.syleks.provider;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import fr.openobject.ai.syleks.ai.AgentState;
 import fr.openobject.ai.syleks.app.AppConfigFixtures;
 import fr.openobject.ai.syleks.auth.AuthFixture;
 import java.nio.charset.StandardCharsets;
@@ -232,7 +233,19 @@ class ResponsesProviderTest {
                                 Exception.class,
                                 () -> provider.chat(request(c.account().id()), events::add));
                 assertFalse(failure.getMessage().contains("test-access"));
-                assertEquals("partial", events.getFirst().text());
+                assertEquals(
+                        "partial",
+                        events.stream()
+                                .filter(e -> e.type() == ChatEvent.Type.TEXT_DELTA)
+                                .map(ChatEvent::text)
+                                .reduce("", String::concat));
+                assertEquals(
+                        AgentState.FAILED,
+                        events.stream()
+                                .filter(e -> e.type() == ChatEvent.Type.STATE_CHANGED)
+                                .map(ChatEvent::state)
+                                .toList()
+                                .getLast());
                 assertEquals(ChatEvent.Type.ERROR, events.getLast().type());
                 assertTrue(events.stream().noneMatch(e -> e.type() == ChatEvent.Type.COMPLETED));
             }

@@ -35,6 +35,23 @@ public class ConversationService {
                 });
     }
 
+    public Message instructions(String session, String agentPrompt, String projectInstructions) {
+        return database.transaction(
+                () -> {
+                    var message = messages.addMessage(session, "system", MessageStatus.COMPLETE);
+                    parts.addPart(
+                            message.id(),
+                            PartType.TEXT,
+                            json.toString(
+                                    Map.of(
+                                            "text",
+                                            agentPrompt + projectInstructions,
+                                            "projectInstructions",
+                                            projectInstructions)));
+                    return message;
+                });
+    }
+
     public List<Message> messages(String session) {
         return messages.listMessages(session);
     }

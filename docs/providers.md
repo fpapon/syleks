@@ -53,7 +53,9 @@ Every ancestor policy applies; children cannot relax restrictions. Invalid polic
 
 ## Architecture and extensions
 
-`LlmProvider` exposes identity, model catalog, capabilities and cancellable streaming `chat` on the existing generation worker. `ChatRequest` holds canonical context and existing tool/observer hooks; `ChatEvent` represents text, calls, results, errors and completion. Adapters own wire formats. The worker-based synchronous API preserves existing cancellation/persistence behavior.
+`LlmProvider` exposes identity, model catalog, capabilities and cancellable streaming `chat` on the existing generation worker. `ChatRequest` holds canonical context and tool/observer hooks. All built-in adapters and configured Chat Completions adapters use the same Fusion-managed `AgentRuntime` for model/tool rounds, limits, cancellation and typed outcomes. Adapters own wire formats and encode tool history through `ToolHistory`.
+
+`ToolExecutor` validates arguments, checks the active agent's permissions and performs tool effects independently of the terminal and provider. `AgentObserver` carries typed lifecycle and result notifications; `ChatEvent` exposes `STATE_CHANGED` with `AgentState` and `TOOL_RESULT` with `ToolCompletion`. Observers receive tool start before execution, including for denied calls. A failed tool can return its diagnostic to the model for recovery; a cancelled tool stops the loop. Legacy string tool callbacks remain compatible and explicitly represent successful text, without status inference from text prefixes.
 
 `ProviderRegistry` and `ProviderService` use Fusion application scope and constructor injection with `@Init` initialization, compatible with Fusion's lazy proxies. Dedicated services handle authentication, OIDC validation, refresh and credential storage. `TerminalApp` owns terminal output; workers use synchronized session state and queued UI completions.
 

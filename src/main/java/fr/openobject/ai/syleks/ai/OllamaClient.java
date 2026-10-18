@@ -25,6 +25,7 @@ import java.util.function.Consumer;
  */
 @DefaultScoped
 public class OllamaClient {
+    @io.yupiik.fusion.framework.build.api.scanning.Injection AgentRuntime runtime;
     private final ThreadLocal<Observer> observer = new ThreadLocal<>();
     private final ThreadLocal<Boolean> persistentRequest = ThreadLocal.withInitial(() -> false);
     private final AppConfig config;
@@ -125,19 +126,27 @@ public class OllamaClient {
             Consumer<String> receive,
             ToolHandler tools)
             throws Exception {
-        streamConversation(model, agent, conversation(agent, history), receive, tools, null);
+        streamConversation(
+                model, agent, conversation(agent, history), receive, tools, observer.get());
     }
 
-    public interface Observer {
-        default void usage(LlmUsageEvent event) {}
+    /** Compatibility alias for existing integrations. */
+    public interface Observer extends AgentObserver {}
 
-        default void contextLimited(int count) {}
-
-        void round(String content, String reasoning, List<ToolCall> calls);
-
-        void toolResult(ToolCall call, String result);
-
-        void nextRound();
+    public void streamObserved(
+            String model,
+            String agent,
+            List<ChatMessage> history,
+            Consumer<String> receive,
+            ToolHandler tools,
+            Observer execution)
+            throws Exception {
+        observer.set(execution);
+        try {
+            stream(model, agent, history, receive, tools);
+        } finally {
+            observer.remove();
+        }
     }
 
     public void streamPrepared(
@@ -166,75 +175,18 @@ public class OllamaClient {
             ToolHandler tools,
             Observer observer)
             throws Exception {
-        var connection = config.resolveModel(model);
-        var messages = new ArrayList<>(history);
-        int maxRounds = config.maxRounds(agent);
-        for (int round = 0; maxRounds == -1 || round < maxRounds; round++) {
-            checkInterrupted();
-            var turn = streamTurn(model, agent, messages, receive);
-            if (observer != null) observer.round(turn.content(), turn.thinking(), turn.calls());
-            if (turn.calls().isEmpty()) return;
-            var assistant = new LinkedHashMap<String, Object>();
-            assistant.put("role", "assistant");
-            assistant.put("content", turn.content());
-            if (!connection.openAiCompatible() && !turn.thinking().isEmpty())
-                assistant.put("thinking", turn.thinking());
-            var calls = new ArrayList<Map<String, Object>>();
-            for (var call : turn.calls()) {
-                if (connection.openAiCompatible()) {
-                    calls.add(
-                            Map.of(
-                                    "id",
-                                    call.id(),
-                                    "type",
-                                    "function",
-                                    "function",
-                                    Map.of(
-                                            "name",
-                                            call.name(),
-                                            "arguments",
-                                            json.toString(call.arguments()))));
-                } else {
-                    calls.add(
-                            Map.of(
-                                    "function",
-                                    Map.of("name", call.name(), "arguments", call.arguments())));
-                }
-            }
-            assistant.put("tool_calls", calls);
-            messages.add(assistant);
-            for (var call : turn.calls()) {
-                checkInterrupted();
-                String result = tools.execute(call);
-                if (observer != null) observer.toolResult(call, result);
-                checkInterrupted();
-                messages.add(
-                        connection.openAiCompatible()
-                                ? Map.of(
-                                        "role",
-                                        "tool",
-                                        "tool_call_id",
-                                        call.id(),
-                                        "content",
-                                        result)
-                                : Map.of(
-                                        "role",
-                                        "tool",
-                                        "tool_name",
-                                        call.name(),
-                                        "content",
-                                        result));
-            }
-            if (observer != null && (maxRounds == -1 || round + 1 < maxRounds))
-                observer.nextRound();
-        }
-        throw new IOException(
-                "Stopped after "
-                        + maxRounds
-                        + " model/tool rounds; send a new message to continue");
+        var engine = runtime == null ? new AgentRuntime() : runtime;
+        engine.run(
+                history,
+                config.maxRounds(agent),
+                messages -> streamTurn(model, agent, messages, receive),
+                new fr.openobject.ai.syleks.provider.ToolHistory(
+                        config.resolveModel(model).openAiCompatible(), json),
+                tools,
+                observer);
     }
 
-    private Turn streamTurn(
+    private AgentRuntime.Turn streamTurn(
             String model,
             String agent,
             List<Map<String, Object>> messages,
@@ -305,8 +257,6 @@ public class OllamaClient {
         }
     }
 
-    private record Turn(String content, String thinking, List<ToolCall> calls) {}
-
     private final class TurnState {
         private final StringBuilder content = new StringBuilder();
         private final StringBuilder thinking = new StringBuilder();
@@ -336,12 +286,12 @@ public class OllamaClient {
             return chunk.done();
         }
 
-        Turn finish() throws IOException {
+        AgentRuntime.Turn finish() throws IOException {
             var complete = calls.finish();
             if (requestedTools && complete.isEmpty())
                 throw new IOException(
                         "Response finished with a tool request but no complete tool calls");
-            return new Turn(content.toString(), thinking.toString(), complete);
+            return new AgentRuntime.Turn(content.toString(), thinking.toString(), complete);
         }
     }
 

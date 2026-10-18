@@ -510,7 +510,7 @@ public class AgentTools {
     private static void require(Gate gate, String op, String target, String details)
             throws Exception {
         if (!gate.allow(op, target, details))
-            throw new IOException("Permission refused: " + op + " / " + target);
+            throw new ToolPermissionDeniedException("Permission refused: " + op + " / " + target);
     }
 
     private static String string(Map<String, Object> args, String key) {

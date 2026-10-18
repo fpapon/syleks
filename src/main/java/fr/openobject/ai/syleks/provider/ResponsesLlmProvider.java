@@ -14,6 +14,12 @@ import java.util.*;
 
 /** Official Responses HTTP transport. It never falls back to another endpoint or billing path. */
 public abstract class ResponsesLlmProvider implements LlmProvider {
+    private final AgentRuntime fallbackRuntime = new AgentRuntime();
+
+    protected AgentRuntime runtime() {
+        return fallbackRuntime;
+    }
+
     private final AuthenticationService auth;
     private final JsonMapper json;
     private final AppConfig config;
@@ -159,135 +165,118 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
 
     public void chat(ChatRequest request, ChatEventListener listener) throws Exception {
         var c = credentials(request.accountId());
-        var messages = new ArrayList<>(request.messages());
-        int maxRounds = config.maxRounds(request.agent());
+        var engine = runtime();
         try {
-            for (int round = 0; maxRounds == -1 || round < maxRounds; round++) {
-                var bounded =
-                        fr.openobject.ai.syleks.session.ContextService.limit(
-                                messages,
-                                config.contextWindow(id() + "/" + request.model()),
-                                config.responseTokens(id() + "/" + request.model()),
-                                json.toString(ToolSchemas.forAgent(config, request.agent()))
-                                        .getBytes(StandardCharsets.UTF_8)
-                                        .length);
-                if (bounded.omittedMessages() > 0 && request.observer() != null)
-                    request.observer().contextLimited(bounded.omittedMessages());
-                var turnRequest =
-                        new ChatRequest(
-                                request.model(),
-                                request.agent(),
-                                request.accountId(),
-                                bounded.messages(),
-                                request.tools(),
-                                request.observer());
-                Turn turn;
-                var configuredCapacity =
-                        config.resolveModel(id() + "/" + request.model()).contextLimit();
-                try (var invocation =
-                        new UsageInvocation(
-                                request.observer() == null ? null : request.observer()::usage,
-                                id(),
-                                request.model(),
-                                configuredCapacity == null
-                                        ? null
-                                        : configuredCapacity.longValue())) {
-                    final HttpResponse<InputStream> response;
-                    try {
-                        invocation.sent();
-                        response =
-                                http().send(
-                                                HttpRequest.newBuilder(base.resolve("responses"))
-                                                        .timeout(Duration.ofMinutes(10))
-                                                        .header(
-                                                                "Authorization",
-                                                                "Bearer " + c.accessToken())
-                                                        .header("Content-Type", "application/json")
-                                                        .header("Accept", "text/event-stream")
-                                                        .POST(
-                                                                HttpRequest.BodyPublishers.ofString(
-                                                                        json.toString(
-                                                                                payload(
-                                                                                        turnRequest))))
-                                                        .build(),
-                                                HttpResponse.BodyHandlers.ofInputStream());
-                    } catch (InterruptedException e) {
-                        invocation.interrupted();
-                        throw e;
-                    }
-                    try (var body = response.body()) {
-                        if (response.statusCode() != 200)
-                            throw failure(
-                                    response,
-                                    errorObject(
-                                            new String(
-                                                    body.readNBytes(8192), StandardCharsets.UTF_8)),
-                                    c);
-                        turn =
-                                readEvents(
-                                        new BufferedReader(
-                                                new InputStreamReader(
-                                                        body, StandardCharsets.UTF_8)),
-                                        event -> {
-                                            if (event.type() == ChatEvent.Type.TEXT_DELTA
-                                                            && !event.text().isEmpty()
-                                                    || event.type() == ChatEvent.Type.TOOL_CALL)
-                                                invocation.useful();
-                                            if (event.type() == ChatEvent.Type.USAGE
-                                                    && event.detail() instanceof TokenUsage usage)
-                                                invocation.usage(usage);
-                                            listener.onEvent(event);
-                                        },
-                                        response,
-                                        c,
-                                        invocation);
-                        invocation.completed();
-                    }
-                }
-                if (request.observer() != null)
-                    request.observer().round(turn.text(), "", turn.calls());
-                if (turn.calls().isEmpty()) {
-                    listener.onEvent(new ChatEvent(ChatEvent.Type.COMPLETED, "", null));
-                    return;
-                }
-                var calls = new ArrayList<Map<String, Object>>();
-                for (var call : turn.calls())
-                    calls.add(
-                            Map.of(
-                                    "id",
-                                    call.id(),
-                                    "type",
-                                    "function",
-                                    "function",
-                                    Map.of(
-                                            "name",
-                                            call.name(),
-                                            "arguments",
-                                            json.toString(call.arguments()))));
-                messages.add(
-                        Map.of("role", "assistant", "content", turn.text(), "tool_calls", calls));
-                for (var call : turn.calls()) {
-                    if (Thread.currentThread().isInterrupted())
-                        throw new InterruptedException("Generation cancelled");
-                    listener.onEvent(new ChatEvent(ChatEvent.Type.TOOL_CALL, "", call));
-                    String result = request.tools().execute(call);
-                    if (request.observer() != null) request.observer().toolResult(call, result);
-                    listener.onEvent(new ChatEvent(ChatEvent.Type.TOOL_RESULT, result, call));
-                    messages.add(
-                            Map.of("role", "tool", "tool_call_id", call.id(), "content", result));
-                }
-                if (request.observer() != null) request.observer().nextRound();
-            }
-            throw new IOException("Stopped at the configured model/tool round limit");
+            engine.run(
+                    request.messages(),
+                    config.maxRounds(request.agent()),
+                    messages -> {
+                        var bounded =
+                                fr.openobject.ai.syleks.session.ContextService.limit(
+                                        messages,
+                                        config.contextWindow(id() + "/" + request.model()),
+                                        config.responseTokens(id() + "/" + request.model()),
+                                        json.toString(ToolSchemas.forAgent(config, request.agent()))
+                                                .getBytes(StandardCharsets.UTF_8)
+                                                .length);
+                        if (bounded.omittedMessages() > 0 && request.observer() != null)
+                            request.observer().contextLimited(bounded.omittedMessages());
+                        var turnRequest =
+                                new ChatRequest(
+                                        request.model(),
+                                        request.agent(),
+                                        request.accountId(),
+                                        bounded.messages(),
+                                        request.tools(),
+                                        request.observer());
+                        AgentRuntime.Turn turn;
+                        var configuredCapacity =
+                                config.resolveModel(id() + "/" + request.model()).contextLimit();
+                        try (var invocation =
+                                new UsageInvocation(
+                                        request.observer() == null
+                                                ? null
+                                                : request.observer()::usage,
+                                        id(),
+                                        request.model(),
+                                        configuredCapacity == null
+                                                ? null
+                                                : configuredCapacity.longValue())) {
+                            final HttpResponse<InputStream> response;
+                            try {
+                                invocation.sent();
+                                response =
+                                        http().send(
+                                                        HttpRequest.newBuilder(
+                                                                        base.resolve("responses"))
+                                                                .timeout(Duration.ofMinutes(10))
+                                                                .header(
+                                                                        "Authorization",
+                                                                        "Bearer " + c.accessToken())
+                                                                .header(
+                                                                        "Content-Type",
+                                                                        "application/json")
+                                                                .header(
+                                                                        "Accept",
+                                                                        "text/event-stream")
+                                                                .POST(
+                                                                        HttpRequest.BodyPublishers
+                                                                                .ofString(
+                                                                                        json
+                                                                                                .toString(
+                                                                                                        payload(
+                                                                                                                turnRequest))))
+                                                                .build(),
+                                                        HttpResponse.BodyHandlers.ofInputStream());
+                            } catch (InterruptedException e) {
+                                invocation.interrupted();
+                                throw e;
+                            }
+                            try (var body = response.body()) {
+                                if (response.statusCode() != 200)
+                                    throw failure(
+                                            response,
+                                            errorObject(
+                                                    new String(
+                                                            body.readNBytes(8192),
+                                                            StandardCharsets.UTF_8)),
+                                            c);
+                                turn =
+                                        readEvents(
+                                                new BufferedReader(
+                                                        new InputStreamReader(
+                                                                body, StandardCharsets.UTF_8)),
+                                                event -> {
+                                                    if (event.type() == ChatEvent.Type.TEXT_DELTA
+                                                                    && !event.text().isEmpty()
+                                                            || event.type()
+                                                                    == ChatEvent.Type.TOOL_CALL)
+                                                        invocation.useful();
+                                                    if (event.type() == ChatEvent.Type.USAGE
+                                                            && event.detail()
+                                                                    instanceof TokenUsage usage)
+                                                        invocation.usage(usage);
+                                                    listener.onEvent(event);
+                                                },
+                                                response,
+                                                c,
+                                                invocation);
+                                invocation.completed();
+                            }
+                        }
+                        return turn;
+                    },
+                    new ToolHistory(true, json),
+                    request.tools(),
+                    ProviderEvents.observer(request.observer(), listener));
+            listener.onEvent(new ChatEvent(ChatEvent.Type.COMPLETED, "", null));
         } catch (Exception e) {
             listener.onEvent(new ChatEvent(ChatEvent.Type.ERROR, e.getMessage(), null));
             throw e;
         }
     }
 
-    private record Turn(String text, List<ToolCall> calls) {}
-
-    private Turn readEvents(
+    private AgentRuntime.Turn readEvents(
             BufferedReader reader,
             ChatEventListener listener,
             HttpResponse<?> response,
@@ -313,7 +302,8 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                             response,
                             credentials,
                             invocation))
-                        return new Turn(text.toString(), List.copyOf(calls.values()));
+                        return new AgentRuntime.Turn(
+                                text.toString(), "", List.copyOf(calls.values()));
                     data.setLength(0);
                 }
             } else if (line.startsWith("data:")) {
@@ -329,7 +319,8 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                         listener,
                         response,
                         credentials,
-                        invocation)) return new Turn(text.toString(), List.copyOf(calls.values()));
+                        invocation))
+            return new AgentRuntime.Turn(text.toString(), "", List.copyOf(calls.values()));
         throw new IOException(
                 "Responses stream ended without response.completed; partial output retained");
     }

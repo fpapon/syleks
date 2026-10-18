@@ -12,6 +12,43 @@ class ContextServiceTest {
     @TempDir Path root;
 
     @Test
+    void updatesLegacyAgentInstructionsWithoutMutatingSavedProjectSnapshot() throws Exception {
+        Files.createDirectories(root.resolve("project"));
+        Files.writeString(root.resolve("project/AGENTS.md"), "new workspace instructions");
+        try (var f = new SessionFixture(root)) {
+            var s = f.sessions.create("qwen3:8b", "Ollama");
+            String legacy =
+                    "obsolete build prompt" + ContextService.PROJECT_MARKER + "saved instructions";
+            var saved = f.conversation.add(s.id(), "system", legacy, MessageStatus.COMPLETE);
+            for (String agent : List.of("plan", "build")) {
+                assertEquals(
+                        f.config.systemPrompt(agent)
+                                + ContextService.PROJECT_MARKER
+                                + "saved instructions",
+                        f.context.reconstruct(s, agent).messages().getFirst().get("content"));
+            }
+            assertEquals(
+                    legacy,
+                    f.conversation
+                            .payload(f.conversation.parts(saved.id()).getFirst())
+                            .get("text"));
+        }
+    }
+
+    @Test
+    void explicitProjectSnapshotIsUnambiguousEvenWhenAgentPromptContainsLegacyMarker()
+            throws Exception {
+        try (var f = new SessionFixture(root)) {
+            var s = f.sessions.create("qwen3:8b", "Ollama");
+            f.conversation.instructions(
+                    s.id(), "obsolete prompt" + ContextService.PROJECT_MARKER + "agent text", "");
+            assertEquals(
+                    f.config.systemPrompt("plan"),
+                    f.context.reconstruct(s, "plan").messages().getFirst().get("content"));
+        }
+    }
+
+    @Test
     void
             reconstructsInstructionsOrderedTurnsAndNativeToolAssociationsWithoutVisualOrReasoningParts()
                     throws Exception {
@@ -45,7 +82,7 @@ class ContextServiceTest {
             assertEquals(
                     List.of("system", "user", "assistant", "tool", "assistant", "user"),
                     context.stream().map(m -> m.get("role")).toList());
-            assertEquals("saved system prompt", context.getFirst().get("content"));
+            assertEquals(f.config.systemPrompt("build"), context.getFirst().get("content"));
             assertTrue(context.toString().contains("tool_calls"));
             assertEquals("read", context.get(3).get("tool_name"));
             assertFalse(context.toString().contains("hidden reasoning"));

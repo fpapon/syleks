@@ -8,6 +8,14 @@ import java.net.URI;
 
 @DefaultScoped
 public class OpenAiApiLlmProvider extends ResponsesLlmProvider {
+    @io.yupiik.fusion.framework.build.api.scanning.Injection
+    fr.openobject.ai.syleks.ai.AgentRuntime engine;
+
+    @Override
+    protected fr.openobject.ai.syleks.ai.AgentRuntime runtime() {
+        return engine == null ? super.runtime() : engine;
+    }
+
     public OpenAiApiLlmProvider(AuthenticationService auth, JsonMapper json, AppConfig config) {
         this(auth, json, config, URI.create("https://api.openai.com/v1/"));
     }

@@ -170,11 +170,10 @@ public class AgentService implements AutoCloseable {
                             () -> {
                                 var s = sessions.load(current.id());
                                 if (conversation.messages(s.id()).isEmpty())
-                                    conversation.add(
+                                    conversation.instructions(
                                             s.id(),
-                                            "system",
-                                            context.instructions(agent),
-                                            MessageStatus.COMPLETE);
+                                            config.systemPrompt(agent),
+                                            context.projectInstructions());
                                 conversation.add(
                                         s.id(),
                                         "user",
@@ -383,39 +382,45 @@ public class AgentService implements AutoCloseable {
             authorization = value;
         }
 
-        public synchronized void toolResult(ToolCall call, String result) {
+        @Override
+        public void toolResult(ToolCall call, String result) {
+            toolResult(call, ToolResult.success(result));
+        }
+
+        @Override
+        public synchronized void toolResult(ToolCall call, ToolResult outcome) {
             flush();
             var t = runningTools.get(call.id());
-            boolean denied =
-                    result.startsWith("Permission denied")
-                            || result.startsWith("Permission refused");
-            boolean failed =
-                    result.startsWith("Tool error:") || result.startsWith("Command failed:");
+            boolean denied = outcome.status() == ToolResult.Status.DENIED;
+            boolean failed = outcome.status() == ToolResult.Status.FAILED;
+            boolean interrupted = outcome.status() == ToolResult.Status.CANCELLED;
             sessions.transaction(
                     () -> {
-                        var message =
-                                conversation.add(session.id(), "tool", "", MessageStatus.COMPLETE);
-                        conversation.part(
-                                message.id(),
-                                PartType.TOOL_RESULT,
-                                Map.of(
-                                        "callId",
-                                        call.id(),
-                                        "callMessageId",
-                                        t == null ? assistant.id() : t.messageId(),
-                                        "name",
-                                        call.name(),
-                                        "content",
-                                        result,
-                                        "display",
-                                        call.name().equals("read") && !failed && !denied
-                                                ? "✓ Read `"
-                                                        + String.valueOf(
-                                                                        call.arguments()
-                                                                                .get("path"))
-                                                                .replace("`", "")
-                                                        + "`"
-                                                : result));
+                        if (!interrupted) {
+                            var message =
+                                    conversation.add(
+                                            session.id(), "tool", "", MessageStatus.COMPLETE);
+                            var payload = new LinkedHashMap<String, Object>();
+                            payload.put("callId", call.id());
+                            payload.put(
+                                    "callMessageId", t == null ? assistant.id() : t.messageId());
+                            payload.put("name", call.name());
+                            payload.put("content", outcome.content());
+                            payload.put("status", outcome.status().name());
+                            payload.put("exitCode", outcome.exitCode());
+                            payload.put("timedOut", outcome.timedOut());
+                            payload.put("truncated", outcome.truncated());
+                            payload.put(
+                                    "display",
+                                    call.name().equals("read")
+                                                    && outcome.status() == ToolResult.Status.SUCCESS
+                                            ? "✓ Read `"
+                                                    + String.valueOf(call.arguments().get("path"))
+                                                            .replace("`", "")
+                                                    + "`"
+                                            : outcome.content());
+                            conversation.part(message.id(), PartType.TOOL_RESULT, payload);
+                        }
                         if (t != null)
                             executions.saveExecution(
                                     new ToolExecution(
@@ -425,20 +430,22 @@ public class AgentService implements AutoCloseable {
                                             t.toolCallId(),
                                             t.name(),
                                             t.parametersJson(),
-                                            denied
-                                                    ? ToolStatus.CANCELLED
-                                                    : failed
-                                                            ? ToolStatus.FAILED
-                                                            : ToolStatus.SUCCESS,
+                                            interrupted
+                                                    ? ToolStatus.INTERRUPTED
+                                                    : denied
+                                                            ? ToolStatus.CANCELLED
+                                                            : failed
+                                                                    ? ToolStatus.FAILED
+                                                                    : ToolStatus.SUCCESS,
                                             denied
                                                     ? "DENIED"
                                                     : t.authorization().equals("PENDING")
                                                             ? "POLICY_ALLOWED"
                                                             : t.authorization(),
-                                            result,
+                                            outcome.content(),
                                             t.startedAt(),
                                             Instant.now().toString(),
-                                            failed ? result : null));
+                                            failed || interrupted ? outcome.content() : null));
                         return null;
                     });
             runningTools.remove(call.id());

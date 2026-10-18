@@ -402,7 +402,10 @@ class CommandToolTest {
                         client(config, requests, ollamaCall("printf marker > marker.txt")), config);
         session.send("Run a command");
         await(() -> session.snapshot().status().equals("Awaiting permission"));
+        assertEquals(
+                fr.openobject.ai.syleks.ai.AgentState.WAITING_PERMISSION, session.executionState());
         assertTrue(session.cancel());
+        assertEquals(fr.openobject.ai.syleks.ai.AgentState.CANCELLED, session.executionState());
         session.approve();
         assertFalse(Files.exists(project.resolve("marker.txt")));
         assertFalse(session.snapshot().busy());
@@ -436,6 +439,7 @@ class CommandToolTest {
             await(() -> !ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
             assertFalse(session.snapshot().busy());
             assertEquals("Cancelled", session.snapshot().status());
+            assertEquals(fr.openobject.ai.syleks.ai.AgentState.CANCELLED, session.executionState());
             assertTrue(
                     session.history().stream()
                             .anyMatch(message -> message.content().contains("Command cancelled")));

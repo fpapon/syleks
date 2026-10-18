@@ -83,6 +83,10 @@ You normally describe what you want in ordinary language; the model chooses tool
 
 Successful reads show a short activity entry instead of filling the transcript with source, but the full result reaches the model. Shell results include combined output, exit code, timeout, and truncation status. Search results do not automatically fetch the linked pages.
 
+Tool execution records distinguish success, permission denial, failure and interruption using structured metadata. A command with a nonzero exit code or a timeout is a failed tool; its diagnostic still returns to the model, which can recover. A denied tool also returns its refusal without executing the action. Cancellation stops further model/tool rounds. Status is never inferred from words such as `Tool error:` appearing in legitimate output.
+
+The shared `ToolExecutor` enforces the active agent's policy at execution, including calls the model makes without an advertised schema. Approval callbacks cannot override a `deny`. In persisted tool executions, denial is represented by `CANCELLED` with authorization `DENIED`, interruption by `INTERRUPTED`, and execution failure by `FAILED`. Completed result parts additionally record the typed status, exit code, timeout and truncation metadata.
+
 ### File and search boundaries
 
 Relative paths start in the directory where Syleks was launched. Dedicated file tools reject paths outside that workspace and symlink paths. `edit` checks `edit` permission, including the read needed for replacement; `write` checks `write`, even when overwriting.

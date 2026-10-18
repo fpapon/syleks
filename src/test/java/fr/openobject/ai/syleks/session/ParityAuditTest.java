@@ -86,9 +86,8 @@ class ParityAuditTest {
                 await(chat);
                 assertFalse(Files.exists(root.resolve("project/forbidden.txt")));
                 assertTrue(wire.requests.getLast().toString().contains("Permission refused"));
-                // Diagnostic defect: a policy refusal is persisted as FAILED rather than CANCELLED.
                 assertEquals(
-                        fr.openobject.ai.syleks.session.model.ToolStatus.FAILED,
+                        fr.openobject.ai.syleks.session.model.ToolStatus.CANCELLED,
                         f.repositories.listExecutions(f.agent.current().id()).getFirst().status());
             } finally {
                 chat.shutdown();
@@ -97,7 +96,7 @@ class ParityAuditTest {
     }
 
     @Test
-    void characterizesPersistedBuildPromptSurvivingSwitchToPlan() throws Exception {
+    void refreshesTheEffectivePromptWhenSwitchingBuildPlanBuild() throws Exception {
         configure(
                 "{\"agent\":{\"build\":{\"prompt\":\"BUILD_ONLY_MARKER\"},\"plan\":{\"prompt\":\"PLAN_ONLY_MARKER\"}}}");
         try (var f = new SessionFixture(root)) {
@@ -110,12 +109,13 @@ class ParityAuditTest {
                 chat.agent("plan");
                 chat.send("second");
                 await(chat);
-                // Defect AGT-005: selected permissions change, but stored system text wins.
-                assertTrue(wire.requests.getLast().toString().contains("BUILD_ONLY_MARKER"));
-                assertFalse(wire.requests.getLast().toString().contains("PLAN_ONLY_MARKER"));
+                assertFalse(wire.requests.getLast().toString().contains("BUILD_ONLY_MARKER"));
+                assertTrue(wire.requests.getLast().toString().contains("PLAN_ONLY_MARKER"));
                 chat.agent("build");
                 chat.send("third");
                 await(chat);
+                assertTrue(wire.requests.getLast().toString().contains("BUILD_ONLY_MARKER"));
+                assertFalse(wire.requests.getLast().toString().contains("PLAN_ONLY_MARKER"));
                 assertEquals(id, f.agent.current().id());
             } finally {
                 chat.shutdown();

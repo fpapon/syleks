@@ -2,7 +2,6 @@ package fr.openobject.ai.syleks.ai;
 
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.app.PermissionPolicy;
-import fr.openobject.ai.syleks.app.ShellCommandPolicy;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.model.PermissionRequest;
@@ -36,8 +35,9 @@ public class ChatSession {
     private volatile Thread retiring;
     private final OllamaClient ollama;
     private final AppConfig config;
-    private final LocalCommandRunner commands;
-    private final AgentTools tools;
+    @Injection ToolExecutor executor;
+    private ToolExecutor fallbackExecutor;
+    private AgentState executionState = AgentState.IDLE;
     private String agent;
     private String runningAgent;
     private String runningModel;
@@ -79,14 +79,16 @@ public class ChatSession {
     public ChatSession(OllamaClient ollama, AppConfig config) {
         this.ollama = ollama;
         this.config = config;
-        this.commands = new LocalCommandRunner(config.workspace());
-        this.tools = new AgentTools(config.workspace());
         this.agent = config.defaultAgent();
         this.model = config.agentModel(agent, config.defaultModel());
         messages.add(
                 ChatMessage.now(
                         "system",
                         "Bienvenue dans Syleks. Écris un message pour commencer. /help affiche les commandes."));
+    }
+
+    public synchronized AgentState executionState() {
+        return executionState;
     }
 
     public synchronized ChatSnapshot snapshot() {
@@ -220,6 +222,7 @@ public class ChatSession {
             pendingPermission =
                     permission(description, String.join("\n", asks), action, () -> {}, null);
             status = "Awaiting permission";
+            executionState = AgentState.WAITING_PERMISSION;
             info(
                     "Permission required: "
                             + description
@@ -363,6 +366,7 @@ public class ChatSession {
         runningAgent = selectedAgent;
         runningModel = selectedModel;
         status = prefix.isEmpty() ? "Generating" : "Subagent " + selectedAgent;
+        executionState = AgentState.THINKING;
         var id = ++revision;
         task =
                 Thread.ofVirtual()
@@ -374,14 +378,18 @@ public class ChatSession {
                                     try {
                                         if (persistence == null) {
                                             if (providers == null)
-                                                ollama.stream(
+                                                ollama.streamObserved(
                                                         selectedModel,
                                                         selectedAgent,
                                                         history,
                                                         delta -> append(id, delta),
-                                                        call ->
-                                                                executeTool(
-                                                                        id, selectedAgent, call));
+                                                        ToolHandler.typed(
+                                                                call ->
+                                                                        executeTool(
+                                                                                id,
+                                                                                selectedAgent,
+                                                                                call)),
+                                                        observe(null));
                                             else {
                                                 var context =
                                                         new ArrayList<
@@ -407,9 +415,12 @@ public class ChatSession {
                                                         selectedAgent,
                                                         context,
                                                         delta -> append(id, delta),
-                                                        call ->
-                                                                executeTool(
-                                                                        id, selectedAgent, call),
+                                                        ToolHandler.typed(
+                                                                call ->
+                                                                        executeTool(
+                                                                                id,
+                                                                                selectedAgent,
+                                                                                call)),
                                                         null);
                                             }
                                         } else {
@@ -448,10 +459,12 @@ public class ChatSession {
                                                         append(id, delta);
                                                         persistentGeneration.append(delta);
                                                     },
-                                                    call -> {
-                                                        persistentGeneration.startTool(call);
-                                                        return executeTool(id, selectedAgent, call);
-                                                    },
+                                                    ToolHandler.typed(
+                                                            call ->
+                                                                    executeTool(
+                                                                            id,
+                                                                            selectedAgent,
+                                                                            call)),
                                                     generation);
                                         }
                                     } catch (InterruptedException e) {
@@ -464,6 +477,10 @@ public class ChatSession {
                                             // JDBC finalization must still run after an interrupt,
                                             // outside the UI/session monitor.
                                             boolean interrupted = Thread.interrupted();
+                                            synchronized (this) {
+                                                if (interrupted || revision != id)
+                                                    error = "Cancelled";
+                                            }
                                             try {
                                                 generation.finish(
                                                         error == null
@@ -505,6 +522,7 @@ public class ChatSession {
             ToolHandler tools,
             OllamaClient.Observer observer)
             throws Exception {
+        observer = observe(observer);
         if (providers == null) {
             ollama.streamPrepared(model, agent, history, receive, tools, observer);
             return;
@@ -525,22 +543,90 @@ public class ChatSession {
                 });
     }
 
-    private String executeTool(long id, String actor, ToolCall call) throws Exception {
-        if (AgentTools.NAMES.contains(call.name())) {
-            String result;
-            try {
-                result =
-                        tools.execute(
-                                call,
-                                (operation, target, details) ->
-                                        toolPermission(id, actor, operation, target, details));
-            } catch (InterruptedException e) {
-                throw e;
-            } catch (Exception e) {
-                result = "Tool error: " + safeMessage(e);
+    private OllamaClient.Observer observe(OllamaClient.Observer downstream) {
+        return new OllamaClient.Observer() {
+            public void state(AgentState value) {
+                synchronized (ChatSession.this) {
+                    if (Thread.currentThread().isInterrupted())
+                        executionState = AgentState.CANCELLED;
+                    else executionState = value;
+                }
+                if (downstream != null) downstream.state(value);
             }
-            synchronized (this) {
-                checkActive(id);
+
+            public void usage(LlmUsageEvent value) {
+                if (downstream != null) downstream.usage(value);
+            }
+
+            public void contextLimited(int count) {
+                if (downstream != null) downstream.contextLimited(count);
+            }
+
+            public void round(String content, String reasoning, List<ToolCall> calls) {
+                if (downstream != null) downstream.round(content, reasoning, calls);
+            }
+
+            public void startTool(ToolCall call) {
+                if (downstream != null) downstream.startTool(call);
+            }
+
+            public void toolResult(ToolCall call, String result) {
+                if (downstream != null) downstream.toolResult(call, result);
+            }
+
+            public void toolResult(ToolCall call, ToolResult result) {
+                if (downstream != null) downstream.toolResult(call, result);
+            }
+
+            public void nextRound() {
+                if (downstream != null) downstream.nextRound();
+            }
+        };
+    }
+
+    private ToolResult executeTool(long id, String actor, ToolCall call) throws Exception {
+        final ToolExecutor service;
+        synchronized (this) {
+            checkActive(id);
+            if (executor == null && fallbackExecutor == null)
+                fallbackExecutor = new ToolExecutor(config);
+            service = executor == null ? fallbackExecutor : executor;
+        }
+        var result =
+                service.execute(
+                        actor,
+                        call,
+                        (operation, target, details) ->
+                                toolPermission(id, actor, operation, target, details),
+                        () -> {
+                            synchronized (this) {
+                                checkActive(id);
+                                executionState = AgentState.WAITING_TOOL;
+                                if (call.name().equals("bash")) {
+                                    activeCommand = String.valueOf(call.arguments().get("command"));
+                                    commandLogIndex = messages.size();
+                                    messages.add(
+                                            ChatMessage.now(
+                                                    "system",
+                                                    "◌ Running command\n"
+                                                            + fenced(activeCommand, "bash")));
+                                    status = "Running command";
+                                }
+                            }
+                        });
+        synchronized (this) {
+            checkActive(id);
+            if (call.name().equals("bash")) {
+                String formatted =
+                        "### Local command result\n\n"
+                                + fenced(String.valueOf(call.arguments().get("command")), "bash")
+                                + "\n"
+                                + fenced(result.content(), "text");
+                if (commandLogIndex >= 0)
+                    messages.set(commandLogIndex, ChatMessage.now("assistant", formatted));
+                else messages.add(ChatMessage.now("assistant", formatted));
+                commandLogIndex = -1;
+            } else {
                 var target =
                         String.valueOf(
                                 call.arguments()
@@ -552,137 +638,25 @@ public class ChatSession {
                                                                 call.arguments()
                                                                         .getOrDefault(
                                                                                 "query", "."))));
-                var title = "### " + call.name() + " · " + target + "\n\n";
-                var formatted = title + fenced(result, "text");
-                var display = formatted;
-                if (call.name().equals("read") && !result.startsWith("Tool error:")) {
+                String title = "### " + call.name() + " · " + target + "\n\n";
+                String formatted = title + fenced(result.content(), "text");
+                String display = formatted;
+                if (call.name().equals("read") && result.status() == ToolResult.Status.SUCCESS)
                     display = "✓ Read `" + target.replace("`", "") + "`";
-                } else if (call.name().equals("write") || call.name().equals("edit")) {
+                else if (call.name().equals("write") || call.name().equals("edit"))
                     display =
                             title
-                                    + (result.startsWith("Tool error:") ? "**Failed:** " : "✓ ")
-                                    + result;
-                } else if (call.name().equals("websearch")) {
-                    formatted = title + result;
-                    display = formatted;
-                }
+                                    + switch (result.status()) {
+                                        case SUCCESS -> "✓ ";
+                                        case DENIED -> "**Denied:** ";
+                                        case FAILED -> "**Failed:** ";
+                                        case CANCELLED -> "**Cancelled:** ";
+                                    }
+                                    + result.content();
+                else if (call.name().equals("websearch"))
+                    display = formatted = title + result.content();
                 messages.add(ChatMessage.now("assistant", formatted, display));
-                if (pendingPermission == null) status = "Generating";
             }
-            return result;
-        }
-        if (!call.name().equals("bash")) return "Tool error: unsupported tool " + call.name();
-        if (!(call.arguments().get("command") instanceof String command)
-                || command.isBlank()
-                || command.indexOf(0) >= 0
-                || command.length() > 12000) {
-            return "Tool error: command must be a non-blank string of at most 12000 characters without NUL bytes";
-        }
-        int timeout = 60;
-        if (call.arguments().containsKey("timeout_seconds")) {
-            var value = call.arguments().get("timeout_seconds");
-            if (!(value instanceof Number number)
-                    || number.doubleValue() != number.intValue()
-                    || number.intValue() < 1
-                    || number.intValue() > 300) {
-                return "Tool error: timeout_seconds must be an integer from 1 to 300";
-            }
-            timeout = number.intValue();
-        }
-        for (var key : call.arguments().keySet()) {
-            if (!key.equals("command") && !key.equals("timeout_seconds"))
-                return "Tool error: unsupported bash argument " + key;
-        }
-        CompletableFuture<Boolean> approval = null;
-        synchronized (this) {
-            checkActive(id);
-            if (!pending.isEmpty()) {
-                messages.add(ChatMessage.now("assistant", responsePrefix + pending));
-                pending = new StringBuilder();
-            }
-            var assessment = ShellCommandPolicy.assess(config.permissions(actor), command);
-            var decision = toolDecision(actor, "bash", assessment.decision());
-            if (decision == PermissionPolicy.Decision.DENY) {
-                var refusal =
-                        "Permission denied: "
-                                + actor
-                                + " / bash / "
-                                + command
-                                + "\n"
-                                + assessment.reason();
-                info(refusal);
-                return refusal;
-            }
-            if (decision == PermissionPolicy.Decision.ASK) {
-                while (pendingPermission != null) {
-                    wait();
-                    checkActive(id);
-                }
-                approval = new CompletableFuture<>();
-                var response = approval;
-                pendingPermission =
-                        permission(
-                                "Run bash command as " + actor,
-                                "Directory: "
-                                        + config.workspace()
-                                        + "\nTimeout: "
-                                        + timeout
-                                        + " seconds\n"
-                                        + command,
-                                () -> response.complete(true),
-                                () -> response.complete(false),
-                                new ToolGrant(actor, "bash"));
-                status = "Awaiting permission";
-                info(
-                        "Permission required: bash / "
-                                + actor
-                                + "\nDirectory: "
-                                + config.workspace()
-                                + "\nTimeout: "
-                                + timeout
-                                + " seconds\n```bash\n"
-                                + command
-                                + "\n```"
-                                + TOOL_APPROVAL_OPTIONS);
-            }
-        }
-        if (approval != null && !approval.get()) {
-            synchronized (this) {
-                checkActive(id);
-            }
-            return "Permission refused by the user for bash command: " + command;
-        }
-        int logIndex;
-        synchronized (this) {
-            checkActive(id);
-            logIndex = messages.size();
-            commandLogIndex = logIndex;
-            activeCommand = command;
-            messages.add(
-                    ChatMessage.now("system", "◌ Running command\n```bash\n" + command + "\n```"));
-            if (pendingPermission == null) status = "Running command";
-        }
-        String result;
-        try {
-            result = commands.execute(command, timeout).text();
-        } catch (InterruptedException e) {
-            throw e;
-        } catch (Exception e) {
-            result = "Command failed: " + safeMessage(e);
-        }
-        synchronized (this) {
-            checkActive(id);
-            // Keep verified output as labeled context for later chat turns, as well as the native
-            // tool response.
-            messages.set(
-                    logIndex,
-                    ChatMessage.now(
-                            "assistant",
-                            "### Local command result\n\n"
-                                    + fenced(command, "bash")
-                                    + "\n"
-                                    + fenced(result, "text")));
-            commandLogIndex = -1;
             if (pendingPermission == null) status = "Generating";
         }
         return result;
@@ -714,6 +688,7 @@ public class ChatSession {
                             () -> approval.complete(false),
                             new ToolGrant(actor, operation));
             status = "Awaiting permission";
+            executionState = AgentState.WAITING_PERMISSION;
             info(
                     "Permission required: "
                             + operation
@@ -728,6 +703,7 @@ public class ChatSession {
         boolean allowed = approval.get();
         synchronized (this) {
             checkActive(id);
+            executionState = AgentState.WAITING_TOOL;
         }
         return allowed;
     }
@@ -783,6 +759,14 @@ public class ChatSession {
         if (!pending.isEmpty())
             messages.add(ChatMessage.now("assistant", responsePrefix + pending));
         if (error != null) messages.add(ChatMessage.now("system", error));
+        executionState =
+                pendingPermission != null
+                        ? AgentState.WAITING_PERMISSION
+                        : error == null
+                                ? AgentState.COMPLETED
+                                : error.equals("Cancelled")
+                                        ? AgentState.CANCELLED
+                                        : AgentState.FAILED;
         status =
                 pendingPermission != null ? "Awaiting permission" : error == null ? "Ready" : error;
         task = null;
@@ -798,6 +782,7 @@ public class ChatSession {
             if (hadPermissionRequest) {
                 info("Permission request cancelled.");
                 status = "Cancelled";
+                executionState = AgentState.CANCELLED;
             }
             return hadPermissionRequest;
         }
@@ -816,6 +801,7 @@ public class ChatSession {
         pending = new StringBuilder();
         task = null;
         status = "Cancelled";
+        executionState = AgentState.CANCELLED;
         retiring = previous;
         previous.interrupt();
         return true;
@@ -826,6 +812,7 @@ public class ChatSession {
         messages.clear();
         preview = List.of();
         status = "Ready";
+        executionState = AgentState.IDLE;
     }
 
     public void model(String value) {
@@ -982,6 +969,7 @@ public class ChatSession {
             toolGrants.clear();
             pendingPermission = null;
             responsePrefix = "";
+            executionState = AgentState.IDLE;
             if (service.current() != null) model = service.current().model();
             if (providers != null && service.current() != null) {
                 try {

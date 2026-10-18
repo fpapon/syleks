@@ -90,4 +90,6 @@ Do not include credentials in examples or logs.
 
 Syleks reads this file as project instructions when recording the first turn of a session. The limit is 128 KiB. Existing sessions keep their recorded instructions; start `/new` to use changed project instructions.
 
+Changing the primary agent keeps the conversation and its project-instruction snapshot. The next model request uses the selected agent's current system prompt and permissions, including when switching Build → Plan → Build. Reopening a session also combines the selected agent's current prompt with the saved project instructions; it does not restore an obsolete agent prompt. Agent configuration changes still require `/restart`.
+
 `AGENTS.md` is distinct from custom agent definitions: it supplies shared project guidance, while `.syleks/agents/*.md` defines selectable agents. The latter location is relative to the **launch directory**, so launch from your project root if you keep definitions there.

@@ -9,6 +9,7 @@ import java.util.*;
 
 @DefaultScoped
 public class ContextService {
+    static final String PROJECT_MARKER = "\n\nProject instructions:\n";
     private final ConversationService conversations;
     private final AppConfig config;
     private final ProjectService projects;
@@ -26,13 +27,17 @@ public class ContextService {
     }
 
     public String instructions(String agent) {
-        String result = config.systemPrompt(agent);
+        return config.systemPrompt(agent) + projectInstructions();
+    }
+
+    public String projectInstructions() {
+        String result = "";
         Path instructions = Path.of(projects.current().rootPath()).resolve("AGENTS.md");
         try {
             if (Files.isRegularFile(instructions)) {
                 if (Files.size(instructions) > 128 * 1024)
                     throw new IllegalStateException("Project AGENTS.md exceeds 128 KiB");
-                result += "\n\nProject instructions:\n" + Files.readString(instructions);
+                result = PROJECT_MARKER + Files.readString(instructions);
             }
         } catch (java.io.IOException e) {
             throw new IllegalStateException("Unable to read project instructions", e);
@@ -62,10 +67,15 @@ public class ContextService {
             StringBuilder text = new StringBuilder();
             var calls = new ArrayList<Map<String, Object>>();
             Map<String, Object> toolResult = null;
+            String projectSnapshot = null;
             for (var part : conversations.parts(message.id())) {
                 var payload = conversations.payload(part);
                 switch (part.type()) {
-                    case TEXT -> text.append(Objects.toString(payload.get("text"), ""));
+                    case TEXT -> {
+                        text.append(Objects.toString(payload.get("text"), ""));
+                        if (payload.get("projectInstructions") instanceof String saved)
+                            projectSnapshot = saved;
+                    }
                     case TOOL_CALL -> {
                         String callId = String.valueOf(payload.get("callId"));
                         if (!results.contains(message.id() + "/" + callId)
@@ -109,6 +119,16 @@ public class ContextService {
                         /* Reasoning, files, diffs and visual parts remain local. */
                     }
                 }
+            }
+            if (message.role().equals("system")) {
+                // Agent instructions are live. Project instructions are a session snapshot. Legacy
+                // records used one text value, so recover its project suffix without keeping the
+                // obsolete agent prompt. No database migration or history mutation is needed.
+                if (projectSnapshot == null) {
+                    int marker = text.indexOf(PROJECT_MARKER);
+                    projectSnapshot = marker < 0 ? "" : text.substring(marker);
+                }
+                text = new StringBuilder(config.systemPrompt(agent) + projectSnapshot);
             }
             if (toolResult != null) result.add(toolResult);
             else if (!text.isEmpty() || !calls.isEmpty()) {

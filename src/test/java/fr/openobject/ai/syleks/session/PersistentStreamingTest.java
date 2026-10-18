@@ -20,6 +20,52 @@ class PersistentStreamingTest {
     @TempDir Path root;
 
     @Test
+    void cancellationWinsEvenWhenTransportReturnsNormallyAfterClearingInterrupt() throws Exception {
+        try (var f = new SessionFixture(root)) {
+            var started = new CountDownLatch(1);
+            var release = new CountDownLatch(1);
+            var client =
+                    new OllamaClient(f.config, f.mapper.instance()) {
+                        @Override
+                        public void streamPrepared(
+                                String model,
+                                String agent,
+                                List<Map<String, Object>> messages,
+                                java.util.function.Consumer<String> receive,
+                                ToolHandler tools,
+                                Observer observer) {
+                            receive.accept("saved partial");
+                            started.countDown();
+                            boolean done = false;
+                            while (!done) {
+                                try {
+                                    release.await();
+                                    done = true;
+                                } catch (InterruptedException ignored) {
+                                    /* Deliberately uncooperative transport. */
+                                }
+                            }
+                        }
+                    };
+            var chat = new ChatSession(client, f.config);
+            chat.persistence(f.agent);
+            try {
+                chat.send("question");
+                assertTrue(started.await(5, TimeUnit.SECONDS));
+                assertTrue(chat.cancel());
+            } finally {
+                release.countDown();
+                chat.shutdown();
+            }
+            String id = f.agent.current().id();
+            assertEquals(AgentState.CANCELLED, chat.executionState());
+            assertEquals(MessageStatus.INTERRUPTED, f.conversation.messages(id).getLast().status());
+            assertEquals(SessionStatus.INTERRUPTED, f.sessions.load(id).status());
+            assertEquals("saved partial", f.conversation.history(id).getLast().content());
+        }
+    }
+
+    @Test
     void resumesAcrossCompleteServiceReinitializationAndActuallySendsPriorContextToProvider()
             throws Exception {
         String id;

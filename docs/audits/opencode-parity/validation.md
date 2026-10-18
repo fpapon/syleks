@@ -2,6 +2,8 @@
 
 > **Campagne historique :** les commandes, empreintes et résultats ci-dessous décrivent l’audit initial. Après le correctif P0, utiliser [le suivi shell et sa campagne de validation](shell-security.md) ; le vérificateur des anciennes empreintes signale volontairement la modification du code.
 
+> Pour la phase 2 P1, voir [la validation du moteur agentique commun](agentic-engine.md). Les résultats ci-dessous restent ceux de l’audit initial.
+
 **Résultat final : `BUILD SUCCESS`, 246 tests, 0 failure, 0 error, 0 skipped.** Les huit nouveaux tests sont inclus dans ce total. La réussite des tests de caractérisation ne corrige pas les quatre lignes FAIL de la matrice.
 
 ## Environnement

@@ -1,7 +1,6 @@
 package fr.openobject.ai.syleks.provider;
 
 import fr.openobject.ai.syleks.ai.OllamaClient;
-import fr.openobject.ai.syleks.ai.ToolCall;
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
@@ -84,32 +83,7 @@ public class OllamaLlmProvider implements LlmProvider {
                     delta ->
                             listener.onEvent(new ChatEvent(ChatEvent.Type.TEXT_DELTA, delta, null)),
                     request.tools(),
-                    new OllamaClient.Observer() {
-                        public void usage(LlmUsageEvent event) {
-                            if (original != null) original.usage(event);
-                            listener.onEvent(new ChatEvent(ChatEvent.Type.USAGE, "", event));
-                        }
-
-                        public void contextLimited(int count) {
-                            if (original != null) original.contextLimited(count);
-                        }
-
-                        public void round(String text, String reasoning, List<ToolCall> calls) {
-                            if (original != null) original.round(text, reasoning, calls);
-                            for (var call : calls)
-                                listener.onEvent(new ChatEvent(ChatEvent.Type.TOOL_CALL, "", call));
-                        }
-
-                        public void toolResult(ToolCall call, String result) {
-                            if (original != null) original.toolResult(call, result);
-                            listener.onEvent(
-                                    new ChatEvent(ChatEvent.Type.TOOL_RESULT, result, call));
-                        }
-
-                        public void nextRound() {
-                            if (original != null) original.nextRound();
-                        }
-                    });
+                    ProviderEvents.observer(original, listener));
             listener.onEvent(new ChatEvent(ChatEvent.Type.COMPLETED, "", null));
         } catch (Exception e) {
             listener.onEvent(new ChatEvent(ChatEvent.Type.ERROR, e.getMessage(), null));

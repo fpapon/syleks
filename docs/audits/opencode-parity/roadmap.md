@@ -1,6 +1,10 @@
 # Roadmap de mise à niveau
 
-> **Phase 1, contournement shell P0 : implémenté.** Voir [la validation du correctif](shell-security.md). Les phases suivantes restent à réaliser.
+> **Phase 1, contournement shell P0 : implémenté.** Voir [la validation du correctif](shell-security.md). 
+
+> **Phase 2, moteur agentique P1 : implémenté**, voir [le suivi et sa validation](agentic-engine.md). 
+
+> Les phases 3 à 8 restent à réaliser.
 
 Cette roadmap propose des changements ultérieurs, **non réalisés pendant l’audit**. Conserver Java 25, Fusion, SQLite et la TUI JLine. Réutiliser les services existants au lieu de multiplier les abstractions. Complexité relative : S locale, M plusieurs composants, L état/lifecycle/protocole transversal ; ce ne sont pas des estimations calendaires.
 
