@@ -29,6 +29,8 @@ public class OllamaClient {
     private final ThreadLocal<Boolean> persistentRequest = ThreadLocal.withInitial(() -> false);
     private final AppConfig config;
     private final HttpClient http;
+    private final Map<String, HttpClient> proxyClients =
+            new java.util.concurrent.ConcurrentHashMap<>();
     private final JsonMapper json;
 
     public OllamaClient(final AppConfig config, final JsonMapper json) {
@@ -270,7 +272,7 @@ public class OllamaClient {
             final HttpResponse<InputStream> response;
             try {
                 invocation.sent();
-                response = send(builder.build());
+                response = send(provider, builder.build());
             } catch (InterruptedException e) {
                 invocation.interrupted();
                 throw e;
@@ -341,6 +343,21 @@ public class OllamaClient {
                         "Response finished with a tool request but no complete tool calls");
             return new Turn(content.toString(), thinking.toString(), complete);
         }
+    }
+
+    private HttpResponse<InputStream> send(String provider, HttpRequest request)
+            throws IOException, InterruptedException {
+        if (config.proxy(provider) == null) return send(request);
+        var client =
+                proxyClients.computeIfAbsent(
+                        provider,
+                        id ->
+                                config.configureProxy(
+                                                id,
+                                                HttpClient.newBuilder()
+                                                        .connectTimeout(Duration.ofSeconds(8)))
+                                        .build());
+        return client.send(request, HttpResponse.BodyHandlers.ofInputStream());
     }
 
     protected HttpResponse<InputStream> send(HttpRequest request)

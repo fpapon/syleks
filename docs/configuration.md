@@ -91,6 +91,27 @@ Replace `my-model` with your server's ID. Add `"apiKey": "YOUR-KEY"` inside `opt
 
 Add more entries under the singular `provider` object to use several servers, each with its own model catalog. The same raw model ID can exist on different providers. Select one explicitly with `/model local/my-model`. Only the model ID after the provider prefix is sent to the server. Provider/model names must refer to declared entries; Syleks does not discover or download models.
 
+Set `options.proxy` independently on each provider to route its API calls through an HTTP proxy:
+
+```json
+{
+  "provider": {
+    "local": {
+      "options": {
+        "baseURL": "https://llm.example.com/v1",
+        "proxy": "http://proxy.example.com:8080"
+      },
+      "models": { "my-model": {} }
+    },
+    "ollama": { "options": { "proxy": "http://proxy.example.com:8080" } },
+    "chatgpt": { "options": { "proxy": "http://proxy.example.com:8080" } },
+    "openai-api": { "options": { "proxy": "http://proxy.example.com:8080" } }
+  }
+}
+```
+
+The proxy URL requires the `http` scheme, a hostname and an explicit port from `1` to `65535`. An optional trailing slash is allowed; credentials, other paths, query parameters and fragments are rejected. HTTPS API requests use the proxy's CONNECT tunnel. Proxy authentication is not supported. Omit `proxy` to keep the Java HTTP client's default proxy behavior. Built-in entries (`ollama`, `chatgpt`, `openai-api`) accept only `options.proxy`; their endpoints and authentication remain configured through the existing settings. Proxy settings cover chat and model discovery, and do not change OAuth login or token refresh traffic. Restart after editing the file.
+
 `$schema` enables validation/completion in compatible editors using the schema beside the configuration. The repository also contains a [complete provider example](../examples/agent-config.json) and [schema](../agent-config.schema.json). Startup separately validates references and supported settings. Restart after hand edits.
 
 ## Ollama configuration and environment variables

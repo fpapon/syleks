@@ -370,6 +370,158 @@ class ProviderConfigTest {
         }
     }
 
+    @Test
+    void routesEachProviderThroughItsOwnProxyAndPreservesDirectRequests() throws Exception {
+        var first =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        var second =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        var direct =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        var targets = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        for (var server : List.of(first, second, direct)) {
+            String label = server == first ? "first" : server == second ? "second" : "direct";
+            server.createContext(
+                    "/",
+                    exchange -> {
+                        targets.add(label + ":" + exchange.getRequestURI());
+                        exchange.getRequestBody().readAllBytes();
+                        byte[] body =
+                                ("data: {\"choices\":[{\"delta\":{\"content\":\""
+                                                + label
+                                                + "\"},\"finish_reason\":\"stop\"}]}\n\n")
+                                        .getBytes(StandardCharsets.UTF_8);
+                        exchange.sendResponseHeaders(200, body.length);
+                        try (var output = exchange.getResponseBody()) {
+                            output.write(body);
+                        }
+                    });
+            server.start();
+        }
+        try {
+            var config =
+                    config(
+                            """
+                    {"provider":{
+                      "first":{"options":{"baseURL":"http://llm.invalid/v1","proxy":"http://127.0.0.1:%d"},"models":{"model":{}}},
+                      "second":{"options":{"baseURL":"http://llm.invalid/v1","proxy":"http://127.0.0.1:%d/"},"models":{"model":{}}},
+                      "direct":{"options":{"baseURL":"http://127.0.0.1:%d/v1"},"models":{"model":{}}}
+                    }}
+                    """
+                                    .formatted(
+                                            first.getAddress().getPort(),
+                                            second.getAddress().getPort(),
+                                            direct.getAddress().getPort()),
+                            Map.of());
+            var client = new OllamaClient(config, mapper.instance());
+            for (String id : List.of("first", "second", "direct", "first")) {
+                var output = new StringBuilder();
+                client.stream(id + "/model", List.of(), output::append);
+                assertEquals(id, output.toString());
+            }
+            assertEquals(
+                    List.of(
+                            "first:http://llm.invalid/v1/chat/completions",
+                            "second:http://llm.invalid/v1/chat/completions",
+                            "direct:/v1/chat/completions",
+                            "first:http://llm.invalid/v1/chat/completions"),
+                    targets);
+            assertNull(config.proxy("direct"));
+        } finally {
+            first.stop(0);
+            second.stop(0);
+            direct.stop(0);
+        }
+    }
+
+    @Test
+    void routesOllamaChatAndModelDiscoveryThroughItsProxy() throws Exception {
+        var proxy =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        var targets = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        proxy.createContext(
+                "/",
+                exchange -> {
+                    targets.add(exchange.getRequestURI().toString());
+                    exchange.getRequestBody().readAllBytes();
+                    String response =
+                            exchange.getRequestURI().getPath().endsWith("tags")
+                                    ? "{\"models\":[{\"name\":\"test-model\"}]}"
+                                    : "{\"message\":{\"content\":\"hello\"},\"done\":true}\n";
+                    byte[] body = response.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (var output = exchange.getResponseBody()) {
+                        output.write(body);
+                    }
+                });
+        proxy.start();
+        try {
+            var config =
+                    config(
+                            """
+                    {"ollama_url":"http://ollama.invalid:11434","provider":{
+                      "ollama":{"options":{"proxy":"http://127.0.0.1:%d"}}
+                    }}
+                    """
+                                    .formatted(proxy.getAddress().getPort()),
+                            Map.of());
+            var client = new OllamaClient(config, mapper.instance());
+            var provider =
+                    new fr.openobject.ai.syleks.provider.OllamaLlmProvider(
+                            client, config, mapper.instance());
+            assertEquals("test-model", provider.listModels("").getFirst().id());
+            var output = new StringBuilder();
+            client.stream("ollama/test-model", List.of(), output::append);
+            assertEquals("hello", output.toString());
+            assertEquals(
+                    List.of(
+                            "http://ollama.invalid:11434/api/tags",
+                            "http://ollama.invalid:11434/api/chat"),
+                    targets);
+            assertTrue(config.configuredProviders().isEmpty());
+        } finally {
+            proxy.stop(0);
+        }
+    }
+
+    @Test
+    void rejectsInvalidProxySettingsWithoutIncludingTheirValues() throws Exception {
+        for (String value :
+                List.of(
+                        "null",
+                        "42",
+                        "{}",
+                        "\"\"",
+                        "\"proxy:8080\"",
+                        "\"https://proxy:8080\"",
+                        "\"socks://proxy:8080\"",
+                        "\"http://proxy\"",
+                        "\"http://proxy:0\"",
+                        "\"http://proxy:65536\"",
+                        "\"http://user:secret@proxy:80\"",
+                        "\"http://proxy:80/path\"",
+                        "\"http://proxy:80?secret\"",
+                        "\"http://proxy:80#secret\"")) {
+            var error =
+                    assertThrows(
+                            IllegalStateException.class,
+                            () ->
+                                    config(
+                                            "{\"provider\":{\"ollama\":{\"options\":{\"proxy\":"
+                                                    + value
+                                                    + "}}}}",
+                                            Map.of()),
+                            value);
+            assertTrue(error.getMessage().contains("proxy"));
+            assertTrue(error.getMessage().contains("agent-config.json"));
+            assertFalse(error.getMessage().contains("secret"));
+        }
+    }
+
     private Map<?, ?> payload(String json) {
         return assertInstanceOf(Map.class, mapper.instance().fromString(Object.class, json));
     }

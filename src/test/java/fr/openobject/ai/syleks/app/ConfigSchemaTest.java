@@ -19,6 +19,35 @@ class ConfigSchemaTest {
                     .getSchema(Path.of("agent-config.schema.json").toUri());
 
     @Test
+    void validatesProviderProxySettings() throws Exception {
+        for (String id : List.of("local", "ollama", "chatgpt", "openai-api")) {
+            var options = json.createObjectNode();
+            if (id.equals("local")) options.put("baseURL", "https://llm.example.com/v1");
+            var config = json.createObjectNode();
+            config.putObject("provider").putObject(id).set("options", options);
+            for (String proxy : List.of("http://proxy.example.com:8080", "http://[::1]:3128/")) {
+                options.put("proxy", proxy);
+                assertTrue(
+                        schema.validate(config).isEmpty(),
+                        () -> schema.validate(config).toString());
+            }
+            for (String proxy :
+                    List.of(
+                            "https://proxy:80",
+                            "http://proxy",
+                            "http://user:secret@proxy:80",
+                            "http://proxy:80/path",
+                            "http://proxy:80?query",
+                            "http://proxy:80#fragment")) {
+                options.put("proxy", proxy);
+                assertFalse(schema.validate(config).isEmpty(), proxy);
+            }
+            options.putNull("proxy");
+            assertFalse(schema.validate(config).isEmpty());
+        }
+    }
+
+    @Test
     void validatesExamplesAndSupportedConfigurationVariants() throws Exception {
         for (var file : List.of("examples/agent-config.json", "examples/permissions.json")) {
             var errors = schema.validate(json.readTree(Files.readString(Path.of(file))));

@@ -43,8 +43,8 @@ public class OllamaLlmProvider implements LlmProvider {
         var endpoint = config.resolveModel("ollama/placeholder").endpoint();
         URI tags = URI.create(endpoint.toString().replaceAll("/api/chat$", "/api/tags"));
         var response =
-                HttpClient.newBuilder()
-                        .connectTimeout(Duration.ofSeconds(3))
+                config.configureProxy(
+                                id(), HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)))
                         .build()
                         .send(
                                 HttpRequest.newBuilder(tags)

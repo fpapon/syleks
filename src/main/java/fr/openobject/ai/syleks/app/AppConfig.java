@@ -24,6 +24,7 @@ public class AppConfig {
     private final String defaultModel;
     private final String systemPrompt;
     private final Map<String, Provider> providers;
+    private final Map<String, URI> proxies;
     private final Map<String, AgentDefinition> agents;
     private final String defaultAgent;
     private final int maxRounds;
@@ -57,6 +58,7 @@ public class AppConfig {
                         "OLLAMA_URL",
                         setting(settings, "ollama_url", "http://127.0.0.1:11434", file));
         this.endpoint = URI.create(url.replaceAll("/+$", "") + "/api/chat");
+        this.proxies = readProxies(settings, file);
         this.providers = readProviders(settings, file);
 
         this.defaultModel =
@@ -164,6 +166,55 @@ public class AppConfig {
                 "Invalid " + key + " in " + file + ": expected a non-blank string");
     }
 
+    private static Map<String, URI> readProxies(Map<?, ?> settings, Path file) {
+        var result = new LinkedHashMap<String, URI>();
+        var definitions = object(settings, "provider", file);
+        for (var key : definitions.keySet()) {
+            if (!(key instanceof String id)) continue;
+            var options = object(object(definitions, id, file), "options", file);
+            if (!options.containsKey("proxy")) continue;
+            var value = setting(options, "proxy", "", file);
+            try {
+                var proxy = URI.create(value);
+                if (!"http".equals(proxy.getScheme())
+                        || proxy.getHost() == null
+                        || proxy.getPort() < 1
+                        || proxy.getPort() > 65535
+                        || proxy.getUserInfo() != null
+                        || proxy.getQuery() != null
+                        || proxy.getFragment() != null
+                        || !(proxy.getPath().isEmpty() || proxy.getPath().equals("/"))) {
+                    throw new IllegalArgumentException();
+                }
+                result.put(id, proxy);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException(
+                        "Invalid provider.options.proxy for "
+                                + id
+                                + " in "
+                                + file
+                                + ": expected http://host:port without credentials, query or fragment");
+            }
+        }
+        return Map.copyOf(result);
+    }
+
+    public URI proxy(String providerId) {
+        return proxies.get(providerId);
+    }
+
+    public java.net.http.HttpClient.Builder configureProxy(
+            String providerId, java.net.http.HttpClient.Builder builder) {
+        var proxy = proxy(providerId);
+        if (proxy != null) {
+            builder.proxy(
+                    java.net.ProxySelector.of(
+                            java.net.InetSocketAddress.createUnresolved(
+                                    proxy.getHost(), proxy.getPort())));
+        }
+        return builder;
+    }
+
     private static Map<String, Provider> readProviders(Map<?, ?> settings, Path file) {
         var result = new LinkedHashMap<String, Provider>();
         var definitions = object(settings, "provider", file);
@@ -172,6 +223,19 @@ public class AppConfig {
                 throw new IllegalStateException("Invalid provider identifier in " + file);
             }
             var provider = object(definitions, id, file);
+            if (java.util.Set.of("ollama", "chatgpt", "openai-api").contains(id)) {
+                var options = object(provider, "options", file);
+                if (!provider.keySet().equals(java.util.Set.of("options"))
+                        || !options.keySet().equals(java.util.Set.of("proxy"))) {
+                    throw new IllegalStateException(
+                            "Built-in provider "
+                                    + id
+                                    + " in "
+                                    + file
+                                    + " only supports options.proxy");
+                }
+                continue;
+            }
             var npm = setting(provider, "npm", "@ai-sdk/openai-compatible", file);
             if (!npm.equals("@ai-sdk/openai-compatible")) {
                 throw new IllegalStateException(

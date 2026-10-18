@@ -18,11 +18,20 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     private final JsonMapper json;
     private final AppConfig config;
     private final URI base;
-    private final HttpClient http =
-            HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
-                    .followRedirects(HttpClient.Redirect.NEVER)
-                    .build();
+    private volatile HttpClient http;
+
+    private synchronized HttpClient http() {
+        if (http == null) {
+            http =
+                    config.configureProxy(
+                                    id(),
+                                    HttpClient.newBuilder()
+                                            .connectTimeout(Duration.ofSeconds(10))
+                                            .followRedirects(HttpClient.Redirect.NEVER))
+                            .build();
+        }
+        return http;
+    }
 
     protected ResponsesLlmProvider(
             AuthenticationService auth, JsonMapper json, AppConfig config, URI base) {
@@ -52,13 +61,13 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     public List<LlmModel> listModels(String accountId) throws Exception {
         var c = credentials(accountId);
         var response =
-                http.send(
-                        HttpRequest.newBuilder(base.resolve("models"))
-                                .timeout(Duration.ofSeconds(20))
-                                .header("Authorization", "Bearer " + c.accessToken())
-                                .GET()
-                                .build(),
-                        HttpResponse.BodyHandlers.ofInputStream());
+                http().send(
+                                HttpRequest.newBuilder(base.resolve("models"))
+                                        .timeout(Duration.ofSeconds(20))
+                                        .header("Authorization", "Bearer " + c.accessToken())
+                                        .GET()
+                                        .build(),
+                                HttpResponse.BodyHandlers.ofInputStream());
         try (var body = response.body()) {
             var value = new String(body.readNBytes(1024 * 1024), StandardCharsets.UTF_8);
             if (response.statusCode() != 200) throw failure(response, errorObject(value), c);
@@ -187,20 +196,21 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                     try {
                         invocation.sent();
                         response =
-                                http.send(
-                                        HttpRequest.newBuilder(base.resolve("responses"))
-                                                .timeout(Duration.ofMinutes(10))
-                                                .header(
-                                                        "Authorization",
-                                                        "Bearer " + c.accessToken())
-                                                .header("Content-Type", "application/json")
-                                                .header("Accept", "text/event-stream")
-                                                .POST(
-                                                        HttpRequest.BodyPublishers.ofString(
-                                                                json.toString(
-                                                                        payload(turnRequest))))
-                                                .build(),
-                                        HttpResponse.BodyHandlers.ofInputStream());
+                                http().send(
+                                                HttpRequest.newBuilder(base.resolve("responses"))
+                                                        .timeout(Duration.ofMinutes(10))
+                                                        .header(
+                                                                "Authorization",
+                                                                "Bearer " + c.accessToken())
+                                                        .header("Content-Type", "application/json")
+                                                        .header("Accept", "text/event-stream")
+                                                        .POST(
+                                                                HttpRequest.BodyPublishers.ofString(
+                                                                        json.toString(
+                                                                                payload(
+                                                                                        turnRequest))))
+                                                        .build(),
+                                                HttpResponse.BodyHandlers.ofInputStream());
                     } catch (InterruptedException e) {
                         invocation.interrupted();
                         throw e;

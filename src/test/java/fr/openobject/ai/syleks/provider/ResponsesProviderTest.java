@@ -30,6 +30,60 @@ class ResponsesProviderTest {
     }
 
     @Test
+    void routesBuiltInModelDiscoveryAndResponsesThroughConfiguredProxies() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var chatgpt = f.login(null);
+            var api = f.auth.apiKey("fake-api-key");
+            var file = root.resolve("proxied/home/.config/syleks/agent-config.json");
+            Files.createDirectories(file.getParent());
+            Files.writeString(
+                    file,
+                    """
+                    {"provider":{
+                      "chatgpt":{"options":{"proxy":"%s"}},
+                      "openai-api":{"options":{"proxy":"%s"}}
+                    }}
+                    """
+                            .formatted(f.base, f.base));
+            var config =
+                    fr.openobject.ai.syleks.app.AppConfigFixtures.defaults(
+                            f.json, root.resolve("proxied"));
+            var targets = new ArrayList<String>();
+            f.modelsHandler.set(
+                    ex -> {
+                        targets.add(ex.getRequestURI().toString());
+                        AuthFixture.respond(
+                                ex,
+                                200,
+                                "{\"models\":[{\"slug\":\"test-model\",\"visibility\":\"list\"}],\"data\":[{\"id\":\"test-model\"}]}");
+                    });
+            f.responsesHandler.set(
+                    ex -> {
+                        targets.add(ex.getRequestURI().toString());
+                        ex.getRequestBody().readAllBytes();
+                        AuthFixture.respond(ex, 200, "data: {\"type\":\"response.completed\"}\n\n");
+                    });
+            var base = java.net.URI.create("http://llm.invalid/v1/");
+            for (var provider :
+                    List.of(
+                            new ChatGptLlmProvider(f.auth, f.json, config, base),
+                            new OpenAiApiLlmProvider(f.auth, f.json, config, base))) {
+                var account = provider.id().equals("chatgpt") ? chatgpt : api;
+                assertEquals(
+                        "test-model", provider.listModels(account.account().id()).getFirst().id());
+                provider.chat(request(account.account().id()), event -> {});
+            }
+            assertEquals(
+                    List.of(
+                            "http://llm.invalid/v1/models",
+                            "http://llm.invalid/v1/responses",
+                            "http://llm.invalid/v1/models",
+                            "http://llm.invalid/v1/responses"),
+                    targets);
+        }
+    }
+
+    @Test
     void collectsTerminalUsageForSuccessIncompleteAndFailureWithoutCountingSubsetsTwice()
             throws Exception {
         try (var f = new AuthFixture(root)) {
