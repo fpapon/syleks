@@ -46,6 +46,9 @@ public final class SessionFixture implements AutoCloseable {
         agent =
                 new AgentService(
                         sessions, conversation, context, config, repositories, mapper.instance());
+        agent.tokenUsage(
+                new fr.openobject.ai.syleks.usage.TokenUsageService(
+                        new fr.openobject.ai.syleks.usage.TokenUsageRepository(database)));
     }
 
     @Override

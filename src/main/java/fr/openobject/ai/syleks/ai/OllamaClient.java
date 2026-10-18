@@ -2,6 +2,7 @@ package fr.openobject.ai.syleks.ai;
 
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.model.ChatMessage;
+import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import java.io.BufferedReader;
@@ -64,6 +65,7 @@ public class OllamaClient {
         request.put("stream", true);
         var temperature = config.temperature(agent);
         if (connection.openAiCompatible()) {
+            request.put("stream_options", Map.of("include_usage", true));
             if (temperature != null) request.put("temperature", temperature);
             if (connection.outputLimit() != null)
                 request.put("max_tokens", connection.outputLimit());
@@ -125,6 +127,8 @@ public class OllamaClient {
     }
 
     public interface Observer {
+        default void usage(LlmUsageEvent event) {}
+
         default void contextLimited(int count) {}
 
         void round(String content, String reasoning, List<ToolCall> calls);
@@ -249,26 +253,53 @@ public class OllamaClient {
                                         payload(model, agent, messages), StandardCharsets.UTF_8));
         if (connection.openAiCompatible() && !connection.apiKey().isEmpty())
             builder.header("Authorization", "Bearer " + connection.apiKey());
-        var response = send(builder.build());
-        try (var body = response.body()) {
-            if (response.statusCode() != 200) {
-                var message = new String(body.readNBytes(2048), StandardCharsets.UTF_8);
-                if (!connection.apiKey().isEmpty())
-                    message = message.replace(connection.apiKey(), "[redacted]");
-                throw new IOException(
-                        connection.providerName()
-                                + " HTTP "
-                                + response.statusCode()
-                                + " : "
-                                + message);
+        String provider = model.contains("/") ? model.substring(0, model.indexOf('/')) : "ollama";
+        String modelId =
+                model.startsWith(provider + "/") ? model.substring(provider.length() + 1) : model;
+        Long capacity = null;
+        if (!connection.openAiCompatible() && persistentRequest.get())
+            capacity = (long) config.contextWindow(model);
+        else if (connection.contextLimit() != null)
+            capacity = connection.contextLimit().longValue();
+        try (var invocation =
+                new UsageInvocation(
+                        observer.get() == null ? null : observer.get()::usage,
+                        provider,
+                        modelId,
+                        capacity)) {
+            final HttpResponse<InputStream> response;
+            try {
+                invocation.sent();
+                response = send(builder.build());
+            } catch (InterruptedException e) {
+                invocation.interrupted();
+                throw e;
             }
-            var state = new TurnState(connection.openAiCompatible(), receive);
-            try (var lines =
-                    new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8))) {
-                if (connection.openAiCompatible()) readEvents(lines, state);
-                else readOllama(lines, state);
+            try (var body = response.body()) {
+                if (response.statusCode() != 200) {
+                    var message = new String(body.readNBytes(2048), StandardCharsets.UTF_8);
+                    if (!connection.apiKey().isEmpty())
+                        message = message.replace(connection.apiKey(), "[redacted]");
+                    throw new IOException(
+                            connection.providerName()
+                                    + " HTTP "
+                                    + response.statusCode()
+                                    + " : "
+                                    + message);
+                }
+                var state = new TurnState(connection.openAiCompatible(), receive, invocation);
+                try (var lines =
+                        new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8))) {
+                    if (connection.openAiCompatible()) readEvents(lines, state);
+                    else readOllama(lines, state);
+                }
+                var turn = state.finish();
+                invocation.completed();
+                return turn;
             }
-            return state.finish();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
         }
     }
 
@@ -280,14 +311,21 @@ public class OllamaClient {
         private final ToolCallBuffer calls;
         private final Consumer<String> receive;
         private boolean requestedTools;
+        private boolean protocolFinished;
 
-        TurnState(boolean openAi, Consumer<String> receive) {
+        private final UsageInvocation invocation;
+
+        TurnState(boolean openAi, Consumer<String> receive, UsageInvocation invocation) {
+            this.invocation = invocation;
             calls = new ToolCallBuffer(json, openAi);
             this.receive = receive;
         }
 
         boolean accept(Chunk chunk) throws IOException {
             if (chunk.error() != null) throw new IOException(chunk.error());
+            if (!chunk.content().isEmpty()
+                    || !chunk.thinking().isEmpty()
+                    || !chunk.toolCalls().isEmpty()) invocation.useful();
             calls.add(chunk.toolCalls());
             requestedTools |= chunk.toolRequested();
             thinking.append(chunk.thinking());
@@ -315,6 +353,8 @@ public class OllamaClient {
         while ((line = lines.readLine()) != null) {
             checkInterrupted();
             if (line.isBlank()) continue;
+            var root = parseObject(line);
+            if (Boolean.TRUE.equals(root.get("done"))) state.invocation.ollama(root);
             if (state.accept(parseChunk(line))) return;
         }
         throw new IOException("Ollama stream ended before the final response");
@@ -327,7 +367,7 @@ public class OllamaClient {
             checkInterrupted();
             if (line.isEmpty()) {
                 if (!data.isEmpty()) {
-                    if (state.accept(parseOpenAiChunk(data.toString()))) return;
+                    if (acceptEvent(data.toString(), state)) return;
                     data.setLength(0);
                 }
             } else if (line.startsWith("data:")) {
@@ -336,8 +376,18 @@ public class OllamaClient {
             }
             // SSE comments, event names, IDs and retry hints do not contain chat deltas.
         }
-        if (!data.isEmpty() && state.accept(parseOpenAiChunk(data.toString()))) return;
+        if (!data.isEmpty() && acceptEvent(data.toString(), state)) return;
+        if (state.protocolFinished) return;
         throw new IOException("OpenAI-compatible stream ended before the final response");
+    }
+
+    private boolean acceptEvent(String data, TurnState state) throws IOException {
+        if (data.strip().equals("[DONE]")) return true;
+        var root = parseObject(data);
+        if (root.get("usage") instanceof Map<?, ?> usage)
+            state.invocation.usage(TokenUsage.completions(usage));
+        state.protocolFinished |= state.accept(parseOpenAiChunk(data));
+        return false;
     }
 
     private void checkInterrupted() throws InterruptedException {

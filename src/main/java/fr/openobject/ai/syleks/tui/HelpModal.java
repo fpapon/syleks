@@ -43,6 +43,10 @@ final class HelpModal {
                     new Entry("Settings & help", ""),
                     new Entry("/config [init|edit]", "Open the configuration form."),
                     new Entry("/restart", "Reload settings; keep this conversation and draft."),
+                    new Entry(
+                            "/sidebar [auto|show|hide]",
+                            "Toggle the token sidebar; saved preference."),
+                    new Entry("/usage", "Open detailed token and performance metrics."),
                     new Entry("/help", "Open this reference."),
                     new Entry("/demo", "Preview tool cards and code highlighting."),
                     new Entry("/quit · /exit", "Close Syleks."),

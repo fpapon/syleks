@@ -210,6 +210,90 @@ class PersistentStreamingTest {
         }
     }
 
+    @Test
+    void recordsFinalUsagePerHttpRoundAndRestoresItWithTheSession() throws Exception {
+        String session;
+        try (var f = new SessionFixture(root)) {
+            var chat =
+                    chat(
+                            f,
+                            new LinkedBlockingQueue<>(),
+                            "{\"message\":{\"content\":\"hello\"},\"done\":false}\n{\"done\":true,\"prompt_eval_count\":100,\"prompt_eval_cached_count\":40,\"eval_count\":20,\"total_duration\":2000000000,\"eval_duration\":1000000000,\"prompt_eval_duration\":500000000}\n");
+            chat.send("question");
+            await(chat);
+            session = f.agent.current().id();
+            var snapshot = chat.usageSnapshot();
+            assertEquals(1, snapshot.requests());
+            assertEquals(120L, snapshot.total().value());
+            assertEquals(40L, snapshot.cached().value());
+            assertEquals(20d, snapshot.last().tokensPerSecond());
+            assertEquals(2000000000L, snapshot.last().providerDurationNs());
+            assertNotNull(snapshot.last().firstTokenLatencyMs());
+            assertEquals(8192L, snapshot.last().contextWindow());
+            chat.shutdown();
+        }
+        try (var f = new SessionFixture(root)) {
+            f.agent.open(session);
+            assertEquals(120L, f.agent.usageSnapshot().total().value());
+            f.agent.create("qwen3:8b");
+            assertEquals(0, f.agent.usageSnapshot().requests());
+            f.agent.open(session);
+            assertEquals(1, f.agent.usageSnapshot().requests());
+        }
+    }
+
+    @Test
+    void failedStreamNeverConvertsTextFragmentsIntoExactTokenCounts() throws Exception {
+        try (var f = new SessionFixture(root)) {
+            var chat =
+                    chat(
+                            f,
+                            new LinkedBlockingQueue<>(),
+                            "{\"message\":{\"content\":\"partial text\"},\"done\":false}\n");
+            chat.send("question");
+            await(chat);
+            var usage = chat.usageSnapshot();
+            assertEquals(1, usage.requests());
+            assertNull(usage.total().value());
+            assertTrue(usage.total().partial());
+            assertEquals(
+                    fr.openobject.ai.syleks.usage.LlmUsageEvent.Status.FAILED,
+                    usage.last().status());
+            chat.shutdown();
+        }
+    }
+
+    @Test
+    void cancellationBeforeFinalResponsePersistsAnInterruptedUnknownInvocation() throws Exception {
+        try (var f = new SessionFixture(root)) {
+            var sent = new CountDownLatch(1);
+            var client =
+                    new OllamaClient(f.config, f.mapper.instance()) {
+                        @Override
+                        protected HttpResponse<InputStream> send(HttpRequest request)
+                                throws InterruptedException {
+                            sent.countDown();
+                            Thread.sleep(30000);
+                            throw new AssertionError("Expected cancellation");
+                        }
+                    };
+            var chat = new ChatSession(client, f.config);
+            chat.persistence(f.agent);
+            chat.send("question");
+            assertTrue(sent.await(5, TimeUnit.SECONDS));
+            assertEquals(
+                    fr.openobject.ai.syleks.usage.LlmUsageEvent.Status.RUNNING,
+                    chat.usageSnapshot().last().status());
+            chat.cancel();
+            chat.shutdown();
+            assertEquals(
+                    fr.openobject.ai.syleks.usage.LlmUsageEvent.Status.INTERRUPTED,
+                    chat.usageSnapshot().last().status());
+            assertNull(chat.usageSnapshot().total().value());
+            assertEquals(1, chat.usageSnapshot().requests());
+        }
+    }
+
     private ChatSession chat(
             SessionFixture f, LinkedBlockingQueue<Map<?, ?>> captured, String... streams) {
         var responses = new ArrayDeque<>(List.of(streams));

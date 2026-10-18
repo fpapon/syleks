@@ -125,3 +125,7 @@ Syleks estimates context size conservatively, reserves room for the response and
 Agent `temperature` is optional, from `0` to `2`; omitted values use the server default. Global `max_rounds` defaults to `12` without configuration and accepts `-1` for unlimited rounds or integers from `1` to `1000`. Per-agent values override it, including `-1`. Unlimited turns still finish when the model answers without tool calls and can be cancelled normally.
 
 A round is one model response and any tool calls it requests. It is not a user message count or time limit. A final response with no tool calls ends the turn immediately. If the last allowed round requests tools, their results are recorded and Syleks stops with a limit notice; send another message to continue. The count resets for every message or subagent task.
+
+## Token sidebar
+
+`/sidebar [auto|show|hide]` saves visibility in the existing provider-selection `config.json`. Context color thresholds are configured with `context_warning_percent` and `context_critical_percent` in that file. See [Token usage](token-usage.md) for the exact location, defaults and precision limits.

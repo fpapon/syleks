@@ -30,6 +30,68 @@ class ResponsesProviderTest {
     }
 
     @Test
+    void collectsTerminalUsageForSuccessIncompleteAndFailureWithoutCountingSubsetsTwice()
+            throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var c = f.login(null);
+            var provider = new ProviderFixture(f).chatgpt;
+            for (String terminal :
+                    List.of("response.completed", "response.incomplete", "response.failed")) {
+                f.responsesHandler.set(
+                        ex ->
+                                AuthFixture.respond(
+                                        ex,
+                                        200,
+                                        "data: {\"type\":\"response.output_text.delta\",\"delta\":\"answer\"}\n\n"
+                                                + "data: {\"type\":\""
+                                                + terminal
+                                                + "\",\"response\":{\"usage\":{\"input_tokens\":120,\"output_tokens\":30,\"total_tokens\":150,\"input_tokens_details\":{\"cached_tokens\":80},\"output_tokens_details\":{\"reasoning_tokens\":10}}}}\n\n"));
+                var captured = new ArrayList<fr.openobject.ai.syleks.usage.LlmUsageEvent>();
+                var observer =
+                        new fr.openobject.ai.syleks.ai.OllamaClient.Observer() {
+                            public void usage(fr.openobject.ai.syleks.usage.LlmUsageEvent event) {
+                                captured.add(event);
+                            }
+
+                            public void round(
+                                    String text,
+                                    String reasoning,
+                                    List<fr.openobject.ai.syleks.ai.ToolCall> calls) {}
+
+                            public void toolResult(
+                                    fr.openobject.ai.syleks.ai.ToolCall call, String result) {}
+
+                            public void nextRound() {}
+                        };
+                var original = request(c.account().id());
+                var measured =
+                        new ChatRequest(
+                                original.model(),
+                                original.agent(),
+                                original.accountId(),
+                                original.messages(),
+                                original.tools(),
+                                observer);
+                if (terminal.equals("response.completed")) provider.chat(measured, event -> {});
+                else assertThrows(Exception.class, () -> provider.chat(measured, event -> {}));
+                assertEquals(2, captured.size());
+                assertEquals(captured.getFirst().requestId(), captured.getLast().requestId());
+                var last = captured.getLast();
+                assertEquals(150L, last.usage().totalTokens());
+                assertEquals(80L, last.usage().cachedInputTokens());
+                assertEquals(10L, last.usage().reasoningOutputTokens());
+                assertNotNull(last.firstTokenLatencyMs());
+                assertNull(last.providerDurationNs());
+                assertEquals(
+                        terminal.equals("response.completed")
+                                ? fr.openobject.ai.syleks.usage.LlmUsageEvent.Status.COMPLETED
+                                : fr.openobject.ai.syleks.usage.LlmUsageEvent.Status.FAILED,
+                        last.status());
+            }
+        }
+    }
+
+    @Test
     void listsOnlyVisibleAccountModelsAndAdaptsTheRequestWithBearerAndHistory() throws Exception {
         try (var f = new AuthFixture(root)) {
             var c = f.login(null);

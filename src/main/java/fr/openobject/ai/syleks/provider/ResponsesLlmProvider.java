@@ -3,6 +3,7 @@ package fr.openobject.ai.syleks.provider;
 import fr.openobject.ai.syleks.ai.*;
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.auth.*;
+import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.json.JsonMapper;
 import java.io.*;
 import java.net.URI;
@@ -171,33 +172,67 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                                 bounded.messages(),
                                 request.tools(),
                                 request.observer());
-                var response =
-                        http.send(
-                                HttpRequest.newBuilder(base.resolve("responses"))
-                                        .timeout(Duration.ofMinutes(10))
-                                        .header("Authorization", "Bearer " + c.accessToken())
-                                        .header("Content-Type", "application/json")
-                                        .header("Accept", "text/event-stream")
-                                        .POST(
-                                                HttpRequest.BodyPublishers.ofString(
-                                                        json.toString(payload(turnRequest))))
-                                        .build(),
-                                HttpResponse.BodyHandlers.ofInputStream());
                 Turn turn;
-                try (var body = response.body()) {
-                    if (response.statusCode() != 200)
-                        throw failure(
-                                response,
-                                errorObject(
-                                        new String(body.readNBytes(8192), StandardCharsets.UTF_8)),
-                                c);
-                    turn =
-                            readEvents(
-                                    new BufferedReader(
-                                            new InputStreamReader(body, StandardCharsets.UTF_8)),
-                                    listener,
+                var configuredCapacity =
+                        config.resolveModel(id() + "/" + request.model()).contextLimit();
+                try (var invocation =
+                        new UsageInvocation(
+                                request.observer() == null ? null : request.observer()::usage,
+                                id(),
+                                request.model(),
+                                configuredCapacity == null
+                                        ? null
+                                        : configuredCapacity.longValue())) {
+                    final HttpResponse<InputStream> response;
+                    try {
+                        invocation.sent();
+                        response =
+                                http.send(
+                                        HttpRequest.newBuilder(base.resolve("responses"))
+                                                .timeout(Duration.ofMinutes(10))
+                                                .header(
+                                                        "Authorization",
+                                                        "Bearer " + c.accessToken())
+                                                .header("Content-Type", "application/json")
+                                                .header("Accept", "text/event-stream")
+                                                .POST(
+                                                        HttpRequest.BodyPublishers.ofString(
+                                                                json.toString(
+                                                                        payload(turnRequest))))
+                                                .build(),
+                                        HttpResponse.BodyHandlers.ofInputStream());
+                    } catch (InterruptedException e) {
+                        invocation.interrupted();
+                        throw e;
+                    }
+                    try (var body = response.body()) {
+                        if (response.statusCode() != 200)
+                            throw failure(
                                     response,
+                                    errorObject(
+                                            new String(
+                                                    body.readNBytes(8192), StandardCharsets.UTF_8)),
                                     c);
+                        turn =
+                                readEvents(
+                                        new BufferedReader(
+                                                new InputStreamReader(
+                                                        body, StandardCharsets.UTF_8)),
+                                        event -> {
+                                            if (event.type() == ChatEvent.Type.TEXT_DELTA
+                                                            && !event.text().isEmpty()
+                                                    || event.type() == ChatEvent.Type.TOOL_CALL)
+                                                invocation.useful();
+                                            if (event.type() == ChatEvent.Type.USAGE
+                                                    && event.detail() instanceof TokenUsage usage)
+                                                invocation.usage(usage);
+                                            listener.onEvent(event);
+                                        },
+                                        response,
+                                        c,
+                                        invocation);
+                        invocation.completed();
+                    }
                 }
                 if (request.observer() != null)
                     request.observer().round(turn.text(), "", turn.calls());
@@ -246,7 +281,8 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
             BufferedReader reader,
             ChatEventListener listener,
             HttpResponse<?> response,
-            Credentials credentials)
+            Credentials credentials,
+            UsageInvocation invocation)
             throws Exception {
         var text = new StringBuilder();
         var calls = new LinkedHashMap<String, ToolCall>();
@@ -260,7 +296,13 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
             if (line.isEmpty()) {
                 if (!data.isEmpty()) {
                     if (event(
-                            object(data.toString()), text, calls, listener, response, credentials))
+                            object(data.toString()),
+                            text,
+                            calls,
+                            listener,
+                            response,
+                            credentials,
+                            invocation))
                         return new Turn(text.toString(), List.copyOf(calls.values()));
                     data.setLength(0);
                 }
@@ -270,8 +312,14 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
             }
         }
         if (!data.isEmpty()
-                && event(object(data.toString()), text, calls, listener, response, credentials))
-            return new Turn(text.toString(), List.copyOf(calls.values()));
+                && event(
+                        object(data.toString()),
+                        text,
+                        calls,
+                        listener,
+                        response,
+                        credentials,
+                        invocation)) return new Turn(text.toString(), List.copyOf(calls.values()));
         throw new IOException(
                 "Responses stream ended without response.completed; partial output retained");
     }
@@ -283,9 +331,27 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
             Map<String, ToolCall> calls,
             ChatEventListener listener,
             HttpResponse<?> response,
-            Credentials credentials)
+            Credentials credentials,
+            UsageInvocation invocation)
             throws IOException {
-        switch (String.valueOf(event.get("type"))) {
+        String type = String.valueOf(event.get("type"));
+        if (event.get("delta") instanceof String delta
+                && !delta.isEmpty()
+                && Set.of(
+                                "response.output_text.delta",
+                                "response.refusal.delta",
+                                "response.reasoning_text.delta",
+                                "response.reasoning_summary_text.delta",
+                                "response.function_call_arguments.delta")
+                        .contains(type)) invocation.useful();
+        if ("response.output_item.done".equals(type)
+                && event.get("item") instanceof Map<?, ?> item
+                && "function_call".equals(item.get("type"))) invocation.useful();
+        if (Set.of("response.completed", "response.failed", "response.incomplete").contains(type)
+                && event.get("response") instanceof Map<?, ?> terminal
+                && terminal.get("usage") instanceof Map<?, ?> usage)
+            listener.onEvent(new ChatEvent(ChatEvent.Type.USAGE, "", TokenUsage.responses(usage)));
+        switch (type) {
             case "response.output_text.delta", "response.refusal.delta" -> {
                 if (!(event.get("delta") instanceof String delta))
                     throw new IOException("Invalid text delta");
@@ -299,7 +365,8 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                             || !(item.get("name") instanceof String name)
                             || !(item.get("arguments") instanceof String args))
                         throw new IOException("Invalid function call");
-                    calls.put(id, new ToolCall(id, name, (Map<String, Object>) object(args)));
+                    var call = new ToolCall(id, name, (Map<String, Object>) object(args));
+                    calls.put(id, call);
                 }
             }
             case "response.incomplete" -> {

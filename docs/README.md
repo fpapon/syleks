@@ -11,6 +11,7 @@ Syleks is a terminal assistant for working on code. Chat with a model, ask it to
 | Select Ollama, ChatGPT or OpenAI API models | [Providers](providers.md) |
 | Sign in, switch accounts and protect credentials | [Authentication](authentication.md) |
 | Write multiline messages, paste code, and use keyboard shortcuts | [Chat and terminal controls](chat.md) |
+| Inspect token consumption, context and generation performance | [Token usage](token-usage.md) |
 | Find, resume, rename, or fork a conversation | [Sessions](sessions.md) |
 | Switch between Build and Plan, or create a specialist | [Agents and project instructions](agents.md) |
 | Let the assistant read files, make edits, run commands, or search the web | [Tools and approvals](tools-and-permissions.md) |

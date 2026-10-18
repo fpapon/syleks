@@ -36,6 +36,10 @@ The default database is `~/.local/share/syleks/syleks.db`; `XDG_DATA_HOME` and `
 
 See [Sessions](docs/sessions.md) for resume, forks, context budgets, concurrency, and recovery, and [Storage and privacy](docs/storage-and-privacy.md) for database locations, migrations, and backups. JSON exports may include confidential prompts, reasoning and tool results. `/clear` now starts a new persistent session.
 
+## Token metrics
+
+A responsive right sidebar shows persisted session token totals, the last LLM request, context budget and generation performance. Use `/sidebar [auto|show|hide]` to control visibility and `/usage` for a scrollable detail view, including on narrow terminals. Unknown metrics remain `N/A`; partial totals are marked `*`. Cumulative session consumption is distinct from the last context sent to the model. See [Token usage](docs/token-usage.md) for provider differences, configuration, SQLite storage and precision limits.
+
 ## Stack
 
 - **Yupiik Fusion 1.2.0** (`fusion-api`, `fusion-cli`): annotation-generated dependency injection and `@Command` launcher.

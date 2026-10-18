@@ -7,6 +7,7 @@ import fr.openobject.ai.syleks.app.ProviderCommands;
 import fr.openobject.ai.syleks.auth.AuthenticationService;
 import fr.openobject.ai.syleks.auth.BrowserLauncher;
 import fr.openobject.ai.syleks.provider.ProviderException;
+import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -23,6 +24,9 @@ public class TerminalApp implements AutoCloseable {
 
     @io.yupiik.fusion.framework.build.api.scanning.Injection BrowserLauncher browser;
 
+    @io.yupiik.fusion.framework.build.api.scanning.Injection UsagePreferences usagePreferences;
+
+    private UsageModal usageModal;
     private ProviderModal providerModal;
     private java.util.concurrent.Future<?> providerTask;
     private long providerRevision;
@@ -154,12 +158,27 @@ public class TerminalApp implements AutoCloseable {
                 int width = Math.max(1, size.getColumns()), height = Math.max(1, size.getRows());
                 terminalWidth = width;
                 terminalHeight = height;
-                if (lastWidth != width || lastHeight != height) {
-                    sessionViews.scroll(0);
-                    lastWidth = width;
-                    lastHeight = height;
-                }
                 var snapshot = session.snapshot();
+                int conversationWidth =
+                        TokenUsageSidebar.visible(
+                                        width,
+                                        height,
+                                        usagePreferences == null
+                                                ? UsagePreferences.Visibility.AUTO
+                                                : usagePreferences.visibility())
+                                ? width - TokenUsageSidebar.WIDTH
+                                : width;
+                if (lastWidth > 0 && (lastWidth != conversationWidth || lastHeight != height))
+                    sessionViews.scroll(
+                            renderer.reflowScroll(
+                                    snapshot,
+                                    lastWidth,
+                                    lastHeight,
+                                    conversationWidth,
+                                    height,
+                                    sessionViews.scroll()));
+                lastWidth = conversationWidth;
+                lastHeight = height;
                 if (!sessionLoading) sessionViews.identifyInitial(snapshot.sessionId());
                 permissionPrompt.sync(snapshot.permission());
                 var screen =
@@ -170,7 +189,13 @@ public class TerminalApp implements AutoCloseable {
                                 height,
                                 sessionViews.scroll(),
                                 false,
-                                permissionPrompt);
+                                permissionPrompt,
+                                session.usageSnapshot(),
+                                usagePreferences == null
+                                        ? UsagePreferences.Visibility.AUTO
+                                        : usagePreferences.visibility(),
+                                usagePreferences == null ? 70 : usagePreferences.warning(),
+                                usagePreferences == null ? 90 : usagePreferences.critical());
                 if (sessionPicker.isOpen()) {
                     sessionPicker.paint(screen.canvas());
                     screen =
@@ -183,6 +208,16 @@ public class TerminalApp implements AutoCloseable {
                 if (configurationModal != null) screen = configurationModal.paint(screen.canvas());
                 if (providerModal != null) screen = providerModal.paint(screen.canvas());
                 if (palette) screen = helpModal.paint(screen.canvas());
+                if (usageModal != null) {
+                    String selection = snapshot.model();
+                    int slash = selection.indexOf('/');
+                    screen =
+                            usageModal.paint(
+                                    screen.canvas(),
+                                    session.usageSnapshot(),
+                                    slash < 0 ? "ollama" : selection.substring(0, slash),
+                                    slash < 0 ? selection : selection.substring(slash + 1));
+                }
                 painter.paint(terminal, screen);
                 int input = reader.read(70);
                 if (input == -1) break;
@@ -194,6 +229,13 @@ public class TerminalApp implements AutoCloseable {
     }
 
     void handle(int key, NonBlockingReader reader) throws Exception {
+        if (usageModal != null) {
+            if (key == 27) handleEscape(reader);
+            else if (key == 3 || key == 16 || key == '\r' || key == '\n') usageModal = null;
+            else if (key == 4) running = false;
+            return;
+        }
+
         if (providerModal != null) {
             if (key == 27) {
                 handleEscape(reader);
@@ -372,6 +414,10 @@ public class TerminalApp implements AutoCloseable {
     private void handleEscape(NonBlockingReader reader) throws Exception {
         int second = reader.read(20);
         if (second != '[' && second != 'O') {
+            if (usageModal != null) {
+                usageModal = null;
+                return;
+            }
             if (palette) {
                 palette = false;
                 return;
@@ -399,6 +445,16 @@ public class TerminalApp implements AutoCloseable {
             if (end < 0) break;
             sequence.append((char) end);
             if (end >= 0x40 && end <= 0x7e) break;
+        }
+        if (usageModal != null) {
+            switch (sequence.toString()) {
+                case "A" -> usageModal.move(-1);
+                case "B" -> usageModal.move(1);
+                case "5~" -> usageModal.move(-8);
+                case "6~" -> usageModal.move(8);
+                default -> {}
+            }
+            return;
         }
         if (palette) {
             if (sequence.toString().equals("200~")) paste = true;
@@ -469,7 +525,18 @@ public class TerminalApp implements AutoCloseable {
         sessionViews.scroll(
                 Math.min(
                         sessionViews.scroll() + n,
-                        renderer.maxScroll(session.snapshot(), terminalWidth, terminalHeight)));
+                        renderer.maxScroll(
+                                session.snapshot(),
+                                TokenUsageSidebar.visible(
+                                                terminalWidth,
+                                                terminalHeight,
+                                                usagePreferences == null
+                                                        ? fr.openobject.ai.syleks.usage
+                                                                .UsagePreferences.Visibility.AUTO
+                                                        : usagePreferences.visibility())
+                                        ? terminalWidth - TokenUsageSidebar.WIDTH
+                                        : terminalWidth,
+                                terminalHeight)));
     }
 
     private void scrollDown(int n) {
@@ -528,6 +595,20 @@ public class TerminalApp implements AutoCloseable {
                 case "/resume" -> changeSession("resume", "");
                 case "/rename" -> changeSession("rename", arg);
                 case "/fork" -> changeSession("fork", "");
+                case "/usage" -> usageModal = new UsageModal();
+                case "/sidebar" -> {
+                    if (usagePreferences == null)
+                        throw new IllegalStateException("Sidebar settings unavailable");
+                    sessionWorker.submit(
+                            () -> {
+                                try {
+                                    usagePreferences.select(arg);
+                                } catch (Exception e) {
+                                    completions.add(
+                                            () -> session.info("Sidebar: " + e.getMessage()));
+                                }
+                            });
+                }
                 case "/help" -> openHelp();
                 case "/model" -> {
                     if (arg.isEmpty())

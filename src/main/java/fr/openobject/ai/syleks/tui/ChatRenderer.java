@@ -4,6 +4,7 @@ import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
+import fr.openobject.ai.syleks.usage.*;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +42,17 @@ public final class ChatRenderer {
 
     private record Span(String text, int color, boolean bold) {}
 
-    private record Line(List<Span> spans, int background, int inset, boolean rail) {}
+    private record Line(
+            List<Span> spans,
+            int background,
+            int inset,
+            boolean rail,
+            int messageIndex,
+            int offset) {
+        Line(List<Span> spans, int background, int inset, boolean rail) {
+            this(spans, background, inset, rail, -1, 0);
+        }
+    }
 
     private record Layout(
             int margin,
@@ -92,6 +103,32 @@ public final class ChatRenderer {
             int scroll,
             boolean palette,
             PermissionPrompt prompt) {
+        return render(
+                snapshot,
+                editor,
+                width,
+                height,
+                scroll,
+                palette,
+                prompt,
+                null,
+                UsagePreferences.Visibility.HIDE,
+                70,
+                90);
+    }
+
+    Screen render(
+            ChatSnapshot snapshot,
+            Editor editor,
+            int width,
+            int height,
+            int scroll,
+            boolean palette,
+            PermissionPrompt prompt,
+            TokenUsageAggregator.Snapshot usage,
+            UsagePreferences.Visibility visibility,
+            double warning,
+            double critical) {
         var canvas = new TerminalCanvas(width, height);
         width = canvas.width();
         height = canvas.height();
@@ -105,9 +142,13 @@ public final class ChatRenderer {
                     false);
             return new Screen(canvas, 0, 0, snapshot.permission() == null);
         }
+        int fullWidth = width;
+        boolean sidebar = usage != null && TokenUsageSidebar.visible(width, height, visibility);
+        if (sidebar) width -= TokenUsageSidebar.WIDTH;
         var layout = Layout.of(width, height);
         int left = layout.margin(), right = width - left - 1, bodyWidth = right - left + 1;
 
+        int fullRight = fullWidth - left - 1, fullBody = fullWidth - 2 * left;
         canvas.text(left, layout.header(), "▣", BLUE, BG, false);
         canvas.text(left + 3, layout.header(), "Syleks", WHITE, BG, false);
         var path =
@@ -115,9 +156,9 @@ public final class ChatRenderer {
                         snapshot.projectName() == null
                                 ? workspace
                                 : snapshot.projectName() + " · " + workspace,
-                        Math.max(0, bodyWidth - 20));
-        canvas.text(right - textWidth(path) + 1, layout.header(), path, SUB, BG, false);
-        canvas.text(left, layout.divider(), "─".repeat(bodyWidth), BORDER, BG, false);
+                        Math.max(0, fullBody - 20));
+        canvas.text(fullRight - textWidth(path) + 1, layout.header(), path, SUB, BG, false);
+        canvas.text(left, layout.divider(), "─".repeat(fullBody), BORDER, BG, false);
 
         var details = fit(snapshot.providerName() + " · Java 25", Math.max(0, bodyWidth / 2));
         int titleWidth = bodyWidth - textWidth(details) - 3;
@@ -219,7 +260,7 @@ public final class ChatRenderer {
                 width >= 100
                         ? "Ctrl+P commands · Esc cancel · PgUp/PgDn scroll"
                         : width >= 60 ? "Ctrl+P commands · Esc cancel" : "Ctrl+P · Ctrl+D exit";
-        int footerWidth = bodyWidth - textWidth(status) - 2;
+        int footerWidth = fullBody - textWidth(status) - 2;
         if (snapshot.busy() && !awaitingPermission && snapshot.permission() == null) {
             paintProgress(canvas, left, layout.footer(), agentAccent);
             var hint = width >= 65 ? "Esc interrupt · Ctrl+P commands" : "Esc cancel";
@@ -233,7 +274,8 @@ public final class ChatRenderer {
         } else {
             canvas.text(left, layout.footer(), fit(shortcuts, footerWidth), SUB, BG, false);
         }
-        canvas.text(right - textWidth(status) + 1, layout.footer(), status, statusColor, BG, false);
+        canvas.text(
+                fullRight - textWidth(status) + 1, layout.footer(), status, statusColor, BG, false);
 
         int cursorX = textLeft + editorLayout.caretCol();
         int cursorY = inputTop + 1 + editorLayout.caretRow() - firstVisible;
@@ -249,6 +291,24 @@ public final class ChatRenderer {
             paintPalette(canvas);
             cursorX = width / 2;
             cursorY = height / 2;
+        }
+        if (sidebar) {
+            String selection = snapshot.model();
+            int slash = selection.indexOf('/');
+            String provider = slash < 0 ? "ollama" : selection.substring(0, slash);
+            String model = slash < 0 ? selection : selection.substring(slash + 1);
+            new TokenUsageSidebar()
+                    .paint(
+                            canvas,
+                            usage,
+                            provider,
+                            model,
+                            width,
+                            layout.divider() + 1,
+                            fullWidth - width,
+                            layout.footer() - layout.divider() - 1,
+                            warning,
+                            critical);
         }
         return new Screen(
                 canvas,
@@ -358,6 +418,38 @@ public final class ChatRenderer {
                         - layout.available());
     }
 
+    /** Preserve the top visible message and text offset when wrapping changes. */
+    int reflowScroll(
+            ChatSnapshot snapshot,
+            int oldWidth,
+            int oldHeight,
+            int newWidth,
+            int newHeight,
+            int scroll) {
+        if (scroll <= 0) return 0;
+        var oldLayout = Layout.of(Math.max(35, oldWidth), Math.max(15, oldHeight));
+        var newLayout = Layout.of(Math.max(35, newWidth), Math.max(15, newHeight));
+        var before =
+                transcript(snapshot.messages(), Math.max(35, oldWidth) - 2 * oldLayout.margin());
+        var after =
+                transcript(snapshot.messages(), Math.max(35, newWidth) - 2 * newLayout.margin());
+        if (before.isEmpty() || after.isEmpty()) return 0;
+        var anchor =
+                before.get(
+                        Math.clamp(
+                                before.size() - oldLayout.available() - scroll,
+                                0,
+                                before.size() - 1));
+        int top = 0;
+        for (int i = 0; i < after.size(); i++) {
+            var line = after.get(i);
+            if (line.messageIndex() > anchor.messageIndex()) break;
+            if (line.messageIndex() == anchor.messageIndex() && line.offset() <= anchor.offset())
+                top = i;
+        }
+        return Math.max(0, after.size() - newLayout.available() - top);
+    }
+
     private void paintLine(TerminalCanvas canvas, Line line, int left, int y, int width) {
         if (line.background() != BG) canvas.fill(left, y, width, 1, line.background());
         if (line.rail()) canvas.text(left, y, "│", ACCENT, BG, false);
@@ -371,7 +463,9 @@ public final class ChatRenderer {
 
     private List<Line> transcript(List<ChatMessage> messages, int width) {
         var lines = new ArrayList<Line>();
+        int messageIndex = 0;
         for (var message : messages) {
+            int firstLine = lines.size();
             if (message.role().equals("user")) {
                 for (var physical : message.displayContent().split("\n", -1)) {
                     for (var segment : wrapProse(physical, width - 2)) {
@@ -436,6 +530,21 @@ public final class ChatRenderer {
             }
             lines.add(line("", SUB, BG, 0, false, false));
             if (message.role().equals("user")) lines.add(line("", SUB, BG, 0, false, false));
+            int offset = 0;
+            for (int index = firstLine; index < lines.size(); index++) {
+                var line = lines.get(index);
+                lines.set(
+                        index,
+                        new Line(
+                                line.spans(),
+                                line.background(),
+                                line.inset(),
+                                line.rail(),
+                                messageIndex,
+                                offset));
+                for (var span : line.spans()) offset += span.text().length();
+            }
+            messageIndex++;
         }
         // Trailing spacing belongs between messages, rather than consuming the viewport bottom.
         while (!lines.isEmpty()) {

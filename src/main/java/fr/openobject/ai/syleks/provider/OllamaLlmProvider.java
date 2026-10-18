@@ -3,6 +3,7 @@ package fr.openobject.ai.syleks.provider;
 import fr.openobject.ai.syleks.ai.OllamaClient;
 import fr.openobject.ai.syleks.ai.ToolCall;
 import fr.openobject.ai.syleks.app.AppConfig;
+import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import java.net.URI;
@@ -84,6 +85,11 @@ public class OllamaLlmProvider implements LlmProvider {
                             listener.onEvent(new ChatEvent(ChatEvent.Type.TEXT_DELTA, delta, null)),
                     request.tools(),
                     new OllamaClient.Observer() {
+                        public void usage(LlmUsageEvent event) {
+                            if (original != null) original.usage(event);
+                            listener.onEvent(new ChatEvent(ChatEvent.Type.USAGE, "", event));
+                        }
+
                         public void contextLimited(int count) {
                             if (original != null) original.contextLimited(count);
                         }

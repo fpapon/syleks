@@ -3,6 +3,7 @@ package fr.openobject.ai.syleks.session;
 import fr.openobject.ai.syleks.session.model.*;
 import fr.openobject.ai.syleks.session.repository.*;
 import fr.openobject.ai.syleks.session.storage.*;
+import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import java.util.*;
@@ -56,7 +57,7 @@ public class SessionService {
         var list = sessions.listSessions(projects.currentId());
         for (var session : list) {
             try (var lease = locks.tryAcquire(session.id())) {
-                if (lease != null) sessions.recoverSession(session.id());
+                if (lease != null) recoverOwned(session.id());
             }
         }
         return sessions.listSessions(projects.currentId());
@@ -68,13 +69,14 @@ public class SessionService {
 
     public void recoverOwned(String id) {
         sessions.recoverSession(id);
+        new TokenUsageRepository(database).recover(id);
     }
 
     public Session open(String id) {
         load(id);
         try (var lease = locks.tryAcquire(id)) {
             if (lease != null) {
-                sessions.recoverSession(id);
+                recoverOwned(id);
                 var selected = load(id);
                 update(
                         selected,
@@ -90,7 +92,7 @@ public class SessionService {
     public Session recover(String id) {
         load(id);
         try (var lease = locks.tryAcquire(id)) {
-            if (lease != null) sessions.recoverSession(id);
+            if (lease != null) recoverOwned(id);
         }
         return load(id);
     }

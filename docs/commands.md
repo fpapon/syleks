@@ -31,6 +31,8 @@ Type a command into the composer and press Enter. Internal commands are handled 
 
 | Command | Result |
 | --- | --- |
+| `/sidebar [auto\|show\|hide]` | Toggle or select persisted token sidebar visibility (safe terminal constraints always apply) |
+| `/usage` | Open scrollable session token and performance details |
 | `/help` | Open the scrollable command and keyboard reference popup |
 | `/config`, `/config init`, `/config edit` | Open the same configuration form |
 | `/restart` | Reload configuration and reopen this session, preserving history and drafts |

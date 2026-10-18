@@ -22,7 +22,7 @@ class SqlitePersistenceTest {
                         for (var item :
                                 Map.of(
                                                 "user_version",
-                                                "2",
+                                                "3",
                                                 "journal_mode",
                                                 "wal",
                                                 "foreign_keys",
@@ -76,6 +76,7 @@ class SqlitePersistenceTest {
             f.database.write(
                     c -> {
                         try (var statement = c.createStatement()) {
+                            statement.execute("DROP TABLE llm_usage");
                             statement.execute("ALTER TABLE sessions DROP COLUMN account_id");
                             statement.execute("PRAGMA user_version=1");
                         }
@@ -86,6 +87,28 @@ class SqlitePersistenceTest {
             assertNull(f.sessions.load(id).accountId());
             assertEquals("existing conversation", f.conversation.history(id).getFirst().content());
             assertEquals("qwen3:8b", f.sessions.load(id).model());
+        }
+    }
+
+    @Test
+    void upgradesVersionTwoWithoutChangingExistingConversations() throws Exception {
+        String id;
+        try (var f = new SessionFixture(root)) {
+            id = f.sessions.create("qwen3:8b", "Ollama").id();
+            f.conversation.add(id, "user", "existing v2", MessageStatus.COMPLETE);
+            f.database.write(
+                    c -> {
+                        try (var statement = c.createStatement()) {
+                            statement.execute("DROP TABLE llm_usage");
+                            statement.execute("PRAGMA user_version=2");
+                        }
+                        return null;
+                    });
+        }
+        try (var f = new SessionFixture(root)) {
+            f.agent.open(id);
+            assertEquals("existing v2", f.agent.history().getFirst().content());
+            assertEquals(0, f.agent.usageSnapshot().requests());
         }
     }
 

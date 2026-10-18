@@ -10,6 +10,7 @@ import fr.openobject.ai.syleks.provider.ChatRequest;
 import fr.openobject.ai.syleks.provider.ProviderService;
 import fr.openobject.ai.syleks.session.AgentService;
 import fr.openobject.ai.syleks.session.model.MessageStatus;
+import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.scanning.Injection;
 import java.io.IOException;
@@ -990,6 +991,12 @@ public class ChatSession {
                                 + ". Use /model provider/model to explicitly select a replacement.");
             }
         }
+    }
+
+    public TokenUsageAggregator.Snapshot usageSnapshot() {
+        return persistence == null
+                ? TokenUsageAggregator.aggregate(List.of())
+                : persistence.usageSnapshot();
     }
 
     public Path configurationHome() {

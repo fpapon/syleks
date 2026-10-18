@@ -7,6 +7,7 @@ import fr.openobject.ai.syleks.provider.ProviderService;
 import fr.openobject.ai.syleks.session.model.*;
 import fr.openobject.ai.syleks.session.repository.ToolExecutionRepository;
 import fr.openobject.ai.syleks.session.storage.SessionLocks;
+import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.json.JsonMapper;
@@ -18,6 +19,22 @@ import java.util.concurrent.*;
 @DefaultScoped
 public class AgentService implements AutoCloseable {
     @io.yupiik.fusion.framework.build.api.scanning.Injection ProviderService providers;
+
+    @io.yupiik.fusion.framework.build.api.scanning.Injection TokenUsageService tokenUsage;
+
+    public void tokenUsage(TokenUsageService service) {
+        tokenUsage = service;
+    }
+
+    public TokenUsageAggregator.Snapshot usageSnapshot() {
+        return tokenUsage == null
+                ? TokenUsageAggregator.aggregate(List.of())
+                : tokenUsage.snapshot(current == null ? null : current.id());
+    }
+
+    private void reloadUsage() {
+        if (tokenUsage != null && current != null) tokenUsage.reload(current.id());
+    }
 
     private final SessionService sessions;
     private final ConversationService conversation;
@@ -70,12 +87,14 @@ public class AgentService implements AutoCloseable {
                     providers.accountFor(model));
             current = sessions.load(current.id());
         }
+        reloadUsage();
         return current;
     }
 
     public Session open(String id) {
         ensureIdle();
         current = sessions.open(id);
+        reloadUsage();
         return current;
     }
 
@@ -94,6 +113,7 @@ public class AgentService implements AutoCloseable {
         ensureIdle();
         if (current == null) throw new IllegalStateException("No active session");
         current = sessions.fork(current.id());
+        reloadUsage();
         return current;
     }
 
@@ -221,6 +241,11 @@ public class AgentService implements AutoCloseable {
 
         public void onContextLimited(java.util.function.IntConsumer consumer) {
             contextNotice = consumer;
+        }
+
+        @Override
+        public void usage(LlmUsageEvent event) {
+            if (tokenUsage != null) tokenUsage.accept(event.forSession(session.id()));
         }
 
         @Override
