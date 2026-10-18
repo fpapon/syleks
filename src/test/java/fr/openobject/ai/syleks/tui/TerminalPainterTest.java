@@ -1,12 +1,11 @@
 package fr.openobject.ai.syleks.tui;
 
-import org.jline.terminal.impl.DumbTerminal;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.jline.terminal.impl.DumbTerminal;
+import org.junit.jupiter.api.Test;
 
 class TerminalPainterTest {
     @Test

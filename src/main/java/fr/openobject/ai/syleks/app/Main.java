@@ -8,29 +8,51 @@ import java.util.Arrays;
 
 /** Argument routing around the generated Fusion container. Legacy `chat` remains supported. */
 public final class Main {
-    private Main() { }
+    private Main() {}
+
     public static void main(String[] args) {
         int code = run(args, System.out, System.err);
         if (code != 0) System.exit(code);
     }
-    public record Options(String action, String id) { }
+
+    public record Options(String action, String id) {}
+
     public static Options parse(String[] arguments) {
         var args = new java.util.ArrayList<>(Arrays.asList(arguments));
         if (!args.isEmpty() && args.getFirst().equals("chat")) args.removeFirst();
         if (args.isEmpty()) return new Options("default", "");
         return switch (args.getFirst()) {
-            case "-c", "--continue" -> { require(args.size() == 1); yield new Options("resume", ""); }
-            case "--new" -> { require(args.size() == 1); yield new Options("new", ""); }
-            case "-s", "--session" -> { require(args.size() == 2); yield new Options("open", args.get(1)); }
-            case "--fork" -> { require(args.size() == 2); yield new Options("fork", args.get(1)); }
-            default -> throw new IllegalArgumentException("Unknown arguments. Use --help for usage.");
+            case "-c", "--continue" -> {
+                require(args.size() == 1);
+                yield new Options("resume", "");
+            }
+            case "--new" -> {
+                require(args.size() == 1);
+                yield new Options("new", "");
+            }
+            case "-s", "--session" -> {
+                require(args.size() == 2);
+                yield new Options("open", args.get(1));
+            }
+            case "--fork" -> {
+                require(args.size() == 2);
+                yield new Options("fork", args.get(1));
+            }
+            default ->
+                    throw new IllegalArgumentException("Unknown arguments. Use --help for usage.");
         };
     }
-    private static void require(boolean condition) { if (!condition) throw new IllegalArgumentException("Invalid arguments. Use --help for usage."); }
+
+    private static void require(boolean condition) {
+        if (!condition)
+            throw new IllegalArgumentException("Invalid arguments. Use --help for usage.");
+    }
+
     public static int run(String[] args, PrintStream out, PrintStream error) {
         try {
             if (Arrays.asList(args).contains("--help") || Arrays.asList(args).contains("-h")) {
-                out.println("""
+                out.println(
+                        """
                         Syleks — persistent local AI sessions
                         Usage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]
                                syleks config init [--defaults]
@@ -49,41 +71,73 @@ public final class Main {
                 return 0;
             }
             if (args.length > 0 && args[0].equals("config")) {
-                require((args.length == 2 || args.length == 3 && args[2].equals("--defaults")) && args[1].equals("init"));
+                require(
+                        (args.length == 2 || args.length == 3 && args[2].equals("--defaults"))
+                                && args[1].equals("init"));
                 if (args.length == 2 && System.console() != null) {
                     try (var terminal = TerminalApp.openTerminal()) {
                         TerminalApp.ConfigurationResult result;
                         try (var container = ConfiguringContainer.of().start();
-                             var initializer = container.lookup(ConfigInitializer.class);
-                             var wizard = container.lookup(ConfigInitWizard.class)) {
-                            result = TerminalApp.configure(initializer.instance(), wizard.instance(), terminal);
+                                var initializer = container.lookup(ConfigInitializer.class);
+                                var wizard = container.lookup(ConfigInitWizard.class)) {
+                            result =
+                                    TerminalApp.configure(
+                                            initializer.instance(), wizard.instance(), terminal);
                         }
                         if (result.restart()) chat(new Options("default", ""), terminal);
                     }
                 } else {
-                    try (var container = ConfiguringContainer.of().start(); var instance = container.lookup(ConfigInitializer.class)) {
+                    try (var container = ConfiguringContainer.of().start();
+                            var instance = container.lookup(ConfigInitializer.class)) {
                         var home = ConfigInitializer.home();
                         String configuration = null;
-                        if (args.length == 2 && !java.nio.file.Files.exists(home.resolve(".config/syleks/agent-config.json"), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-                            try (var wizard = container.lookup(ConfigInitWizard.class)) { configuration = wizard.instance().configure(out); }
+                        if (args.length == 2
+                                && !java.nio.file.Files.exists(
+                                        home.resolve(".config/syleks/agent-config.json"),
+                                        java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                            try (var wizard = container.lookup(ConfigInitWizard.class)) {
+                                configuration = wizard.instance().configure(out);
+                            }
                         }
                         for (var result : instance.instance().initialize(home, configuration)) {
-                            out.println((result.created() ? "Created " : "Skipped existing ") + safe(result.path().toString()));
+                            out.println(
+                                    (result.created() ? "Created " : "Skipped existing ")
+                                            + safe(result.path().toString()));
                         }
                     }
                 }
             } else if (args.length > 0 && args[0].equals("session")) {
                 require(args.length >= 2);
                 String operation = args[1];
-                require(operation.equals("list") ? args.length == 2 : (operation.equals("delete") || operation.equals("export")) && args.length == 3);
-                try (var container = ConfiguringContainer.of().start(); var instance = container.lookup(SessionService.class)) {
+                require(
+                        operation.equals("list")
+                                ? args.length == 2
+                                : (operation.equals("delete") || operation.equals("export"))
+                                        && args.length == 3);
+                try (var container = ConfiguringContainer.of().start();
+                        var instance = container.lookup(SessionService.class)) {
                     var service = instance.instance();
                     switch (operation) {
                         case "list" -> {
                             out.println("ID\tTITLE\tUPDATED_AT\tMODEL\tMESSAGES\tSTATUS");
-                            for (var s : service.list()) out.println(s.id() + "\t" + safe(s.title()) + "\t" + s.updatedAt() + "\t" + safe(s.model()) + "\t" + s.messageCount() + "\t" + s.status());
+                            for (var s : service.list())
+                                out.println(
+                                        s.id()
+                                                + "\t"
+                                                + safe(s.title())
+                                                + "\t"
+                                                + s.updatedAt()
+                                                + "\t"
+                                                + safe(s.model())
+                                                + "\t"
+                                                + s.messageCount()
+                                                + "\t"
+                                                + s.status());
                         }
-                        case "delete" -> { service.delete(args[2]); out.println("Deleted session " + args[2]); }
+                        case "delete" -> {
+                            service.delete(args[2]);
+                            out.println("Deleted session " + args[2]);
+                        }
                         case "export" -> out.println(service.export(args[2]));
                         default -> throw new IllegalArgumentException("Unknown session command");
                     }
@@ -92,17 +146,27 @@ public final class Main {
                 chat(parse(args));
             }
             return 0;
-        } catch (IllegalArgumentException e) { error.println("Syleks: " + safe(e.getMessage())); return 2; }
-        catch (Exception e) { error.println("Syleks: " + safe(e.getMessage())); return 1; }
-    }
-    private static void chat(Options options) throws Exception {
-        try (var terminal = TerminalApp.openTerminal()) { chat(options, terminal); }
+        } catch (IllegalArgumentException e) {
+            error.println("Syleks: " + safe(e.getMessage()));
+            return 2;
+        } catch (Exception e) {
+            error.println("Syleks: " + safe(e.getMessage()));
+            return 1;
+        }
     }
 
-    private static void chat(Options options, TerminalApp.TerminalHandle terminal) throws Exception {
+    private static void chat(Options options) throws Exception {
+        try (var terminal = TerminalApp.openTerminal()) {
+            chat(options, terminal);
+        }
+    }
+
+    private static void chat(Options options, TerminalApp.TerminalHandle terminal)
+            throws Exception {
         TerminalApp.RestartRequest restart = null;
         while (true) {
-            try (var container = ConfiguringContainer.of().start(); var instance = container.lookup(TerminalApp.class)) {
+            try (var container = ConfiguringContainer.of().start();
+                    var instance = container.lookup(TerminalApp.class)) {
                 var app = instance.instance();
                 app.initialize(options);
                 if (restart != null) app.restoreAfterRestart(restart);
@@ -110,9 +174,14 @@ public final class Main {
                 restart = app.restartRequest();
             }
             if (restart == null) return;
-            options = restart.sessionId() == null ? new Options("new", "") : new Options("open", restart.sessionId());
+            options =
+                    restart.sessionId() == null
+                            ? new Options("new", "")
+                            : new Options("open", restart.sessionId());
         }
     }
 
-    private static String safe(String value) { return value == null ? "Operation failed" : value.replaceAll("[\\p{Cc}]", " "); }
+    private static String safe(String value) {
+        return value == null ? "Operation failed" : value.replaceAll("[\\p{Cc}]", " ");
+    }
 }

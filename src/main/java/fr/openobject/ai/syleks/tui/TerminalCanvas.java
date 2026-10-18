@@ -6,13 +6,20 @@ import java.util.Arrays;
  * Terminal-cell buffer: each position owns its glyph, foreground, background and bold attribute.
  */
 public final class TerminalCanvas {
-    public record Cell(String glyph, int fg, int bg, boolean bold) {
-    }
+    public record Cell(String glyph, int fg, int bg, boolean bold) {}
 
-    public static final int BG = 0x15181F, INPUT = 0x202635, CODE = 0x222735, WHITE = 0xDEE3EB,
-            SUB = 0x94A3B8, BLUE = 0x7DD3FC, ACCENT = 0x619CF4, GREEN = 0x39E681,
-            YELLOW = 0xF1CC38, BORDER = 0x394253, PURPLE = 0xC4B5FD, RED = 0xF87171;
-
+    public static final int BG = 0x15181F,
+            INPUT = 0x202635,
+            CODE = 0x222735,
+            WHITE = 0xDEE3EB,
+            SUB = 0x94A3B8,
+            BLUE = 0x7DD3FC,
+            ACCENT = 0x619CF4,
+            GREEN = 0x39E681,
+            YELLOW = 0xF1CC38,
+            BORDER = 0x394253,
+            PURPLE = 0xC4B5FD,
+            RED = 0xF87171;
     private final int width, height;
     private final Cell[][] cells;
 
@@ -61,12 +68,17 @@ public final class TerminalCanvas {
     }
 
     public static int cellWidth(int codepoint) {
-        return codepoint >= 0x1100 && (
-                codepoint <= 0x115F || codepoint >= 0x2E80 && codepoint <= 0xA4CF ||
-                        codepoint >= 0xAC00 && codepoint <= 0xD7A3 || codepoint >= 0xF900 && codepoint <= 0xFAFF ||
-                        codepoint >= 0xFE10 && codepoint <= 0xFE6F || codepoint >= 0xFF01 && codepoint <= 0xFF60 ||
-                        codepoint >= 0xFFE0 && codepoint <= 0xFFE6 || codepoint >= 0x1F300 && codepoint <= 0x1FAFF)
-                ? 2 : 1;
+        return codepoint >= 0x1100
+                        && (codepoint <= 0x115F
+                                || codepoint >= 0x2E80 && codepoint <= 0xA4CF
+                                || codepoint >= 0xAC00 && codepoint <= 0xD7A3
+                                || codepoint >= 0xF900 && codepoint <= 0xFAFF
+                                || codepoint >= 0xFE10 && codepoint <= 0xFE6F
+                                || codepoint >= 0xFF01 && codepoint <= 0xFF60
+                                || codepoint >= 0xFFE0 && codepoint <= 0xFFE6
+                                || codepoint >= 0x1F300 && codepoint <= 0x1FAFF)
+                ? 2
+                : 1;
     }
 
     public void rule(int y) {

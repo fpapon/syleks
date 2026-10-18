@@ -9,10 +9,15 @@ public record ChatMessage(String role, String content, String time, String displ
     }
 
     public static ChatMessage now(String role, String content, String displayContent) {
-        return new ChatMessage(role, content, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")), displayContent);
+        return new ChatMessage(
+                role,
+                content,
+                LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
+                displayContent);
     }
 
     public static ChatMessage now(String role, String content) {
-        return new ChatMessage(role, content, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")));
+        return new ChatMessage(
+                role, content, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")));
     }
 }

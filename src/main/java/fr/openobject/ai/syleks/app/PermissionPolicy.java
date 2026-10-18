@@ -9,20 +9,45 @@ import java.util.regex.Pattern;
 
 /** Ordered permissions: later matching rules override earlier rules. */
 public record PermissionPolicy(List<Rule> rules) {
-    public static final List<String> OPERATIONS = List.of("chat", "task", "save", "read", "edit", "write", "bash", "webfetch", "websearch", "glob", "grep", "list");
-    public enum Decision { ALLOW, ASK, DENY }
+    public static final List<String> OPERATIONS =
+            List.of(
+                    "chat",
+                    "task",
+                    "save",
+                    "read",
+                    "edit",
+                    "write",
+                    "bash",
+                    "webfetch",
+                    "websearch",
+                    "glob",
+                    "grep",
+                    "list");
+
+    public enum Decision {
+        ALLOW,
+        ASK,
+        DENY
+    }
+
     public record Rule(String operation, String target, Decision decision) {}
 
     public PermissionPolicy {
         rules = List.copyOf(rules);
     }
 
-    public static PermissionPolicy empty() { return new PermissionPolicy(List.of()); }
+    public static PermissionPolicy empty() {
+        return new PermissionPolicy(List.of());
+    }
 
     public static PermissionPolicy defaults() {
-        return new PermissionPolicy(List.of(new Rule("*", "*", Decision.DENY),
-                new Rule("chat", "*", Decision.ALLOW), new Rule("task", "*", Decision.ALLOW),
-                new Rule("save", "*", Decision.ALLOW), new Rule("bash", "*", Decision.ASK)));
+        return new PermissionPolicy(
+                List.of(
+                        new Rule("*", "*", Decision.DENY),
+                        new Rule("chat", "*", Decision.ALLOW),
+                        new Rule("task", "*", Decision.ALLOW),
+                        new Rule("save", "*", Decision.ALLOW),
+                        new Rule("bash", "*", Decision.ASK)));
     }
 
     public static PermissionPolicy parse(Object value, Path file) {
@@ -31,12 +56,14 @@ public record PermissionPolicy(List<Rule> rules) {
             rules.add(new Rule("*", "*", decision(value, file)));
         } else if (value instanceof Map<?, ?> operations) {
             for (var entry : operations.entrySet()) {
-                if (!(entry.getKey() instanceof String operation) || !(operation.equals("*") || OPERATIONS.contains(operation))) {
+                if (!(entry.getKey() instanceof String operation)
+                        || !(operation.equals("*") || OPERATIONS.contains(operation))) {
                     throw invalid(file, "unknown operation: " + entry.getKey());
                 }
                 if (entry.getValue() instanceof Map<?, ?> targets) {
                     for (var target : targets.entrySet()) {
-                        if (!(target.getKey() instanceof String pattern) || pattern.isBlank()) throw invalid(file, "target patterns must be non-blank strings");
+                        if (!(target.getKey() instanceof String pattern) || pattern.isBlank())
+                            throw invalid(file, "target patterns must be non-blank strings");
                         rules.add(new Rule(operation, pattern, decision(target.getValue(), file)));
                     }
                 } else {
@@ -56,10 +83,12 @@ public record PermissionPolicy(List<Rule> rules) {
     }
 
     public Decision evaluate(String operation, String target) {
-        if (!OPERATIONS.contains(operation)) throw new IllegalArgumentException("Unknown permission operation: " + operation);
+        if (!OPERATIONS.contains(operation))
+            throw new IllegalArgumentException("Unknown permission operation: " + operation);
         var result = Decision.DENY;
         for (var rule : rules) {
-            if ((rule.operation().equals("*") || rule.operation().equals(operation)) && matches(rule.target(), target)) result = rule.decision();
+            if ((rule.operation().equals("*") || rule.operation().equals(operation))
+                    && matches(rule.target(), target)) result = rule.decision();
         }
         return result;
     }
@@ -76,8 +105,11 @@ public record PermissionPolicy(List<Rule> rules) {
 
     private static Decision decision(Object value, Path file) {
         if (value instanceof String text) {
-            try { return Decision.valueOf(text.toUpperCase(Locale.ROOT)); }
-            catch (IllegalArgumentException ignored) { /* report the source below */ }
+            try {
+                return Decision.valueOf(text.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                /* report the source below */
+            }
         }
         throw invalid(file, "actions must be allow, ask, or deny");
     }

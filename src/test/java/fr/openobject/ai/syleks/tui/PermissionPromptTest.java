@@ -1,18 +1,21 @@
 package fr.openobject.ai.syleks.tui;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.model.PermissionRequest;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class PermissionPromptTest {
-    private final PermissionRequest tool = new PermissionRequest(1, "Run bash command as build",
-            "Directory: /project\nTimeout: 60 seconds\nls -la", true);
+    private final PermissionRequest tool =
+            new PermissionRequest(
+                    1,
+                    "Run bash command as build",
+                    "Directory: /project\nTimeout: 60 seconds\nls -la",
+                    true);
 
     @Test
     void cyclesOptionsAndResetsForEachRequest() {
@@ -77,7 +80,9 @@ class PermissionPromptTest {
     @Test
     void scrollsLongDetailsAndSupportsNarrowTerminals() {
         var prompt = new PermissionPrompt();
-        prompt.sync(new PermissionRequest(3, "Edit file", "first\n" + "middle\n".repeat(100) + "LAST DETAIL", true));
+        prompt.sync(
+                new PermissionRequest(
+                        3, "Edit file", "first\n" + "middle\n".repeat(100) + "LAST DETAIL", true));
         prompt.scroll(1000);
         var screen = render(prompt, 100, 30);
         assertTrue(text(screen).contains("LAST DETAIL"));
@@ -92,15 +97,34 @@ class PermissionPromptTest {
     }
 
     private ChatRenderer.Screen render(PermissionPrompt prompt, int width, int height) {
-        return new ChatRenderer("/project").render(new ChatSnapshot(List.of(), "qwen3", "Awaiting permission", true,
-                "build", "Local", "Qwen3", prompt.request()), new Editor(), width, height, 0, false, prompt);
+        return new ChatRenderer("/project")
+                .render(
+                        new ChatSnapshot(
+                                List.of(),
+                                "qwen3",
+                                "Awaiting permission",
+                                true,
+                                "build",
+                                "Local",
+                                "Qwen3",
+                                prompt.request()),
+                        new Editor(),
+                        width,
+                        height,
+                        0,
+                        false,
+                        prompt);
     }
 
     private String row(TerminalCanvas canvas, int y) {
-        return IntStream.range(0, canvas.width()).mapToObj(x -> canvas.at(x, y).glyph()).collect(Collectors.joining());
+        return IntStream.range(0, canvas.width())
+                .mapToObj(x -> canvas.at(x, y).glyph())
+                .collect(Collectors.joining());
     }
 
     private String text(ChatRenderer.Screen screen) {
-        return IntStream.range(0, screen.canvas().height()).mapToObj(y -> row(screen.canvas(), y)).collect(Collectors.joining("\n"));
+        return IntStream.range(0, screen.canvas().height())
+                .mapToObj(y -> row(screen.canvas(), y))
+                .collect(Collectors.joining("\n"));
     }
 }

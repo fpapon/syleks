@@ -1,5 +1,7 @@
 package fr.openobject.ai.syleks.ai;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.app.AppConfigFixtures;
 import fr.openobject.ai.syleks.model.ChatMessage;
@@ -7,21 +9,17 @@ import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.json.JsonMapper;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 class OllamaChunkTest {
-    @TempDir
-    Path directory;
+    @TempDir Path directory;
 
     private RuntimeContainer container;
     private Instance<JsonMapper> mapper;
@@ -55,7 +53,10 @@ class OllamaChunkTest {
 
     @Test
     void refusesUnsupportedTools() throws Exception {
-        assertTrue(client.parseChunk("{\"message\":{\"tool_calls\":[{\"function\":{\"name\":\"shell\"}}]}}").toolRequested());
+        assertTrue(
+                client.parseChunk(
+                                "{\"message\":{\"tool_calls\":[{\"function\":{\"name\":\"shell\"}}]}}")
+                        .toolRequested());
     }
 
     @Test
@@ -63,13 +64,18 @@ class OllamaChunkTest {
         var empty = new OllamaClient.Chunk("", false, null, false);
         assertEquals(empty, client.parseChunk("{}"));
         assertEquals(empty, client.parseChunk("{\"message\":null,\"done\":null,\"error\":null}"));
-        assertEquals(empty, client.parseChunk("{\"message\":{\"content\":null,\"tool_calls\":[]}}"));
-        assertEquals(empty, client.parseChunk("{\"message\":{\"content\":{},\"tool_calls\":{}},\"error\":42}"));
+        assertEquals(
+                empty, client.parseChunk("{\"message\":{\"content\":null,\"tool_calls\":[]}}"));
+        assertEquals(
+                empty,
+                client.parseChunk("{\"message\":{\"content\":{},\"tool_calls\":{}},\"error\":42}"));
     }
 
     @Test
     void decodesEscapedUnicodeAndIgnoresExtraFields() throws Exception {
-        var chunk = client.parseChunk("{\"message\":{\"content\":\"Salut \\uD83E\\uDDEA\\n\\\"code\\\"\\\\\"},\"done\":false,\"eval_count\":12}");
+        var chunk =
+                client.parseChunk(
+                        "{\"message\":{\"content\":\"Salut \\uD83E\\uDDEA\\n\\\"code\\\"\\\\\"},\"done\":false,\"eval_count\":12}");
         assertEquals("Salut 🧪\n\"code\"\\", chunk.content());
     }
 
@@ -91,17 +97,23 @@ class OllamaChunkTest {
     @Test
     void serializesPayloadWithEscapingAndOnlyConversationRoles() throws Exception {
         var content = "Java 🧪\n\"quoted\"\\path\tend";
-        var payload = client.createPayload("qwen3:8b", List.of(
-                ChatMessage.now("system", "local status"),
-                ChatMessage.now("user", content),
-                ChatMessage.now("assistant", "reply"),
-                ChatMessage.now("tool", "unsupported")));
-        var request = assertInstanceOf(Map.class, mapper.instance().fromString(Object.class, payload));
+        var payload =
+                client.createPayload(
+                        "qwen3:8b",
+                        List.of(
+                                ChatMessage.now("system", "local status"),
+                                ChatMessage.now("user", content),
+                                ChatMessage.now("assistant", "reply"),
+                                ChatMessage.now("tool", "unsupported")));
+        var request =
+                assertInstanceOf(Map.class, mapper.instance().fromString(Object.class, payload));
         assertEquals("qwen3:8b", request.get("model"));
         assertEquals(Boolean.TRUE, request.get("stream"));
-        assertEquals(List.of(
-                Map.of("role", "system", "content", config.systemPrompt()),
-                Map.of("role", "user", "content", content),
-                Map.of("role", "assistant", "content", "reply")), request.get("messages"));
+        assertEquals(
+                List.of(
+                        Map.of("role", "system", "content", config.systemPrompt()),
+                        Map.of("role", "user", "content", content),
+                        Map.of("role", "assistant", "content", "reply")),
+                request.get("messages"));
     }
 }

@@ -1,22 +1,22 @@
 package fr.openobject.ai.syleks.app;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 class ConfigSchemaTest {
     private final ObjectMapper json = new ObjectMapper();
-    private final JsonSchema schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
-            .getSchema(Path.of("agent-config.schema.json").toUri());
+    private final JsonSchema schema =
+            JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
+                    .getSchema(Path.of("agent-config.schema.json").toUri());
 
     @Test
     void validatesExamplesAndSupportedConfigurationVariants() throws Exception {
@@ -24,12 +24,13 @@ class ConfigSchemaTest {
             var errors = schema.validate(json.readTree(Files.readString(Path.of(file))));
             assertTrue(errors.isEmpty(), () -> file + ": " + errors);
         }
-        for (var content : List.of(
-                "{}",
-                "{\"ollama_url\":\"http://localhost:11434\",\"ollama_model\":\"qwen3:8b\"}",
-                "{\"permission\":\"ALLOW\",\"max_rounds\":1000}",
-                "{\"agent\":{\"reviewer\":{\"mode\":\"SUBAGENT\",\"model\":\"qwen3:8b\",\"prompt\":\"Review code\",\"max_rounds\":1,\"permission\":{\"*\":{\"*\":\"DENY\"}}}}}",
-                "{\"provider\":{\"local\":{\"options\":{\"baseURL\":\"http://[::1]:8000/v1/\"},\"models\":{\"team/model\":{}}}}}")) {
+        for (var content :
+                List.of(
+                        "{}",
+                        "{\"ollama_url\":\"http://localhost:11434\",\"ollama_model\":\"qwen3:8b\"}",
+                        "{\"permission\":\"ALLOW\",\"max_rounds\":1000}",
+                        "{\"agent\":{\"reviewer\":{\"mode\":\"SUBAGENT\",\"model\":\"qwen3:8b\",\"prompt\":\"Review code\",\"max_rounds\":1,\"permission\":{\"*\":{\"*\":\"DENY\"}}}}}",
+                        "{\"provider\":{\"local\":{\"options\":{\"baseURL\":\"http://[::1]:8000/v1/\"},\"models\":{\"team/model\":{}}}}}")) {
             var errors = schema.validate(json.readTree(content));
             assertTrue(errors.isEmpty(), () -> content + ": " + errors);
         }
@@ -37,34 +38,49 @@ class ConfigSchemaTest {
 
     @Test
     void rejectsMalformedSettingsAndUnknownFields() throws Exception {
-        for (var content : List.of(
-                "[]", "{\"providers\":{}}", "{\"model\":\"bare-model\"}",
-                "{\"max_rounds\":0}", "{\"max_rounds\":1001}", "{\"max_rounds\":1.5}",
-                "{\"ollama_model\":null}", "{\"default_agent\":\"invalid/name\"}",
-                "{\"permission\":{\"unknown\":\"allow\"}}", "{\"permission\":{\"read\":{\" \":\"allow\"}}}",
-                "{\"agent\":{\"build\":{\"temperature\":3}}}", "{\"agent\":{\"build\":{\"temperature\":\"0.1\"}}}",
-                "{\"agent\":{\"build\":{\"mode\":\"unknown\"}}}", "{\"agent\":{\"build\":{\"prompt\":\" \"}}}",
-                "{\"agent\":{\"build\":{\"max_rounds\":0}}}", "{\"agent\":{\"build\":{\"unknown\":true}}}",
-                "{\"provider\":{\"bad/id\":{}}}", "{\"provider\":{\"local\":{\"models\":{}}}}")) {
+        for (var content :
+                List.of(
+                        "[]",
+                        "{\"providers\":{}}",
+                        "{\"model\":\"bare-model\"}",
+                        "{\"max_rounds\":0}",
+                        "{\"max_rounds\":1001}",
+                        "{\"max_rounds\":1.5}",
+                        "{\"ollama_model\":null}",
+                        "{\"default_agent\":\"invalid/name\"}",
+                        "{\"permission\":{\"unknown\":\"allow\"}}",
+                        "{\"permission\":{\"read\":{\" \":\"allow\"}}}",
+                        "{\"agent\":{\"build\":{\"temperature\":3}}}",
+                        "{\"agent\":{\"build\":{\"temperature\":\"0.1\"}}}",
+                        "{\"agent\":{\"build\":{\"mode\":\"unknown\"}}}",
+                        "{\"agent\":{\"build\":{\"prompt\":\" \"}}}",
+                        "{\"agent\":{\"build\":{\"max_rounds\":0}}}",
+                        "{\"agent\":{\"build\":{\"unknown\":true}}}",
+                        "{\"provider\":{\"bad/id\":{}}}",
+                        "{\"provider\":{\"local\":{\"models\":{}}}}")) {
             assertFalse(schema.validate(json.readTree(content)).isEmpty(), content);
         }
     }
 
     @Test
     void rejectsInvalidProviderOptionsModelsAndLimits() throws Exception {
-        for (var provider : List.of(
-                "{\"options\":{\"baseURL\":\"file:///tmp/model\"}}",
-                "{\"options\":{\"baseURL\":\"http://user:pass@localhost/v1\"}}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1?key=value\"}}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1#fragment\"}}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1\",\"apiKey\":\"key\\nheader\"}}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1\",\"apiKey\":\"\"}}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"npm\":\"@ai-sdk/unsupported\"}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":null}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"bad model\":{}}}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"model\":{\"limit\":{\"output\":0}}}}",
-                "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"model\":{\"limit\":{\"context\":2147483648}}}}")) {
-            assertFalse(schema.validate(json.readTree("{\"provider\":{\"local\":" + provider + "}}")).isEmpty(), provider);
+        for (var provider :
+                List.of(
+                        "{\"options\":{\"baseURL\":\"file:///tmp/model\"}}",
+                        "{\"options\":{\"baseURL\":\"http://user:pass@localhost/v1\"}}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1?key=value\"}}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1#fragment\"}}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1\",\"apiKey\":\"key\\nheader\"}}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1\",\"apiKey\":\"\"}}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"npm\":\"@ai-sdk/unsupported\"}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":null}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"bad model\":{}}}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"model\":{\"limit\":{\"output\":0}}}}",
+                        "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"model\":{\"limit\":{\"context\":2147483648}}}}")) {
+            assertFalse(
+                    schema.validate(json.readTree("{\"provider\":{\"local\":" + provider + "}}"))
+                            .isEmpty(),
+                    provider);
         }
     }
 }

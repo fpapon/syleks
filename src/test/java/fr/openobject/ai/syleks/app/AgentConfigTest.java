@@ -1,5 +1,7 @@
 package fr.openobject.ai.syleks.app;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import fr.openobject.ai.syleks.ai.ChatSession;
 import fr.openobject.ai.syleks.ai.OllamaClient;
 import fr.openobject.ai.syleks.ai.ToolHandler;
@@ -8,11 +10,6 @@ import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.json.JsonMapper;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -23,12 +20,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class AgentConfigTest {
-    @TempDir
-    Path directory;
+    @TempDir Path directory;
     private Path home;
     private Path project;
     private RuntimeContainer container;
@@ -65,7 +63,10 @@ class AgentConfigTest {
 
     @Test
     void readsFrontmatterAndAppendsMarkdownToTheSharedPrompt() throws IOException {
-        agent(false, "architect", """
+        agent(
+                false,
+                "architect",
+                """
                 ---
                 description: "Design: Java # architecture" # comment
                 mode: primary
@@ -88,22 +89,32 @@ class AgentConfigTest {
         var payload = payload(client.createPayload("qwen3:8b", "architect", List.of()));
         assertEquals(Map.of("temperature", new BigDecimal("0.2")), payload.get("options"));
         var messages = assertInstanceOf(List.class, payload.get("messages"));
-        assertEquals(Map.of("role", "system", "content", config.systemPrompt("architect")), messages.getFirst());
+        assertEquals(
+                Map.of("role", "system", "content", config.systemPrompt("architect")),
+                messages.getFirst());
     }
 
     @Test
     void overlaysJsonThenGlobalThenProjectWhilePreservingUnspecifiedSettings() throws IOException {
-        write(home.resolve(".config/syleks/agent-config.json"), """
+        write(
+                home.resolve(".config/syleks/agent-config.json"),
+                """
                 {"agent":{"reviewer":{"mode":"subagent","model":"review-model","temperature":0.1,"prompt":"JSON prompt"}}}
                 """);
-        agent(false, "reviewer", """
+        agent(
+                false,
+                "reviewer",
+                """
                 ---
                 description: Global reviewer
                 temperature: 0.2
                 ---
                 Global prompt.
                 """);
-        agent(true, "reviewer", """
+        agent(
+                true,
+                "reviewer",
+                """
                 ---
                 description: Project reviewer
                 ---
@@ -120,8 +131,14 @@ class AgentConfigTest {
     @Test
     void supportsPlainMarkdownAllModeAndMultilineDescriptions() throws IOException {
         agent(false, "writer", "Help write clear documentation.");
-        agent(false, "reviewer", "\uFEFF---\r\ndescription: >-\r\n  Review Java code\r\n  for correctness\r\nmode: subagent\r\n---\r\nReview the supplied code.\r\n");
-        agent(false, "tester", """
+        agent(
+                false,
+                "reviewer",
+                "\uFEFF---\r\ndescription: >-\r\n  Review Java code\r\n  for correctness\r\nmode: subagent\r\n---\r\nReview the supplied code.\r\n");
+        agent(
+                false,
+                "tester",
+                """
                 ---
                 description: 'Review users'' tests'
                 mode: all
@@ -138,9 +155,14 @@ class AgentConfigTest {
 
     @Test
     void allowsOverridingBuiltinPromptsAndSelectingADefaultPrimaryAgent() throws IOException {
-        write(home.resolve(".config/syleks/agent-config.json"), "{\"default_agent\":\"architect\",\"agent\":{\"build\":{\"temperature\":0.1}}}");
+        write(
+                home.resolve(".config/syleks/agent-config.json"),
+                "{\"default_agent\":\"architect\",\"agent\":{\"build\":{\"temperature\":0.1}}}");
         agent(false, "build", "Use concise Java examples.");
-        agent(false, "architect", "---\nmode: primary\nmodel: architecture-model\n---\nPlan first.");
+        agent(
+                false,
+                "architect",
+                "---\nmode: primary\nmodel: architecture-model\n---\nPlan first.");
         var config = config();
         assertEquals(0.1, config.temperature("build"));
         assertEquals(AgentDefinition.Mode.PRIMARY, config.agent("build").mode());
@@ -157,16 +179,17 @@ class AgentConfigTest {
 
     @Test
     void rejectsMalformedOrUnsupportedFrontmatterWithTheFilePath() throws IOException {
-        for (var content : List.of(
-                "---\nmode: subagent\nPrompt without closing delimiter",
-                "---\nmode: unknown\n---\nPrompt",
-                "---\ntemperature: 3\n---\nPrompt",
-                "---\ntemperature: NaN\n---\nPrompt",
-                "---\ntools:\n  read: true\n---\nPrompt",
-                "---\nmode: all\nmode: primary\n---\nPrompt",
-                "---\nmodel: null\n---\nPrompt",
-                "---\ndescription: \"unterminated\n---\nPrompt",
-                "---\nmode: subagent\n---\n  ")) {
+        for (var content :
+                List.of(
+                        "---\nmode: subagent\nPrompt without closing delimiter",
+                        "---\nmode: unknown\n---\nPrompt",
+                        "---\ntemperature: 3\n---\nPrompt",
+                        "---\ntemperature: NaN\n---\nPrompt",
+                        "---\ntools:\n  read: true\n---\nPrompt",
+                        "---\nmode: all\nmode: primary\n---\nPrompt",
+                        "---\nmodel: null\n---\nPrompt",
+                        "---\ndescription: \"unterminated\n---\nPrompt",
+                        "---\nmode: subagent\n---\n  ")) {
             var file = agent(false, "reviewer", content);
             var error = assertThrows(IllegalStateException.class, this::config);
             assertTrue(error.getMessage().contains(file.toString()), error.getMessage());
@@ -185,7 +208,10 @@ class AgentConfigTest {
 
     @Test
     void invokesASubagentWithAnIsolatedTaskAndReturnsToThePrimary() throws Exception {
-        agent(false, "reviewer", "---\nmode: subagent\nmodel: review-model\ntemperature: 0.1\n---\nReview only the provided code.");
+        agent(
+                false,
+                "reviewer",
+                "---\nmode: subagent\nmodel: review-model\ntemperature: 0.1\n---\nReview only the provided code.");
         var config = config();
         var requests = new LinkedBlockingQueue<Request>();
         var client = client(config, requests);
@@ -199,9 +225,16 @@ class AgentConfigTest {
         assertEquals("review-model", request.model());
         assertEquals(1, request.history().size());
         assertEquals("Review this Java snippet", request.history().getFirst().content());
-        var body = payload(client.createPayload(request.model(), request.agent(), request.history()));
+        var body =
+                payload(client.createPayload(request.model(), request.agent(), request.history()));
         var sentMessages = assertInstanceOf(List.class, body.get("messages"));
-        assertEquals(Map.of("role", "system", "content", "Shared prompt\n\nReview only the provided code."), sentMessages.getFirst());
+        assertEquals(
+                Map.of(
+                        "role",
+                        "system",
+                        "content",
+                        "Shared prompt\n\nReview only the provided code."),
+                sentMessages.getFirst());
         assertEquals("review-model", body.get("model"));
         assertEquals("build", session.snapshot().agent());
         assertEquals(config.defaultModel(), session.snapshot().model());
@@ -211,7 +244,9 @@ class AgentConfigTest {
         assertNotNull(followup);
         awaitIdle(session);
         assertEquals("build", followup.agent());
-        assertTrue(followup.history().stream().anyMatch(message -> message.content().contains("Subagent · reviewer")));
+        assertTrue(
+                followup.history().stream()
+                        .anyMatch(message -> message.content().contains("Subagent · reviewer")));
         assertThrows(IllegalArgumentException.class, () -> session.agent("reviewer"));
         assertThrows(IllegalArgumentException.class, () -> session.send("@missing task"));
         assertThrows(IllegalArgumentException.class, () -> session.send("@reviewer"));
@@ -226,18 +261,25 @@ class AgentConfigTest {
         var config = config();
         var entered = new CountDownLatch(1);
         var interrupted = new CountDownLatch(1);
-        var client = new OllamaClient(config, mapper.instance()) {
-            @Override
-            public void stream(String model, String agent, List<ChatMessage> history, Consumer<String> receive, ToolHandler tools) throws Exception {
-                entered.countDown();
-                try {
-                    new CountDownLatch(1).await();
-                } catch (InterruptedException e) {
-                    interrupted.countDown();
-                    throw e;
-                }
-            }
-        };
+        var client =
+                new OllamaClient(config, mapper.instance()) {
+                    @Override
+                    public void stream(
+                            String model,
+                            String agent,
+                            List<ChatMessage> history,
+                            Consumer<String> receive,
+                            ToolHandler tools)
+                            throws Exception {
+                        entered.countDown();
+                        try {
+                            new CountDownLatch(1).await();
+                        } catch (InterruptedException e) {
+                            interrupted.countDown();
+                            throw e;
+                        }
+                    }
+                };
         var session = new ChatSession(client, config);
         assertTrue(session.subagent("reviewer", "task"));
         assertTrue(entered.await(2, TimeUnit.SECONDS));
@@ -252,7 +294,12 @@ class AgentConfigTest {
     private OllamaClient client(AppConfig config, LinkedBlockingQueue<Request> requests) {
         return new OllamaClient(config, mapper.instance()) {
             @Override
-            public void stream(String model, String agent, List<ChatMessage> history, Consumer<String> receive, ToolHandler tools) {
+            public void stream(
+                    String model,
+                    String agent,
+                    List<ChatMessage> history,
+                    Consumer<String> receive,
+                    ToolHandler tools) {
                 requests.add(new Request(model, agent, List.copyOf(history)));
                 receive.accept("Answer from " + agent);
             }
@@ -268,7 +315,9 @@ class AgentConfigTest {
     @Test
     void inheritsRoundLimitsAndOverlaysAgentDefinitions() throws IOException {
         var file = home.resolve(".config/syleks/agent-config.json");
-        write(file, "{\"max_rounds\":20,\"agent\":{\"reviewer\":{\"mode\":\"subagent\",\"max_rounds\":3}}}");
+        write(
+                file,
+                "{\"max_rounds\":20,\"agent\":{\"reviewer\":{\"mode\":\"subagent\",\"max_rounds\":3}}}");
         assertEquals(20, config().maxRounds("build"));
         assertEquals(20, config().maxRounds("plan"));
         assertEquals(3, config().maxRounds("reviewer"));
@@ -284,8 +333,23 @@ class AgentConfigTest {
     @Test
     void rejectsInvalidGlobalAndAgentRoundLimits() throws IOException {
         var file = home.resolve(".config/syleks/agent-config.json");
-        for (var value : List.of("0", "-1", "1001", "1.5", "2147483648", "1e100", "\"3\"", "true", "null", "[]", "{}")) {
-            for (var content : List.of("{\"max_rounds\":" + value + "}", "{\"agent\":{\"build\":{\"max_rounds\":" + value + "}}}")) {
+        for (var value :
+                List.of(
+                        "0",
+                        "-1",
+                        "1001",
+                        "1.5",
+                        "2147483648",
+                        "1e100",
+                        "\"3\"",
+                        "true",
+                        "null",
+                        "[]",
+                        "{}")) {
+            for (var content :
+                    List.of(
+                            "{\"max_rounds\":" + value + "}",
+                            "{\"agent\":{\"build\":{\"max_rounds\":" + value + "}}}")) {
                 write(file, content);
                 var error = assertThrows(IllegalStateException.class, this::config);
                 assertTrue(error.getMessage().contains("max_rounds"));
@@ -306,7 +370,8 @@ class AgentConfigTest {
     }
 
     private AppConfig config() {
-        return new AppConfig(mapper.instance(), home, Map.of("AGENT_SYSTEM_PROMPT", "Shared prompt"), project);
+        return new AppConfig(
+                mapper.instance(), home, Map.of("AGENT_SYSTEM_PROMPT", "Shared prompt"), project);
     }
 
     private Map<?, ?> payload(String content) {
@@ -314,7 +379,10 @@ class AgentConfigTest {
     }
 
     private Path agent(boolean local, String name, String content) throws IOException {
-        return write((local ? project.resolve(".syleks/agents") : home.resolve(".config/syleks/agents")).resolve(name + ".md"), content);
+        return write(
+                (local ? project.resolve(".syleks/agents") : home.resolve(".config/syleks/agents"))
+                        .resolve(name + ".md"),
+                content);
     }
 
     private Path write(Path path, String content) throws IOException {

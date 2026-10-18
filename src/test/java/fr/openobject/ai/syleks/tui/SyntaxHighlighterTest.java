@@ -1,13 +1,12 @@
 package fr.openobject.ai.syleks.tui;
 
-import org.junit.jupiter.api.Test;
+import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class SyntaxHighlighterTest {
     @Test
@@ -24,13 +23,29 @@ class SyntaxHighlighterTest {
 
     @Test
     void supportsLanguageAliasesAndFileNames() {
-        for (var entry : Map.of("js", "const x = 1;", "typescript", "interface Example {}", "Example.java", "public class X {}",
-                "py", "def example():", "go", "func example() {}", "rs", "fn example() {}", "sql", "SELECT x FROM t").entrySet()) {
+        for (var entry :
+                Map.of(
+                                "js",
+                                "const x = 1;",
+                                "typescript",
+                                "interface Example {}",
+                                "Example.java",
+                                "public class X {}",
+                                "py",
+                                "def example():",
+                                "go",
+                                "func example() {}",
+                                "rs",
+                                "fn example() {}",
+                                "sql",
+                                "SELECT x FROM t")
+                        .entrySet()) {
             var tokens = new SyntaxHighlighter(entry.getKey()).highlight(entry.getValue());
             assertEquals(entry.getValue(), text(tokens));
             assertTrue(tokens.stream().anyMatch(t -> t.color() == PURPLE), entry.getKey());
         }
-        for (var language : List.of("json", "yaml", "toml", "bash", "ruby", "kotlin", "cpp", "csharp", "css")) {
+        for (var language :
+                List.of("json", "yaml", "toml", "bash", "ruby", "kotlin", "cpp", "csharp", "css")) {
             var tokens = new SyntaxHighlighter(language).highlight("value = \"hello\" 42");
             assertTrue(tokens.stream().anyMatch(t -> t.color() != WHITE), language);
         }
@@ -45,7 +60,9 @@ class SyntaxHighlighterTest {
         java.highlight("String text = \"\"\"");
         assertNotEquals(PURPLE, color(java.highlight("public class InTextBlock"), "public"));
         assertEquals(PURPLE, color(java.highlight("\"\"\"; public class After {}"), "public"));
-        assertEquals(PURPLE, color(new SyntaxHighlighter("java").highlight("public class Fresh {}"), "public"));
+        assertEquals(
+                PURPLE,
+                color(new SyntaxHighlighter("java").highlight("public class Fresh {}"), "public"));
     }
 
     @Test
@@ -67,7 +84,9 @@ class SyntaxHighlighterTest {
         }
         assertTrue(new SyntaxHighlighter("markdown").highlight("# Heading").getFirst().bold());
         assertTrue(new SyntaxHighlighter("adoc").highlight("= Heading").getFirst().bold());
-        var inline = SyntaxHighlighter.inline("**Bold** and `code` with [docs](https://example.com)", WHITE, false);
+        var inline =
+                SyntaxHighlighter.inline(
+                        "**Bold** and `code` with [docs](https://example.com)", WHITE, false);
         assertEquals("Bold and code with docs (https://example.com)", text(inline));
         assertTrue(inline.getFirst().bold());
         assertEquals(BLUE, color(inline, "code"));
@@ -76,7 +95,9 @@ class SyntaxHighlighterTest {
     @Test
     void usesPlainTextForUnknownLanguagesAndPreservesDiffColors() {
         var text = "a 🧪 + public \"value\"";
-        assertEquals(List.of(new SyntaxHighlighter.Token(text, WHITE, false)), new SyntaxHighlighter("unknown").highlight(text));
+        assertEquals(
+                List.of(new SyntaxHighlighter.Token(text, WHITE, false)),
+                new SyntaxHighlighter("unknown").highlight(text));
         assertEquals(GREEN, new SyntaxHighlighter("diff").highlight("+ added").getFirst().color());
         assertEquals(RED, new SyntaxHighlighter("diff").highlight("- removed").getFirst().color());
     }
@@ -86,6 +107,10 @@ class SyntaxHighlighterTest {
     }
 
     private int color(List<SyntaxHighlighter.Token> tokens, String fragment) {
-        return tokens.stream().filter(t -> t.text().contains(fragment)).findFirst().orElseThrow().color();
+        return tokens.stream()
+                .filter(t -> t.text().contains(fragment))
+                .findFirst()
+                .orElseThrow()
+                .color();
     }
 }

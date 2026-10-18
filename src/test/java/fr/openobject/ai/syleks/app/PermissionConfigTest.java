@@ -1,5 +1,8 @@
 package fr.openobject.ai.syleks.app;
 
+import static fr.openobject.ai.syleks.app.PermissionPolicy.Decision.*;
+import static org.junit.jupiter.api.Assertions.*;
+
 import fr.openobject.ai.syleks.ai.ChatSession;
 import fr.openobject.ai.syleks.ai.OllamaClient;
 import fr.openobject.ai.syleks.ai.ToolHandler;
@@ -8,11 +11,6 @@ import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.json.JsonMapper;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,13 +21,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
-import static fr.openobject.ai.syleks.app.PermissionPolicy.Decision.*;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class PermissionConfigTest {
-    @TempDir
-    Path directory;
+    @TempDir Path directory;
     private Path home;
     private Path project;
     private RuntimeContainer container;
@@ -65,11 +63,15 @@ class PermissionConfigTest {
 
     @Test
     void mergesGlobalJsonAndAgentJsonAndMarkdownRules() throws IOException {
-        settings("""
+        settings(
+                """
                 {"permission":{"*":"deny","chat":"allow","read":"allow","save":"ask"},
                  "agent":{"reviewer":{"mode":"subagent","permission":{"read":"deny","task":"ask"}}}}
                 """);
-        agent(false, "reviewer", """
+        agent(
+                false,
+                "reviewer",
+                """
                 ---
                 permission:
                   chat: ask
@@ -79,7 +81,10 @@ class PermissionConfigTest {
                 ---
                 Review code.
                 """);
-        agent(true, "reviewer", """
+        agent(
+                true,
+                "reviewer",
+                """
                 ---
                 permission:
                   read: allow
@@ -107,24 +112,38 @@ class PermissionConfigTest {
         targets.put("*", "deny");
         targets.put("file[1].md", "allow");
         targets.put("*.md", "ask");
-        var policy = PermissionPolicy.parse(Map.of("read", targets), directory.resolve("config.json"));
+        var policy =
+                PermissionPolicy.parse(Map.of("read", targets), directory.resolve("config.json"));
         assertEquals(ASK, policy.evaluate("read", "file[1].md"));
         assertEquals(DENY, policy.evaluate("read", "file1Xmd"));
-        assertEquals(DENY, policy.overlay(PermissionPolicy.parse("deny", directory)).evaluate("read", "file[1].md"));
+        assertEquals(
+                DENY,
+                policy.overlay(PermissionPolicy.parse("deny", directory))
+                        .evaluate("read", "file[1].md"));
     }
 
     @Test
     void rejectsInvalidPermissionValuesAndMalformedMarkdown() throws IOException {
-        for (var json : List.of("null", "true", "[]", "\"sometimes\"", "{\"unknown\":\"allow\"}",
-                "{\"read\":true}", "{\"save\":{\"*\":\"unknown\"}}")) {
+        for (var json :
+                List.of(
+                        "null",
+                        "true",
+                        "[]",
+                        "\"sometimes\"",
+                        "{\"unknown\":\"allow\"}",
+                        "{\"read\":true}",
+                        "{\"save\":{\"*\":\"unknown\"}}")) {
             settings("{\"permission\":" + json + "}");
             var error = assertThrows(IllegalStateException.class, this::config);
             assertTrue(error.getMessage().contains("agent-config.json"));
         }
         settings("{}");
-        for (var frontmatter : List.of(
-                "permission:\n  read: maybe", "permission:\n  save:\n    \"*\": allow\n    \"*\": deny",
-                "permission:\n  read: allow\n  read: deny", "permission:\n  save:\n    \"*\":\n      nested: allow")) {
+        for (var frontmatter :
+                List.of(
+                        "permission:\n  read: maybe",
+                                "permission:\n  save:\n    \"*\": allow\n    \"*\": deny",
+                        "permission:\n  read: allow\n  read: deny",
+                                "permission:\n  save:\n    \"*\":\n      nested: allow")) {
             var file = agent(false, "reviewer", "---\n" + frontmatter + "\n---\nReview code.");
             var error = assertThrows(IllegalStateException.class, this::config);
             assertTrue(error.getMessage().contains(file.toString()));
@@ -191,7 +210,8 @@ class PermissionConfigTest {
         var deniedCallee = session(config());
         assertThrows(IllegalStateException.class, () -> deniedCallee.subagent("reviewer", "Task"));
         assertTrue(requests.isEmpty());
-        settings("""
+        settings(
+                """
                 {"permission":{"task":"deny"},"agent":{"build":{"permission":{"task":{"reviewer":"ask"}}}}}
                 """);
         var allowed = session(config());
@@ -230,14 +250,21 @@ class PermissionConfigTest {
         var config = config();
         var started = new CountDownLatch(1);
         var release = new CountDownLatch(1);
-        var client = new OllamaClient(config, mapper.instance()) {
-            @Override
-            public void stream(String model, String agent, List<ChatMessage> history, Consumer<String> receive, ToolHandler tools) throws Exception {
-                started.countDown();
-                release.await();
-                receive.accept("Completed answer");
-            }
-        };
+        var client =
+                new OllamaClient(config, mapper.instance()) {
+                    @Override
+                    public void stream(
+                            String model,
+                            String agent,
+                            List<ChatMessage> history,
+                            Consumer<String> receive,
+                            ToolHandler tools)
+                            throws Exception {
+                        started.countDown();
+                        release.await();
+                        receive.accept("Completed answer");
+                    }
+                };
         var session = new ChatSession(client, config);
         var output = directory.resolve("session.md");
         try {
@@ -279,13 +306,20 @@ class PermissionConfigTest {
     }
 
     private ChatSession session(AppConfig config) {
-        return new ChatSession(new OllamaClient(config, mapper.instance()) {
-            @Override
-            public void stream(String model, String agent, List<ChatMessage> history, Consumer<String> receive, ToolHandler tools) {
-                requests.add(agent + ":" + history.getLast().content());
-                receive.accept("Answer");
-            }
-        }, config);
+        return new ChatSession(
+                new OllamaClient(config, mapper.instance()) {
+                    @Override
+                    public void stream(
+                            String model,
+                            String agent,
+                            List<ChatMessage> history,
+                            Consumer<String> receive,
+                            ToolHandler tools) {
+                        requests.add(agent + ":" + history.getLast().content());
+                        receive.accept("Answer");
+                    }
+                },
+                config);
     }
 
     private AppConfig config() {
@@ -303,7 +337,10 @@ class PermissionConfigTest {
     }
 
     private Path agent(boolean local, String name, String content) throws IOException {
-        return write((local ? project.resolve(".syleks/agents") : home.resolve(".config/syleks/agents")).resolve(name + ".md"), content);
+        return write(
+                (local ? project.resolve(".syleks/agents") : home.resolve(".config/syleks/agents"))
+                        .resolve(name + ".md"),
+                content);
     }
 
     private Path write(Path path, String content) throws IOException {

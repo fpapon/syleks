@@ -1,25 +1,23 @@
 package fr.openobject.ai.syleks.app;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.json.JsonMapper;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class AppConfigTest {
-    @TempDir
-    Path home;
+    @TempDir Path home;
 
     private RuntimeContainer container;
     private Instance<JsonMapper> mapper;
@@ -49,11 +47,13 @@ class AppConfigTest {
 
     @Test
     void readsOllamaSettingsAndNormalizesTrailingSlashes() throws IOException {
-        writeConfig("""
+        writeConfig(
+                """
                 {"ollama_url":"https://ollama.example.test:8443/proxy///", "ollama_model":"llama3.2:3b"}
                 """);
         var config = config(Map.of());
-        assertEquals(URI.create("https://ollama.example.test:8443/proxy/api/chat"), config.endpoint());
+        assertEquals(
+                URI.create("https://ollama.example.test:8443/proxy/api/chat"), config.endpoint());
         assertEquals("llama3.2:3b", config.defaultModel());
     }
 
@@ -71,11 +71,14 @@ class AppConfigTest {
 
     @Test
     void environmentOverridesFileSettings() throws IOException {
-        writeConfig("{\"ollama_url\":\"http://file.example.test:11434\",\"ollama_model\":\"file-model\"}");
-        var config = config(Map.of(
-                "OLLAMA_URL", "https://env.example.test/",
-                "OLLAMA_MODEL", "env-model",
-                "AGENT_SYSTEM_PROMPT", "Custom prompt"));
+        writeConfig(
+                "{\"ollama_url\":\"http://file.example.test:11434\",\"ollama_model\":\"file-model\"}");
+        var config =
+                config(
+                        Map.of(
+                                "OLLAMA_URL", "https://env.example.test/",
+                                "OLLAMA_MODEL", "env-model",
+                                "AGENT_SYSTEM_PROMPT", "Custom prompt"));
         assertEquals(URI.create("https://env.example.test/api/chat"), config.endpoint());
         assertEquals("env-model", config.defaultModel());
         assertEquals("Custom prompt", config.systemPrompt());
@@ -83,14 +86,15 @@ class AppConfigTest {
 
     @Test
     void supportsEnvironmentSettingsWithoutAFile() {
-        var config = config(Map.of("OLLAMA_URL", "http://localhost:11435", "OLLAMA_MODEL", "env-model"));
+        var config =
+                config(Map.of("OLLAMA_URL", "http://localhost:11435", "OLLAMA_MODEL", "env-model"));
         assertEquals(URI.create("http://localhost:11435/api/chat"), config.endpoint());
         assertEquals("env-model", config.defaultModel());
     }
 
     @Test
     void reportsInvalidJsonAndNonObjectRootsWithFilePath() throws IOException {
-        for (var content : new String[]{"{\"ollama_url\":", "[]", "null", "\"text\""}) {
+        for (var content : new String[] {"{\"ollama_url\":", "[]", "null", "\"text\""}) {
             var file = writeConfig(content);
             var error = assertThrows(IllegalStateException.class, () -> config(Map.of()), content);
             assertTrue(error.getMessage().contains(file.toString()));
@@ -100,8 +104,8 @@ class AppConfigTest {
 
     @Test
     void rejectsBlankNullAndNonStringSettings() throws IOException {
-        for (var key : new String[]{"ollama_url", "ollama_model"}) {
-            for (var value : new String[]{"null", "42", "true", "{}", "\"\"", "\"  \""}) {
+        for (var key : new String[] {"ollama_url", "ollama_model"}) {
+            for (var value : new String[] {"null", "42", "true", "{}", "\"\"", "\"  \""}) {
                 var file = writeConfig("{\"" + key + "\":" + value + "}");
                 var error = assertThrows(IllegalStateException.class, () -> config(Map.of()));
                 assertTrue(error.getMessage().contains(key));

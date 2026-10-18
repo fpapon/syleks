@@ -8,6 +8,10 @@ import java.util.Map;
 public interface ContextBudget {
     int estimate(List<Map<String, Object>> messages);
 
-    ContextBudget UTF8 = messages -> messages.stream().mapToInt(m ->
-            16 + m.toString().getBytes(StandardCharsets.UTF_8).length).sum();
+    ContextBudget UTF8 =
+            messages ->
+                    messages.stream()
+                            .mapToInt(
+                                    m -> 16 + m.toString().getBytes(StandardCharsets.UTF_8).length)
+                            .sum();
 }

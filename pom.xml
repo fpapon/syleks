@@ -15,6 +15,8 @@
         <arthur.version>1.0.10</arthur.version>
         <graalvm.version>25.0.2</graalvm.version>
         <sqlite.version>3.53.2.0</sqlite.version>
+        <spotless.version>3.10.4</spotless.version>
+        <google-java-format.version>1.30.0</google-java-format.version>
     </properties>
     <dependencies>
         <dependency>
@@ -80,6 +82,35 @@
             </resource>
         </resources>
         <plugins>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <googleJavaFormat>
+                            <version>${google-java-format.version}</version>
+                            <style>AOSP</style>
+                            <formatJavadoc>false</formatJavadoc>
+                        </googleJavaFormat>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>check-formatting</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>

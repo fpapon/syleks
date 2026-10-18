@@ -1,3 +1,8 @@
 package fr.openobject.ai.syleks.session.model;
 
-public enum MessageStatus { COMPLETE, GENERATING, INTERRUPTED, ERROR }
+public enum MessageStatus {
+    COMPLETE,
+    GENERATING,
+    INTERRUPTED,
+    ERROR
+}

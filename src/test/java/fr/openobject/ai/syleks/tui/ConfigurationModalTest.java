@@ -1,48 +1,66 @@
 package fr.openobject.ai.syleks.tui;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import fr.openobject.ai.syleks.app.ConfigInitWizard;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 class ConfigurationModalTest {
-    @Test void navigatesEditsValidatesAndRequiresSeparateSaveAndRestartChoices() throws Exception {
-        try (var container = ConfiguringContainer.of().start(); var mapper = container.lookup(JsonMapper.class)) {
+    @Test
+    void navigatesEditsValidatesAndRequiresSeparateSaveAndRestartChoices() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(JsonMapper.class)) {
             var form = new ConfigInitWizard(mapper.instance()).form(null);
             var modal = new ConfigurationModal(form);
             for (int key : "team".codePoints().toArray()) modal.key(key);
-            modal.key('\r'); assertEquals("team", form.value(0)); assertEquals(1, modal.field());
-            modal.sequence("Z"); assertEquals(0, modal.field());
-            modal.key('\r'); modal.key('\r'); assertEquals(2, modal.field());
+            modal.key('\r');
+            assertEquals("team", form.value(0));
+            assertEquals(1, modal.field());
+            modal.sequence("Z");
+            assertEquals(0, modal.field());
+            modal.key('\r');
+            modal.key('\r');
+            assertEquals(2, modal.field());
             for (int key : "bad-url".codePoints().toArray()) modal.key(key);
-            modal.key('\r'); assertEquals(2, modal.field()); assertFalse(modal.error().isEmpty());
-            modal.sequence("Z"); modal.key('\r'); // Invalid URL is retained when going back.
+            modal.key('\r');
+            assertEquals(2, modal.field());
+            assertFalse(modal.error().isEmpty());
+            modal.sequence("Z");
+            modal.key('\r'); // Invalid URL is retained when going back.
             modal.key(127);
             for (int key : "http://localhost:8000/v1".codePoints().toArray()) modal.key(key);
-            modal.key('\r'); assertEquals(3, modal.field());
+            modal.key('\r');
+            assertEquals(3, modal.field());
             for (int i = 3; i < ConfigInitWizard.FIELDS.size(); i++) modal.key('\r');
             assertEquals(ConfigurationModal.Stage.REVIEW, modal.stage());
             assertEquals(ConfigurationModal.Action.SAVE, modal.key('\r'));
-            modal.saving(); assertEquals(ConfigurationModal.Action.NONE, modal.key(27));
-            modal.saved(); assertEquals(ConfigurationModal.Stage.SAVED, modal.stage());
+            modal.saving();
+            assertEquals(ConfigurationModal.Action.NONE, modal.key(27));
+            modal.saved();
+            assertEquals(ConfigurationModal.Stage.SAVED, modal.stage());
             assertEquals(ConfigurationModal.Action.RESTART, modal.key('\r'));
         }
     }
 
-    @Test void masksExistingSecretsClipsSafelyAndOffersLaterOrCancellation() throws Exception {
-        try (var container = ConfiguringContainer.of().start(); var mapper = container.lookup(JsonMapper.class)) {
-            var form = new ConfigInitWizard(mapper.instance()).form(null); form.value(3, "sensitive-api-key");
+    @Test
+    void masksExistingSecretsClipsSafelyAndOffersLaterOrCancellation() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(JsonMapper.class)) {
+            var form = new ConfigInitWizard(mapper.instance()).form(null);
+            form.value(3, "sensitive-api-key");
             var modal = new ConfigurationModal(form);
             for (int i = 0; i < 3; i++) modal.key('\r');
             var screen = modal.paint(new TerminalCanvas(100, 30));
             assertFalse(text(screen.canvas()).contains("sensitive-api-key"));
             assertTrue(text(screen.canvas()).contains("••••"));
-            for (int width : new int[]{1, 34, 35, 60, 100}) for (int height : new int[]{1, 14, 15, 30}) {
-                assertDoesNotThrow(() -> modal.paint(new TerminalCanvas(width, height)));
-            }
-            modal.saved(); modal.key(9);
+            for (int width : new int[] {1, 34, 35, 60, 100})
+                for (int height : new int[] {1, 14, 15, 30}) {
+                    assertDoesNotThrow(() -> modal.paint(new TerminalCanvas(width, height)));
+                }
+            modal.saved();
+            modal.key(9);
             assertEquals(ConfigurationModal.Action.CLOSE, modal.key('\r'));
             var cancelled = new ConfigurationModal(form);
             assertEquals(ConfigurationModal.Action.CLOSE, cancelled.key(27));
@@ -50,25 +68,36 @@ class ConfigurationModalTest {
         }
     }
 
-    @Test void bracketedPasteCannotSaveRestartOrInjectNewlines() throws Exception {
-        try (var container = ConfiguringContainer.of().start(); var mapper = container.lookup(JsonMapper.class)) {
+    @Test
+    void bracketedPasteCannotSaveRestartOrInjectNewlines() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(JsonMapper.class)) {
             var modal = new ConfigurationModal(new ConfigInitWizard(mapper.instance()).form(null));
             modal.sequence("200~");
             for (int key : "team\n\r\t".codePoints().toArray()) modal.key(key);
-            assertEquals(0, modal.field()); assertEquals("team", modal.input());
-            modal.sequence("201~"); modal.key('\r'); assertEquals(1, modal.field());
-            modal.saved(); modal.sequence("200~");
+            assertEquals(0, modal.field());
+            assertEquals("team", modal.input());
+            modal.sequence("201~");
+            modal.key('\r');
+            assertEquals(1, modal.field());
+            modal.saved();
+            modal.sequence("200~");
             assertEquals(ConfigurationModal.Action.NONE, modal.key('\r'));
             assertEquals(ConfigurationModal.Stage.SAVED, modal.stage());
         }
     }
 
-    @Test void failedSaveKeepsTheFormForRetryWithoutRequestingARestart() throws Exception {
-        try (var container = ConfiguringContainer.of().start(); var mapper = container.lookup(JsonMapper.class)) {
+    @Test
+    void failedSaveKeepsTheFormForRetryWithoutRequestingARestart() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(JsonMapper.class)) {
             var modal = new ConfigurationModal(new ConfigInitWizard(mapper.instance()).form(null));
-            modal.saving(); modal.failed("Disk is full");
+            modal.saving();
+            modal.failed("Disk is full");
             assertEquals(ConfigurationModal.Stage.REVIEW, modal.stage());
-            assertTrue(text(modal.paint(new TerminalCanvas(100, 30)).canvas()).contains("Disk is full"));
+            assertTrue(
+                    text(modal.paint(new TerminalCanvas(100, 30)).canvas())
+                            .contains("Disk is full"));
             assertEquals(ConfigurationModal.Action.SAVE, modal.key('\r'));
         }
     }

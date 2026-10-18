@@ -4,11 +4,10 @@ import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
-
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -41,7 +40,8 @@ public class OllamaClient {
         return createPayload(model, "build", history);
     }
 
-    public String createPayload(String model, String agent, List<ChatMessage> history) throws IOException {
+    public String createPayload(String model, String agent, List<ChatMessage> history)
+            throws IOException {
         return payload(model, agent, conversation(agent, history));
     }
 
@@ -65,68 +65,141 @@ public class OllamaClient {
         var temperature = config.temperature(agent);
         if (connection.openAiCompatible()) {
             if (temperature != null) request.put("temperature", temperature);
-            if (connection.outputLimit() != null) request.put("max_tokens", connection.outputLimit());
+            if (connection.outputLimit() != null)
+                request.put("max_tokens", connection.outputLimit());
         } else if (temperature != null) {
             request.put("options", Map.of("temperature", temperature));
         }
         var definitions = new ArrayList<Map<String, Object>>();
-        for (var name : AgentTools.NAMES) if (config.toolAvailable(agent, name)) definitions.add(AgentTools.schema(name));
+        for (var name : AgentTools.NAMES)
+            if (config.toolAvailable(agent, name)) definitions.add(AgentTools.schema(name));
         if (config.commandToolAvailable(agent)) {
-            definitions.add(Map.of("type", "function", "function", Map.of(
-                    "name", "bash", "description", "Execute a local bash command in the launch directory, subject to configured permission approval. Returns merged stdout/stderr and exit code. Stdin is closed.",
-                    "parameters", Map.of("type", "object", "properties", Map.of(
-                            "command", Map.of("type", "string", "description", "The exact shell command to execute"),
-                            "timeout_seconds", Map.of("type", "integer", "minimum", 1, "maximum", 300, "description", "Timeout in seconds; defaults to 60")),
-                            "required", List.of("command"), "additionalProperties", false))));
+            definitions.add(
+                    Map.of(
+                            "type",
+                            "function",
+                            "function",
+                            Map.of(
+                                    "name",
+                                    "bash",
+                                    "description",
+                                    "Execute a local bash command in the launch directory, subject to configured permission approval. Returns merged stdout/stderr and exit code. Stdin is closed.",
+                                    "parameters",
+                                    Map.of(
+                                            "type",
+                                            "object",
+                                            "properties",
+                                            Map.of(
+                                                    "command",
+                                                            Map.of(
+                                                                    "type",
+                                                                    "string",
+                                                                    "description",
+                                                                    "The exact shell command to execute"),
+                                                    "timeout_seconds",
+                                                            Map.of(
+                                                                    "type",
+                                                                    "integer",
+                                                                    "minimum",
+                                                                    1,
+                                                                    "maximum",
+                                                                    300,
+                                                                    "description",
+                                                                    "Timeout in seconds; defaults to 60")),
+                                            "required",
+                                            List.of("command"),
+                                            "additionalProperties",
+                                            false))));
         }
         if (!definitions.isEmpty()) request.put("tools", definitions);
         if (persistentRequest.get()) {
             int window = config.contextWindow(model);
             int reserve = config.responseTokens(model);
-            var bounded = fr.openobject.ai.syleks.session.ContextService.limit(messages, window, reserve,
-                    json.toString(definitions).getBytes(StandardCharsets.UTF_8).length);
+            var bounded =
+                    fr.openobject.ai.syleks.session.ContextService.limit(
+                            messages,
+                            window,
+                            reserve,
+                            json.toString(definitions).getBytes(StandardCharsets.UTF_8).length);
             request.put("messages", bounded.messages());
-            if (bounded.omittedMessages() > 0 && observer.get() != null) observer.get().contextLimited(bounded.omittedMessages());
+            if (bounded.omittedMessages() > 0 && observer.get() != null)
+                observer.get().contextLimited(bounded.omittedMessages());
             if (connection.openAiCompatible()) request.put("max_tokens", reserve);
             else {
                 var options = new LinkedHashMap<String, Object>();
                 if (temperature != null) options.put("temperature", temperature);
-                options.put("num_ctx", window); options.put("num_predict", reserve);
+                options.put("num_ctx", window);
+                options.put("num_predict", reserve);
                 request.put("options", options);
             }
         }
         return json.toString(request);
     }
 
-    public void stream(String model, List<ChatMessage> history, Consumer<String> receive) throws Exception {
+    public void stream(String model, List<ChatMessage> history, Consumer<String> receive)
+            throws Exception {
         stream(model, "build", history, receive);
     }
 
-    public void stream(String model, String agent, List<ChatMessage> history, Consumer<String> receive) throws Exception {
-        stream(model, agent, history, receive, call -> { throw new IOException("No tool executor is attached"); });
+    public void stream(
+            String model, String agent, List<ChatMessage> history, Consumer<String> receive)
+            throws Exception {
+        stream(
+                model,
+                agent,
+                history,
+                receive,
+                call -> {
+                    throw new IOException("No tool executor is attached");
+                });
     }
 
-    public void stream(String model, String agent, List<ChatMessage> history, Consumer<String> receive, ToolHandler tools) throws Exception {
+    public void stream(
+            String model,
+            String agent,
+            List<ChatMessage> history,
+            Consumer<String> receive,
+            ToolHandler tools)
+            throws Exception {
         streamConversation(model, agent, conversation(agent, history), receive, tools, null);
     }
 
     public interface Observer {
-        default void contextLimited(int count) { }
+        default void contextLimited(int count) {}
+
         void round(String content, String reasoning, List<ToolCall> calls);
+
         void toolResult(ToolCall call, String result);
+
         void nextRound();
     }
 
-    public void streamPrepared(String model, String agent, List<Map<String, Object>> history, Consumer<String> receive,
-                               ToolHandler tools, Observer observer) throws Exception {
+    public void streamPrepared(
+            String model,
+            String agent,
+            List<Map<String, Object>> history,
+            Consumer<String> receive,
+            ToolHandler tools,
+            Observer observer)
+            throws Exception {
         persistentRequest.set(true);
         this.observer.set(observer);
-        try { streamConversation(model, agent, history, receive, tools, observer); }
-        finally { persistentRequest.remove(); this.observer.remove(); }
+        try {
+            streamConversation(model, agent, history, receive, tools, observer);
+        } finally {
+            persistentRequest.remove();
+            this.observer.remove();
+        }
     }
 
-    private void streamConversation(String model, String agent, List<Map<String, Object>> history, Consumer<String> receive,
-                                    ToolHandler tools, Observer observer) throws Exception {
+    private void streamConversation(
+            String model,
+            String agent,
+            List<Map<String, Object>> history,
+            Consumer<String> receive,
+            ToolHandler tools,
+            Observer observer)
+            throws Exception {
         var connection = config.resolveModel(model);
         var messages = new ArrayList<>(history);
         int maxRounds = config.maxRounds(agent);
@@ -138,13 +211,28 @@ public class OllamaClient {
             var assistant = new LinkedHashMap<String, Object>();
             assistant.put("role", "assistant");
             assistant.put("content", turn.content());
-            if (!connection.openAiCompatible() && !turn.thinking().isEmpty()) assistant.put("thinking", turn.thinking());
+            if (!connection.openAiCompatible() && !turn.thinking().isEmpty())
+                assistant.put("thinking", turn.thinking());
             var calls = new ArrayList<Map<String, Object>>();
             for (var call : turn.calls()) {
                 if (connection.openAiCompatible()) {
-                    calls.add(Map.of("id", call.id(), "type", "function", "function", Map.of("name", call.name(), "arguments", json.toString(call.arguments()))));
+                    calls.add(
+                            Map.of(
+                                    "id",
+                                    call.id(),
+                                    "type",
+                                    "function",
+                                    "function",
+                                    Map.of(
+                                            "name",
+                                            call.name(),
+                                            "arguments",
+                                            json.toString(call.arguments()))));
                 } else {
-                    calls.add(Map.of("function", Map.of("name", call.name(), "arguments", call.arguments())));
+                    calls.add(
+                            Map.of(
+                                    "function",
+                                    Map.of("name", call.name(), "arguments", call.arguments())));
                 }
             }
             assistant.put("tool_calls", calls);
@@ -154,32 +242,68 @@ public class OllamaClient {
                 String result = tools.execute(call);
                 if (observer != null) observer.toolResult(call, result);
                 checkInterrupted();
-                messages.add(connection.openAiCompatible()
-                        ? Map.of("role", "tool", "tool_call_id", call.id(), "content", result)
-                        : Map.of("role", "tool", "tool_name", call.name(), "content", result));
+                messages.add(
+                        connection.openAiCompatible()
+                                ? Map.of(
+                                        "role",
+                                        "tool",
+                                        "tool_call_id",
+                                        call.id(),
+                                        "content",
+                                        result)
+                                : Map.of(
+                                        "role",
+                                        "tool",
+                                        "tool_name",
+                                        call.name(),
+                                        "content",
+                                        result));
             }
             if (observer != null && round + 1 < maxRounds) observer.nextRound();
         }
-        throw new IOException("Stopped after " + maxRounds + " model/tool rounds; send a new message to continue");
+        throw new IOException(
+                "Stopped after "
+                        + maxRounds
+                        + " model/tool rounds; send a new message to continue");
     }
 
-    private Turn streamTurn(String model, String agent, List<Map<String, Object>> messages, Consumer<String> receive) throws Exception {
+    private Turn streamTurn(
+            String model,
+            String agent,
+            List<Map<String, Object>> messages,
+            Consumer<String> receive)
+            throws Exception {
         var connection = config.resolveModel(model);
-        var builder = HttpRequest.newBuilder(connection.endpoint())
-                .timeout(Duration.ofMinutes(10))
-                .header("Content-Type", "application/json")
-                .header("Accept", connection.openAiCompatible() ? "text/event-stream" : "application/x-ndjson")
-                .POST(HttpRequest.BodyPublishers.ofString(payload(model, agent, messages), StandardCharsets.UTF_8));
-        if (connection.openAiCompatible() && !connection.apiKey().isEmpty()) builder.header("Authorization", "Bearer " + connection.apiKey());
+        var builder =
+                HttpRequest.newBuilder(connection.endpoint())
+                        .timeout(Duration.ofMinutes(10))
+                        .header("Content-Type", "application/json")
+                        .header(
+                                "Accept",
+                                connection.openAiCompatible()
+                                        ? "text/event-stream"
+                                        : "application/x-ndjson")
+                        .POST(
+                                HttpRequest.BodyPublishers.ofString(
+                                        payload(model, agent, messages), StandardCharsets.UTF_8));
+        if (connection.openAiCompatible() && !connection.apiKey().isEmpty())
+            builder.header("Authorization", "Bearer " + connection.apiKey());
         var response = send(builder.build());
         try (var body = response.body()) {
             if (response.statusCode() != 200) {
                 var message = new String(body.readNBytes(2048), StandardCharsets.UTF_8);
-                if (!connection.apiKey().isEmpty()) message = message.replace(connection.apiKey(), "[redacted]");
-                throw new IOException(connection.providerName() + " HTTP " + response.statusCode() + " : " + message);
+                if (!connection.apiKey().isEmpty())
+                    message = message.replace(connection.apiKey(), "[redacted]");
+                throw new IOException(
+                        connection.providerName()
+                                + " HTTP "
+                                + response.statusCode()
+                                + " : "
+                                + message);
             }
             var state = new TurnState(connection.openAiCompatible(), receive);
-            try (var lines = new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8))) {
+            try (var lines =
+                    new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8))) {
                 if (connection.openAiCompatible()) readEvents(lines, state);
                 else readOllama(lines, state);
             }
@@ -213,12 +337,15 @@ public class OllamaClient {
 
         Turn finish() throws IOException {
             var complete = calls.finish();
-            if (requestedTools && complete.isEmpty()) throw new IOException("Response finished with a tool request but no complete tool calls");
+            if (requestedTools && complete.isEmpty())
+                throw new IOException(
+                        "Response finished with a tool request but no complete tool calls");
             return new Turn(content.toString(), thinking.toString(), complete);
         }
     }
 
-    protected HttpResponse<InputStream> send(HttpRequest request) throws IOException, InterruptedException {
+    protected HttpResponse<InputStream> send(HttpRequest request)
+            throws IOException, InterruptedException {
         return http.send(request, HttpResponse.BodyHandlers.ofInputStream());
     }
 
@@ -253,7 +380,8 @@ public class OllamaClient {
     }
 
     private void checkInterrupted() throws InterruptedException {
-        if (Thread.currentThread().isInterrupted()) throw new InterruptedException("Generation cancelled");
+        if (Thread.currentThread().isInterrupted())
+            throw new InterruptedException("Generation cancelled");
     }
 
     public Chunk parseOpenAiChunk(String data) throws IOException {
@@ -261,19 +389,32 @@ public class OllamaClient {
         var root = parseObject(data);
         String error = root.get("error") instanceof String text ? text : null;
         if (root.get("error") instanceof Map<?, ?> detail) {
-            error = detail.get("message") instanceof String text ? text : "Provider returned an error";
+            error =
+                    detail.get("message") instanceof String text
+                            ? text
+                            : "Provider returned an error";
         }
         if (error != null) return new Chunk("", false, error, false);
         if (!(root.get("choices") instanceof List<?> choices) || choices.isEmpty()) {
             return new Chunk("", false, null, false);
         }
-        if (!(choices.getFirst() instanceof Map<?, ?> choice)) throw new IOException("Invalid chat completion choice");
+        if (!(choices.getFirst() instanceof Map<?, ?> choice))
+            throw new IOException("Invalid chat completion choice");
         var delta = choice.get("delta") instanceof Map<?, ?> object ? object : Map.of();
         var content = delta.get("content") instanceof String text ? text : "";
         var reason = choice.get("finish_reason");
-        boolean tools = delta.get("tool_calls") instanceof List<?> calls && !calls.isEmpty() ||
-                delta.get("function_call") instanceof Map<?, ?> || "tool_calls".equals(reason) || "function_call".equals(reason);
-        return new Chunk(content, reason instanceof String, null, tools, toolCalls(delta.get("tool_calls")), "");
+        boolean tools =
+                delta.get("tool_calls") instanceof List<?> calls && !calls.isEmpty()
+                        || delta.get("function_call") instanceof Map<?, ?>
+                        || "tool_calls".equals(reason)
+                        || "function_call".equals(reason);
+        return new Chunk(
+                content,
+                reason instanceof String,
+                null,
+                tools,
+                toolCalls(delta.get("tool_calls")),
+                "");
     }
 
     public Chunk parseChunk(String line) throws IOException {
@@ -282,7 +423,12 @@ public class OllamaClient {
         Map<?, ?> message = root.get("message") instanceof Map<?, ?> object ? object : Map.of();
         String content = message.get("content") instanceof String text ? text : "";
         boolean tools = message.get("tool_calls") instanceof List<?> calls && !calls.isEmpty();
-        return new Chunk(content, Boolean.TRUE.equals(root.get("done")), error, tools, toolCalls(message.get("tool_calls")),
+        return new Chunk(
+                content,
+                Boolean.TRUE.equals(root.get("done")),
+                error,
+                tools,
+                toolCalls(message.get("tool_calls")),
                 message.get("thinking") instanceof String text ? text : "");
     }
 
@@ -307,8 +453,13 @@ public class OllamaClient {
         return List.copyOf(result);
     }
 
-    public record Chunk(String content, boolean done, String error, boolean toolRequested,
-                        List<Map<?, ?>> toolCalls, String thinking) {
+    public record Chunk(
+            String content,
+            boolean done,
+            String error,
+            boolean toolRequested,
+            List<Map<?, ?>> toolCalls,
+            String thinking) {
         public Chunk(String content, boolean done, String error, boolean toolRequested) {
             this(content, done, error, toolRequested, List.of(), "");
         }

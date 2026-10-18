@@ -1,9 +1,9 @@
 package fr.openobject.ai.syleks.app;
 
 import fr.openobject.ai.syleks.tui.TerminalApp;
+import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.cli.Command;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
-import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 
 /**
  * Entry point invoked as `java -jar target/syleks-*.jar chat`.
@@ -18,8 +18,7 @@ public class ChatCommand implements Runnable {
     }
 
     @RootConfiguration("-")
-    public record Configuration() {
-    }
+    public record Configuration() {}
 
     @Override
     public void run() {

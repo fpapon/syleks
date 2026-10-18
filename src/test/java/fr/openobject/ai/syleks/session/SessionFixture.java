@@ -19,17 +19,39 @@ public final class SessionFixture implements AutoCloseable {
     public final ConversationService conversation;
     public final ContextService context;
     public final AgentService agent;
+
     public SessionFixture(Path root) throws Exception {
         Files.createDirectories(root.resolve("project"));
         config = AppConfigFixtures.defaults(mapper.instance(), root);
-        paths = DataPaths.configured(root.resolve("home"), Map.of("SYLEKS_DATA_DIR", root.resolve("data").toString()));
+        paths =
+                DataPaths.configured(
+                        root.resolve("home"),
+                        Map.of("SYLEKS_DATA_DIR", root.resolve("data").toString()));
         database = new SqliteDatabase(paths);
         repositories = new SqliteRepositories(database);
         projects = new ProjectService(config, repositories);
-        sessions = new SessionService(projects, repositories, repositories, repositories, repositories, database, new SessionLocks(paths), mapper.instance());
-        conversation = new ConversationService(repositories, repositories, database, mapper.instance());
+        sessions =
+                new SessionService(
+                        projects,
+                        repositories,
+                        repositories,
+                        repositories,
+                        repositories,
+                        database,
+                        new SessionLocks(paths),
+                        mapper.instance());
+        conversation =
+                new ConversationService(repositories, repositories, database, mapper.instance());
         context = new ContextService(conversation, config, projects, mapper.instance());
-        agent = new AgentService(sessions, conversation, context, config, repositories, mapper.instance());
+        agent =
+                new AgentService(
+                        sessions, conversation, context, config, repositories, mapper.instance());
     }
-    @Override public void close() { agent.close(); mapper.close(); container.close(); }
+
+    @Override
+    public void close() {
+        agent.close();
+        mapper.close();
+        container.close();
+    }
 }

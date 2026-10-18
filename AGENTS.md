@@ -17,12 +17,14 @@ Use JDK 25 and Maven 3.9 or newer.
 - `mvn clean package`: compile, test, and build the shaded executable JAR.
 - `mvn test`: run the unit tests.
 - `mvn -Dtest=EditorTest test`: run one test class.
+- `mvn spotless:apply`: format production and test Java sources.
+- `mvn spotless:check`: check Java formatting without changing files.
 - `mvn -B --no-transfer-progress clean verify`: reproduce CI validation.
 - `java -jar target/syleks-0.1.0-SNAPSHOT.jar chat`: launch in an interactive terminal; requires a running Ollama server with the selected model installed.
 
 ## Coding Style & Naming Conventions
 
-Use four-space Java indentation and two-space XML indentation. Follow surrounding code and avoid unrelated formatting changes. Use `UpperCamelCase` for classes, `lowerCamelCase` for methods and fields, and lowercase package names. Keep Fusion-managed services consistent with existing annotations and constructor injection. No formatter or linter is configured.
+Use four-space Java indentation and two-space XML indentation. Spotless formats Java with Google Java Format's AOSP style; run `mvn spotless:apply` before submitting changes. Formatting is checked during `mvn verify`, including CI. Generated sources under `target/` are excluded. Follow surrounding code and avoid unrelated formatting changes. Use `UpperCamelCase` for classes, `lowerCamelCase` for methods and fields, and lowercase package names. Keep Fusion-managed services consistent with existing annotations and constructor injection.
 
 Keep terminal output owned by `TerminalApp`; background generation should update session state through synchronized methods.
 

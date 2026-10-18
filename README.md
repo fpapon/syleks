@@ -52,6 +52,18 @@ mvn -q compile exec:exec
 
 The plugin launches a separate Java process, selects the `chat` command automatically, and uses the same environment variables as the JAR launch. Exit with Ctrl+D or `/quit`.
 
+## Source formatting
+
+Spotless formats production and test Java sources with Google Java Format's four-space AOSP style. Generated files under `target/` are excluded.
+
+```sh
+mvn spotless:apply   # format source files
+mvn spotless:check   # check without changing files
+mvn clean verify     # build, test, package, and check formatting (also used by CI)
+```
+
+Plugin and formatter versions are pinned in `pom.xml`. Normal builds check formatting during `verify`; they do not rewrite sources automatically. See the [Spotless Maven documentation](https://github.com/diffplug/spotless/blob/main/plugin-maven/README.md) for plugin usage.
+
 ## Native executable with Apache Arthur
 
 The optional `native` Maven profile uses [Apache Geronimo Arthur](https://geronimo.apache.org/arthur/maven.html) 1.0.9 to build `target/syleks` during `package`:
