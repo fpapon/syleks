@@ -21,6 +21,153 @@ class AgentEngineParityTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ollama", "compat", "chatgpt", "openai-api"})
+    void delegatesToARealChildThroughEachTransportAndRestoresTheTreeAndUsage(String provider)
+            throws Exception {
+        try (var auth = new AuthFixture(root.resolve("auth"))) {
+            var steps = new ConcurrentLinkedQueue<ToolCall>();
+            var requests = new CopyOnWriteArrayList<Map<?, ?>>();
+            var failure = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+            auth.server.createContext(
+                    "/api/chat", ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.server.createContext(
+                    "/v1/chat/completions",
+                    ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.responsesHandler.set(ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.modelsHandler.set(
+                    ex ->
+                            AuthFixture.respond(
+                                    ex,
+                                    200,
+                                    provider.equals("openai-api")
+                                            ? "{\"data\":[{\"id\":\"test-model\"},{\"id\":\"child-model\"}]}"
+                                            : "{\"models\":[{\"slug\":\"test-model\",\"visibility\":\"list\"},{\"slug\":\"child-model\",\"visibility\":\"list\"}]}"));
+            String account =
+                    provider.equals("chatgpt")
+                            ? auth.login(null).account().id()
+                            : provider.equals("openai-api")
+                                    ? auth.auth.apiKey("fictional-key").account().id()
+                                    : null;
+            Path file = root.resolve("home/.config/syleks/agent-config.json");
+            Files.createDirectories(file.getParent());
+            Files.writeString(
+                    file,
+                    auth.json.toString(
+                            Map.of(
+                                    "model",
+                                    provider + "/test-model",
+                                    "ollama_url",
+                                    auth.base.toString(),
+                                    "provider",
+                                    Map.of(
+                                            "compat",
+                                            Map.of(
+                                                    "options",
+                                                    Map.of(
+                                                            "baseURL",
+                                                            auth.base.resolve("v1").toString()),
+                                                    "models",
+                                                    Map.of(
+                                                            "test-model",
+                                                            Map.of(),
+                                                            "child-model",
+                                                            Map.of()))),
+                                    "permission",
+                                    Map.of("read", "allow"),
+                                    "agent",
+                                    Map.of(
+                                            "build",
+                                            Map.of("prompt", "PARENT_MARKER"),
+                                            "explore",
+                                            Map.of(
+                                                    "model",
+                                                    provider + "/child-model",
+                                                    "prompt",
+                                                    "CHILD_MARKER")))));
+            Files.createDirectories(root.resolve("project"));
+            Files.writeString(root.resolve("project/Probe.java"), "class Probe {}");
+            String parent, child;
+            try (var db = new SessionFixture(root)) {
+                var chat = chat(db, auth, provider, account);
+                try {
+                    steps.add(answer());
+                    chat.send("PARENT_FICTIONAL_SECRET");
+                    await(chat, failure);
+                    steps.add(
+                            new ToolCall(
+                                    "delegate",
+                                    "task",
+                                    Map.of("agent", "explore", "prompt", "Find Probe")));
+                    steps.add(new ToolCall("child-read", "read", Map.of("path", "Probe.java")));
+                    steps.add(answer());
+                    steps.add(answer());
+                    chat.send("Delegate exploration");
+                    await(chat, failure);
+                    assertEquals(5, requests.size());
+                    assertEquals(5, chat.usageSnapshot().requests());
+                    parent = db.agent.current().id();
+                    child = db.sessions.children(parent).getFirst().id();
+                    assertEquals(parent, db.sessions.load(child).parentSessionId());
+                    assertEquals(provider + "/child-model", db.sessions.load(child).model());
+                    assertEquals(
+                            AgentTask.Status.COMPLETED,
+                            db.sessions.tasks().find(child).orElseThrow().status());
+                    assertEquals("test-model", requests.get(1).get("model"));
+                    for (int index : List.of(2, 3)) {
+                        assertEquals("child-model", requests.get(index).get("model"));
+                        assertPrompt(requests.get(index), "CHILD_MARKER", "PARENT_MARKER");
+                        assertFalse(
+                                requests.get(index).toString().contains("PARENT_FICTIONAL_SECRET"));
+                    }
+                    assertTrue(requests.get(4).toString().contains(child));
+                    assertTrue(requests.get(4).toString().contains("COMPLETED"));
+                    assertEquals(
+                            ToolStatus.SUCCESS,
+                            db.repositories.listExecutions(parent).getFirst().status());
+                    assertEquals(
+                            ToolStatus.SUCCESS,
+                            db.repositories.listExecutions(child).getFirst().status());
+                    assertEquals(
+                            3,
+                            new fr.openobject.ai.syleks.usage.TokenUsageRepository(db.database)
+                                    .load(parent)
+                                    .size());
+                    assertEquals(
+                            2,
+                            new fr.openobject.ai.syleks.usage.TokenUsageRepository(db.database)
+                                    .load(child)
+                                    .size());
+                    assertTrue(steps.isEmpty());
+                } finally {
+                    chat.shutdown();
+                }
+            }
+            try (var db = new SessionFixture(root)) {
+                db.agent.open(parent);
+                assertEquals(5, db.agent.usageSnapshot().requests());
+                assertEquals(parent, db.sessions.latest().orElseThrow().id());
+                assertEquals(child, db.sessions.children(parent).getFirst().id());
+                assertTrue(db.conversation.history(child).toString().contains("fixture answer"));
+                db.agent.open(child);
+                assertEquals(2, db.agent.usageSnapshot().requests());
+                var chat = chat(db, auth, provider, account);
+                try {
+                    chat.sessionAction("open", child);
+                    String selection = chat.providers().selection();
+                    assertThrows(
+                            IllegalStateException.class,
+                            () -> chat.model(provider + "/test-model"));
+                    assertEquals(selection, chat.providers().selection());
+                    chat.sessionAction("parent", "");
+                    assertEquals(parent, chat.snapshot().sessionId());
+                } finally {
+                    chat.shutdown();
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ollama", "compat", "chatgpt", "openai-api"})
     void customHiddenAgentUsesItsOwnModelPromptParametersAndPermissions(String provider)
             throws Exception {
         try (var auth = new AuthFixture(root.resolve("auth"))) {

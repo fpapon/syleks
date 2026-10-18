@@ -28,6 +28,8 @@ New data/configuration files use private permissions where the filesystem suppor
 
 Sessions save messages, structured response parts, partial output, model metadata, and tool execution records. There is no mode without persistence in this version. Unsent drafts are kept only in memory.
 
+SQLite schema 4 adds subagent task correlations and durable execution budgets. Child sessions retain their parent/root relation, agent ancestry, status, rounds and diagnostics. Usage remains stored once under the session that made each request. Opening an existing supported database applies the migration transactionally; a newer database schema is refused. Subagents receive configured shared instructions and their explicit task, with their own provider account resolved independently; the parent's conversation and credentials are not automatically copied into their context.
+
 Data stays local unless you explicitly send it through a configured service or export it. Syleks has no implicit cloud synchronization or configured telemetry service. Your chosen model endpoint receives chat context and tool results needed for a response. A remote endpoint is still a remote service, even though the database is local. Enabled web tools contact websites and send search queries to DuckDuckGo.
 
 API keys are stored in the private configuration file, not automatically copied into session metadata. Prompts, read files, command output, or tool arguments can nevertheless contain secrets and become part of the session and model requests. Use a trusted endpoint and protect your device and backups. Syleks does not encrypt the database or exports; use filesystem/device encryption if needed.

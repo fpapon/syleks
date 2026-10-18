@@ -75,6 +75,12 @@ A fork copies the **entire conversation** at that moment into a new session, inc
 
 Forking at a selected message is not available. Deleting the parent does not delete its forks.
 
+## Subagent sessions
+
+Delegation creates a separate child session with its own messages, model, tools and consumption. Use `/children`, `/session ID` and `/parent` to navigate; the session picker marks branches with `↳`. Child sessions remain inspectable after restart and can be exported. Their execution metadata records the parent tool call, effective agent ancestry, status, round count and diagnostics. Child histories cannot generate, change model or fork; return to the parent for another task. See [Subagents](subagents.md).
+
+Latest-session resume skips child tasks. A root's usage includes its descendants without copying their usage records. Root forks copy historical task results but do not duplicate children or consumption. Deleting a parent preserves its child histories and removes their parent link; deleting child history does not refund the root's consumed task/round quota.
+
 ## Recover from interruption
 
 Responses appear immediately and are saved in batches about every **600 ms**, plus at completion, cancellation, and errors. Press Esc or Ctrl+C to cancel active work. On a network error, the response is marked as an error and saved fragments remain accessible.

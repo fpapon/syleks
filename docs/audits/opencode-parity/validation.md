@@ -6,6 +6,8 @@
 
 > Pour la phase 3 P1/P2, voir [la validation des agents et des instructions](agents.md).
 
+> Pour la phase 4 P1/P2, voir [la validation des sous-agents, sessions enfants et quotas](subagents.md).
+
 **Résultat final : `BUILD SUCCESS`, 246 tests, 0 failure, 0 error, 0 skipped.** Les huit nouveaux tests sont inclus dans ce total. La réussite des tests de caractérisation ne corrige pas les quatre lignes FAIL de la matrice.
 
 ## Environnement

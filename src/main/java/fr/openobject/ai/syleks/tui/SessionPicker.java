@@ -143,6 +143,7 @@ final class SessionPicker {
             var session = list.get(i);
             String text =
                     (session.id().equals(active) ? "● " : "  ")
+                            + (session.parentSessionId() == null ? "" : "↳ ")
                             + session.title()
                             + " · "
                             + session.updatedAt().substring(0, 16).replace('T', ' ')

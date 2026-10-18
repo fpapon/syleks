@@ -21,7 +21,7 @@ class ConfigInitializerTest {
     @Test
     void generatesSchemaValidConfigurationAndLoadableDefaultAgents() throws Exception {
         var results = new ConfigInitializer().initialize(home);
-        assertEquals(6, results.size());
+        assertEquals(7, results.size());
         assertTrue(results.stream().allMatch(ConfigInitializer.Result::created));
         var directory = home.resolve(".config/syleks");
         var schema =
@@ -39,7 +39,7 @@ class ConfigInitializerTest {
             assertEquals("build", config.defaultAgent());
             assertEquals(List.of("build", "plan", "architect"), config.primaryAgents());
             assertTrue(config.agent("reviewer").mode().subagent());
-            for (var name : List.of("build", "plan", "architect", "reviewer")) {
+            for (var name : List.of("build", "plan", "architect", "reviewer", "explore")) {
                 assertFalse(config.agent(name).prompt().isBlank());
             }
         }

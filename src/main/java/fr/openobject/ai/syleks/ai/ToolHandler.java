@@ -4,6 +4,14 @@ package fr.openobject.ai.syleks.ai;
 public interface ToolHandler {
     String execute(ToolCall call) throws Exception;
 
+    default int roundLimit(int configured) {
+        return configured;
+    }
+
+    default void beforeRound() throws Exception {}
+
+    default void afterRound() {}
+
     /** Compatibility for string-only integrations; execution services override this typed path. */
     default ToolResult executeResult(ToolCall call) throws Exception {
         return ToolResult.success(execute(call));

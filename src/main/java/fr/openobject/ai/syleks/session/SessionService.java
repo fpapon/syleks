@@ -18,6 +18,7 @@ public class SessionService {
     private final SqliteDatabase database;
     private final SessionLocks locks;
     private final JsonMapper json;
+    private final TaskRepository tasks;
 
     public SessionService(
             ProjectService projects,
@@ -36,6 +37,7 @@ public class SessionService {
         this.database = database;
         this.locks = locks;
         this.json = json;
+        this.tasks = new TaskRepository(database, json);
     }
 
     public Session create(String model, String provider) {
@@ -64,12 +66,23 @@ public class SessionService {
     }
 
     public Optional<Session> latest() {
-        return list().stream().filter(s -> s.status() != SessionStatus.ARCHIVED).findFirst();
+        return list().stream()
+                .filter(s -> s.status() != SessionStatus.ARCHIVED && tasks.find(s.id()).isEmpty())
+                .findFirst();
     }
 
     public void recoverOwned(String id) {
         sessions.recoverSession(id);
         new TokenUsageRepository(database).recover(id);
+        tasks.find(id)
+                .ifPresent(
+                        t -> {
+                            if (t.parentSessionId() == null) tasks.recover(id);
+                            else
+                                try (var parent = locks.tryAcquire(t.parentSessionId())) {
+                                    if (parent != null) tasks.recover(id);
+                                }
+                        });
     }
 
     public Session open(String id) {
@@ -142,6 +155,9 @@ public class SessionService {
     }
 
     public Session fork(String id) {
+        if (tasks.find(id).isPresent())
+            throw new IllegalStateException(
+                    "Subagent histories are read-only; return to /parent to start another task");
         try (var lease = locks.acquire(id)) {
             recoverOwned(id);
             return database.transaction(
@@ -250,6 +266,21 @@ public class SessionService {
                     metadata.put("createdAt", s.createdAt());
                     metadata.put("updatedAt", s.updatedAt());
                     metadata.put("summary", s.summary());
+                    tasks.find(id)
+                            .ifPresent(
+                                    task -> {
+                                        var taskMetadata = new LinkedHashMap<String, Object>();
+                                        taskMetadata.put("agent", task.agent());
+                                        taskMetadata.put("parentSessionId", task.parentSessionId());
+                                        taskMetadata.put("rootSessionId", task.rootSessionId());
+                                        taskMetadata.put("callId", task.callId());
+                                        taskMetadata.put("parentMessageId", task.parentMessageId());
+                                        taskMetadata.put("actors", task.actors());
+                                        taskMetadata.put("status", task.status().name());
+                                        taskMetadata.put("rounds", task.rounds());
+                                        taskMetadata.put("diagnostic", task.diagnostic());
+                                        metadata.put("task", taskMetadata);
+                                    });
                     var executions =
                             tools.listExecutions(id).stream()
                                     .map(
@@ -287,6 +318,61 @@ public class SessionService {
 
     public Project project() {
         return projects.current();
+    }
+
+    public TaskRepository tasks() {
+        return tasks;
+    }
+
+    public Session child(
+            String parent,
+            String root,
+            String call,
+            String actor,
+            String model,
+            String provider,
+            String account,
+            List<String> actors,
+            int maximum) {
+        return child(parent, root, call, actor, model, provider, account, actors, maximum, null);
+    }
+
+    public Session child(
+            String parent,
+            String root,
+            String call,
+            String actor,
+            String model,
+            String provider,
+            String account,
+            List<String> actors,
+            int maximum,
+            String parentMessage) {
+        load(parent);
+        load(root);
+        return transaction(
+                () -> {
+                    var child =
+                            sessions.createSession(
+                                    projects.currentId(),
+                                    parent,
+                                    "Subagent · " + actor,
+                                    provider,
+                                    model,
+                                    null);
+                    sessions.account(child.id(), account);
+                    tasks.create(
+                            child.id(), parent, root, call, parentMessage, actor, actors, maximum);
+                    return load(child.id());
+                });
+    }
+
+    public List<Session> children(String parent) {
+        if (parent == null) return List.of();
+        load(parent);
+        return list().stream()
+                .filter(s -> parent.equals(s.parentSessionId()) && tasks.find(s.id()).isPresent())
+                .toList();
     }
 
     public SessionLocks.Lease acquire(String id) {

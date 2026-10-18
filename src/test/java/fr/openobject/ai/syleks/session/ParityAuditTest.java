@@ -124,8 +124,7 @@ class ParityAuditTest {
     }
 
     @Test
-    void characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory()
-            throws Exception {
+    void persistsAnIsolatedManualChildSessionAndRestoresHistory() throws Exception {
         configure(
                 "{\"agent\":{\"explore\":{\"mode\":\"subagent\",\"prompt\":\"EXPLORE_MARKER\"}}}");
         String id;
@@ -138,12 +137,14 @@ class ParityAuditTest {
                 id = f.agent.current().id();
                 assertTrue(chat.send("@explore Find Probe"));
                 await(chat);
+                assertEquals(2, wire.requests.size(), chat.history().toString());
                 var childRequest = wire.requests.getLast().toString();
                 assertFalse(childRequest.contains("PARENT_FICTIONAL_SECRET"));
                 assertTrue(childRequest.contains("EXPLORE_MARKER"));
                 assertTrue(childRequest.contains("Find Probe"));
                 assertEquals(id, f.agent.current().id());
-                assertEquals(1, f.sessions.list().size());
+                assertEquals(2, f.sessions.list().size());
+                assertEquals(id, f.sessions.children(id).getFirst().parentSessionId());
                 assertNull(f.agent.current().parentSessionId());
                 assertEquals("build", chat.snapshot().agent());
             } finally {
@@ -152,26 +153,29 @@ class ParityAuditTest {
         }
         try (var f = new SessionFixture(root)) {
             f.agent.open(id);
-            assertEquals(1, f.sessions.list().size());
+            assertEquals(2, f.sessions.list().size());
             assertTrue(f.agent.history().toString().contains("@explore Find Probe"));
         }
     }
 
     @Test
-    void characterizesMissingStructuredTaskTool() throws Exception {
+    void delegatesThroughStructuredTaskAndReturnsAChildResultToTheParent() throws Exception {
+        configure(
+                "{\"agent\":{\"explore\":{\"mode\":\"subagent\",\"prompt\":\"Explore only the task\"}}}");
         try (var f = new SessionFixture(root)) {
             var wire =
                     new Wire(
                             f,
-                            call("task", Map.of("subagent_type", "explore", "prompt", "find")),
+                            call("task", Map.of("agent", "explore", "prompt", "find")),
+                            answer(),
                             answer());
             var chat = wire.chat();
             try {
                 chat.send("Delegate exploration");
                 await(chat);
                 assertEquals("Ready", chat.snapshot().status());
-                assertTrue(wire.requests.getLast().toString().contains("unsupported tool task"));
-                assertEquals(1, f.sessions.list().size());
+                assertTrue(wire.requests.getLast().toString().contains("COMPLETED"));
+                assertEquals(2, f.sessions.list().size());
             } finally {
                 chat.shutdown();
             }

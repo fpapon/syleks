@@ -323,6 +323,7 @@ public class ConfigInitWizard {
     }
 
     private String pretty(Object value, int level) {
+        if (value instanceof java.math.BigDecimal number) return number.toPlainString();
         if (!(value instanceof Map<?, ?> map)) return json.toString(value);
         var result = new StringBuilder("{");
         int index = 0;

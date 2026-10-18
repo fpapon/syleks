@@ -392,6 +392,29 @@ class AgentConfigTest {
     }
 
     @Test
+    void validatesFiniteSubagentLimitsAndRejectsUnknownSettings() throws Exception {
+        assertEquals(new SubagentLimits(3, 4, 32, 16, 128, 120), config().subagentLimits());
+        Path file = home.resolve(".config/syleks/agent-config.json");
+        for (String key :
+                List.of(
+                        "max_depth",
+                        "max_parallel",
+                        "max_tasks",
+                        "max_rounds",
+                        "max_session_rounds",
+                        "timeout_seconds")) {
+            for (String value : List.of("0", "-1", "1.5", "\"1\"", "null", "9000")) {
+                write(file, "{\"subagents\":{\"" + key + "\":" + value + "}}");
+                assertThrows(IllegalStateException.class, this::config, key + "=" + value);
+            }
+        }
+        write(file, "{\"subagents\":{\"unknown\":1}}");
+        assertThrows(IllegalStateException.class, this::config);
+        write(file, "{\"subagents\":null}");
+        assertThrows(IllegalStateException.class, this::config);
+    }
+
+    @Test
     void disablesInvocationAndHidesDiscoveryWithoutUsingHiddenAsAPermission() throws Exception {
         write(
                 home.resolve(".config/syleks/agent-config.json"),

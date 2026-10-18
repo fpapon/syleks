@@ -44,6 +44,27 @@ public class AgentService implements AutoCloseable {
     private final JsonMapper json;
     private volatile Session current;
     private volatile Generation generation;
+    private boolean childExecution;
+
+    /** Each child has its own generation/lease while sharing repositories and usage storage. */
+    public AgentService child(Session session) {
+        var child = new AgentService(sessions, conversation, context, config, executions, json);
+        child.providers = providers;
+        child.tokenUsage = tokenUsage;
+        child.current = session;
+        child.childExecution = true;
+        return child;
+    }
+
+    public String providerId(String model) {
+        return providers == null
+                ? config.resolveModel(model).providerName()
+                : providers.registry().providerId(model);
+    }
+
+    public String accountFor(String model) {
+        return providers == null ? null : providers.accountFor(model);
+    }
 
     public AgentService(
             SessionService sessions,
@@ -70,6 +91,15 @@ public class AgentService implements AutoCloseable {
 
     public SessionService sessions() {
         return sessions;
+    }
+
+    public JsonMapper mapper() {
+        return json;
+    }
+
+    public String activeMessageId() {
+        var g = generation;
+        return g == null ? null : g.messageId();
     }
 
     public List<ChatMessage> history() {
@@ -116,6 +146,7 @@ public class AgentService implements AutoCloseable {
             current = null;
             return true;
         }
+        reloadUsage();
         return false;
     }
 
@@ -136,6 +167,8 @@ public class AgentService implements AutoCloseable {
 
     public void model(String model) {
         ensureIdle();
+        if (current != null && sessions.tasks().find(current.id()).isPresent())
+            throw new IllegalStateException("Subagent histories are read-only; use /parent");
         if (current != null) {
             if (providers == null)
                 sessions.model(current.id(), model, config.resolveModel(model).providerName());
@@ -157,6 +190,8 @@ public class AgentService implements AutoCloseable {
     public Generation begin(String model, String agent, String userText, boolean isolated) {
         ensureIdle();
         if (current == null) create(model);
+        if (!childExecution && sessions.tasks().find(current.id()).isPresent())
+            throw new IllegalStateException("Subagent histories are read-only; use /parent");
         var lease = sessions.acquire(current.id());
         Message[] started = new Message[1];
         try {
@@ -292,6 +327,14 @@ public class AgentService implements AutoCloseable {
             return prepared;
         }
 
+        public synchronized String text() {
+            return buffer.toString();
+        }
+
+        public synchronized String messageId() {
+            return assistant.id();
+        }
+
         public synchronized void append(String delta) {
             if (closed) return;
             if (flushError != null) throw flushError;
@@ -410,6 +453,8 @@ public class AgentService implements AutoCloseable {
                             payload.put("exitCode", outcome.exitCode());
                             payload.put("timedOut", outcome.timedOut());
                             payload.put("truncated", outcome.truncated());
+                            if (!outcome.childSessionIds().isEmpty())
+                                payload.put("childSessionIds", outcome.childSessionIds());
                             payload.put(
                                     "display",
                                     call.name().equals("read")

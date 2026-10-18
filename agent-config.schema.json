@@ -47,6 +47,18 @@
       "$ref": "#/$defs/rounds",
       "default": 12
     },
+    "subagents": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_depth": {"type":"integer","minimum":1,"maximum":8,"default":3},
+        "max_parallel": {"type":"integer","minimum":1,"maximum":8,"default":4},
+        "max_tasks": {"type":"integer","minimum":1,"maximum":128,"default":32},
+        "max_rounds": {"type":"integer","minimum":1,"maximum":128,"default":16},
+        "max_session_rounds": {"type":"integer","minimum":1,"maximum":2048,"default":128},
+        "timeout_seconds": {"type":"integer","minimum":1,"maximum":600,"default":120}
+      }
+    },
     "permission": {
       "$ref": "#/$defs/permission"
     },

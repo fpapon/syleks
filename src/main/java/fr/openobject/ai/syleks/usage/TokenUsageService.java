@@ -17,9 +17,10 @@ public class TokenUsageService {
         this.repository = repository;
     }
 
-    public void accept(LlmUsageEvent event) {
+    public synchronized void accept(LlmUsageEvent event) {
         repository.save(event);
-        reload(event.sessionId());
+        if (event.sessionId() != null)
+            for (var session : repository.ancestors(event.sessionId())) reload(session);
         for (var listener : listeners) listener.accept(event);
     }
 
@@ -28,8 +29,8 @@ public class TokenUsageService {
         return () -> listeners.remove(listener);
     }
 
-    public void reload(String session) {
-        snapshots.put(session, TokenUsageAggregator.aggregate(repository.load(session)));
+    public synchronized void reload(String session) {
+        snapshots.put(session, TokenUsageAggregator.aggregate(repository.loadTree(session)));
     }
 
     public TokenUsageAggregator.Snapshot snapshot(String session) {

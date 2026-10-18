@@ -16,6 +16,8 @@ final class HelpModal {
                     new Entry("Chat & sessions", ""),
                     new Entry("/new · /clear", "Start a new chat; keep the previous session."),
                     new Entry("/sessions", "Browse and search saved sessions."),
+                    new Entry("/session ID", "Open a saved session by ID."),
+                    new Entry("/children · /parent", "Browse child tasks or return to the parent."),
                     new Entry("/resume", "Open the latest session."),
                     new Entry("/rename TITLE", "Rename this session."),
                     new Entry("/fork", "Copy this conversation into a new session."),

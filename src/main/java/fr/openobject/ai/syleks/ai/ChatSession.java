@@ -30,12 +30,20 @@ public class ChatSession {
     @Injection AgentService persistence;
     @Injection ProviderService providers;
     private String sessionId;
+    private boolean childHistory;
+
+    public synchronized boolean childHistory() {
+        return childHistory;
+    }
+
     private String sessionTitle;
     private String projectName;
     private volatile Thread retiring;
     private final OllamaClient ollama;
     private final AppConfig config;
     @Injection ToolExecutor executor;
+    @Injection SubagentExecutor subagents;
+    private SubagentExecutor fallbackSubagents;
     private ToolExecutor fallbackExecutor;
     private AgentState executionState = AgentState.IDLE;
     private String agent;
@@ -140,6 +148,7 @@ public class ChatSession {
     public synchronized boolean send(String text) {
         if (task != null || retiring != null || pendingPermission != null || text.isBlank())
             return false;
+        requireWritableSession();
         if (text.startsWith("@")) {
             var parts = text.substring(1).split("\\s+", 2);
             if (parts.length < 2 || parts[1].isBlank())
@@ -164,6 +173,7 @@ public class ChatSession {
 
     public synchronized boolean subagent(String name, String prompt) {
         if (task != null || retiring != null || pendingPermission != null) return false;
+        requireWritableSession();
         if (prompt.isBlank()) throw new IllegalArgumentException("Usage: /subagent name task");
         var definition = config.agent(name);
         if (!definition.mode().subagent())
@@ -171,9 +181,11 @@ public class ChatSession {
                     "Agent " + name + " is primary only; select it with /agent " + name);
         var selectedModel = config.agentModel(name, model);
         authorize(
-                List.of(
-                        new Requirement(agent, "task", name),
-                        new Requirement(name, "chat", selectedModel)),
+                persistence != null
+                        ? List.of()
+                        : List.of(
+                                new Requirement(agent, "task", name),
+                                new Requirement(name, "chat", selectedModel)),
                 "Invoke subagent " + name + " using " + selectedModel,
                 () -> {
                     preview = List.of();
@@ -361,6 +373,8 @@ public class ChatSession {
 
     private void start(
             String selectedModel, String selectedAgent, List<ChatMessage> history, String prefix) {
+        String parentAgent = agent, parentModel = model;
+        boolean manual = !prefix.isEmpty();
         pending = new StringBuilder();
         responsePrefix = prefix;
         runningAgent = selectedAgent;
@@ -426,10 +440,16 @@ public class ChatSession {
                                         } else {
                                             generation =
                                                     persistence.begin(
-                                                            selectedModel,
-                                                            selectedAgent,
-                                                            history.getLast().content(),
-                                                            !prefix.isEmpty());
+                                                            manual ? parentModel : selectedModel,
+                                                            manual ? parentAgent : selectedAgent,
+                                                            manual
+                                                                    ? "@"
+                                                                            + selectedAgent
+                                                                            + " "
+                                                                            + history.getLast()
+                                                                                    .content()
+                                                                    : history.getLast().content(),
+                                                            false);
                                             synchronized (this) {
                                                 checkActive(id);
                                                 updateMetadata();
@@ -451,21 +471,44 @@ public class ChatSession {
                                                                             + " older messages omitted; full history remains in SQLite.");
                                                         }
                                                     });
-                                            streamPrepared(
-                                                    selectedModel,
-                                                    selectedAgent,
-                                                    generation.context().messages(),
-                                                    delta -> {
-                                                        append(id, delta);
-                                                        persistentGeneration.append(delta);
-                                                    },
-                                                    ToolHandler.typed(
-                                                            call ->
-                                                                    executeTool(
-                                                                            id,
-                                                                            selectedAgent,
-                                                                            call)),
-                                                    generation);
+                                            if (manual) {
+                                                var call =
+                                                        new ToolCall(
+                                                                java.util
+                                                                        .UUID
+                                                                        .randomUUID()
+                                                                        .toString(),
+                                                                "task",
+                                                                java.util.Map.of(
+                                                                        "agent",
+                                                                        selectedAgent,
+                                                                        "prompt",
+                                                                        history.getLast()
+                                                                                .content()));
+                                                generation.round("", "", List.of(call));
+                                                generation.startTool(call);
+                                                var outcome = executeTool(id, parentAgent, call);
+                                                generation.toolResult(call, outcome);
+                                                generation.nextRound();
+                                                String answer = delegatedAnswer(outcome);
+                                                append(id, answer);
+                                                generation.append(answer);
+                                            } else
+                                                streamPrepared(
+                                                        selectedModel,
+                                                        selectedAgent,
+                                                        generation.context().messages(),
+                                                        delta -> {
+                                                            append(id, delta);
+                                                            persistentGeneration.append(delta);
+                                                        },
+                                                        ToolHandler.typed(
+                                                                call ->
+                                                                        executeTool(
+                                                                                id,
+                                                                                selectedAgent,
+                                                                                call)),
+                                                        generation);
                                         }
                                     } catch (InterruptedException e) {
                                         Thread.currentThread().interrupt();
@@ -593,27 +636,32 @@ public class ChatSession {
             service = executor == null ? fallbackExecutor : executor;
         }
         var result =
-                service.execute(
-                        actor,
-                        call,
-                        (operation, target, details) ->
-                                toolPermission(id, actor, operation, target, details),
-                        () -> {
-                            synchronized (this) {
-                                checkActive(id);
-                                executionState = AgentState.WAITING_TOOL;
-                                if (call.name().equals("bash")) {
-                                    activeCommand = String.valueOf(call.arguments().get("command"));
-                                    commandLogIndex = messages.size();
-                                    messages.add(
-                                            ChatMessage.now(
-                                                    "system",
-                                                    "◌ Running command\n"
-                                                            + fenced(activeCommand, "bash")));
-                                    status = "Running command";
-                                }
-                            }
-                        });
+                call.name().equals("task")
+                        ? delegate(id, actor, call, service)
+                        : service.execute(
+                                actor,
+                                call,
+                                (operation, target, details) ->
+                                        toolPermission(id, actor, operation, target, details),
+                                () -> {
+                                    synchronized (this) {
+                                        checkActive(id);
+                                        executionState = AgentState.WAITING_TOOL;
+                                        if (call.name().equals("bash")) {
+                                            activeCommand =
+                                                    String.valueOf(call.arguments().get("command"));
+                                            commandLogIndex = messages.size();
+                                            messages.add(
+                                                    ChatMessage.now(
+                                                            "system",
+                                                            "◌ Running command\n"
+                                                                    + fenced(
+                                                                            activeCommand,
+                                                                            "bash")));
+                                            status = "Running command";
+                                        }
+                                    }
+                                });
         synchronized (this) {
             checkActive(id);
             if (call.name().equals("bash")) {
@@ -662,17 +710,96 @@ public class ChatSession {
         return result;
     }
 
+    private ToolResult delegate(long id, String actor, ToolCall call, ToolExecutor executor)
+            throws Exception {
+        if (persistence == null || persistence.current() == null)
+            return ToolResult.failed("Persistent sessions are required for task delegation");
+        SubagentExecutor engine;
+        synchronized (this) {
+            checkActive(id);
+            if (subagents == null && fallbackSubagents == null)
+                fallbackSubagents = new SubagentExecutor(config, executor, persistence.mapper());
+            engine = subagents == null ? fallbackSubagents : subagents;
+        }
+        var session = persistence.current();
+        var scope =
+                new TaskScope(
+                        session.id(),
+                        session.id(),
+                        session.model(),
+                        List.of(actor),
+                        null,
+                        Long.MAX_VALUE);
+        return engine.execute(
+                persistence,
+                scope,
+                call,
+                (child, op, target, details, decision) ->
+                        toolPermission(id, child, op, target, details, decision),
+                (model, child, account, history, handler, observer, receive) -> {
+                    if (providers == null)
+                        ollama.streamPrepared(model, child, history, receive, handler, observer);
+                    else
+                        providers.stream(
+                                new ChatRequest(model, child, account, history, handler, observer),
+                                event -> {
+                                    if (event.type() == ChatEvent.Type.TEXT_DELTA)
+                                        receive.accept(event.text());
+                                });
+                });
+    }
+
+    private void requireWritableSession() {
+        if (childHistory)
+            throw new IllegalStateException(
+                    "Subagent histories are read-only; use /parent to continue the parent");
+    }
+
+    private String delegatedAnswer(ToolResult result) {
+        if (!result.content().startsWith("{")) return result.content();
+        var payload = persistence.mapper().fromString(java.util.Map.class, result.content());
+        if (payload.get("tasks") instanceof List<?> tasks
+                && tasks.size() == 1
+                && tasks.getFirst() instanceof java.util.Map<?, ?> task) {
+            return java.util.Objects.toString(task.get("result"), "")
+                    + "\n\nChild session: "
+                    + task.get("session_id")
+                    + " · "
+                    + task.get("status")
+                    + (task.get("diagnostic") == null ? "" : "\n" + task.get("diagnostic"));
+        }
+        return result.content();
+    }
+
     private boolean toolPermission(
             long id, String actor, String operation, String target, String details)
             throws Exception {
+        return toolPermission(id, actor, operation, target, details, null);
+    }
+
+    private boolean toolPermission(
+            long id,
+            String actor,
+            String operation,
+            String target,
+            String details,
+            PermissionPolicy.Decision ceiling)
+            throws Exception {
         CompletableFuture<Boolean> approval;
+        long promptId;
         synchronized (this) {
             checkActive(id);
             if (!pending.isEmpty()) {
                 messages.add(ChatMessage.now("assistant", responsePrefix + pending));
                 pending = new StringBuilder();
             }
-            var decision = toolDecision(actor, operation, target);
+            var decision =
+                    ceiling == null
+                            ? toolDecision(actor, operation, target)
+                            : ceiling == PermissionPolicy.Decision.ASK
+                                            && toolGrants.contains(new ToolGrant(actor, operation))
+                                    ? PermissionPolicy.Decision.ALLOW
+                                    : ceiling;
             if (decision == PermissionPolicy.Decision.DENY) return false;
             if (decision == PermissionPolicy.Decision.ALLOW) return true;
             while (pendingPermission != null) {
@@ -687,6 +814,7 @@ public class ChatSession {
                             () -> approval.complete(true),
                             () -> approval.complete(false),
                             new ToolGrant(actor, operation));
+            promptId = pendingPermission.id();
             status = "Awaiting permission";
             executionState = AgentState.WAITING_PERMISSION;
             info(
@@ -700,10 +828,25 @@ public class ChatSession {
                             + details
                             + TOOL_APPROVAL_OPTIONS);
         }
-        boolean allowed = approval.get();
+        boolean allowed;
+        try {
+            allowed = approval.get();
+        } catch (InterruptedException e) {
+            synchronized (this) {
+                if (pendingPermission != null && pendingPermission.id() == promptId) {
+                    pendingPermission = null;
+                    status = "Generating";
+                    notifyAll();
+                }
+            }
+            throw e;
+        }
         synchronized (this) {
             checkActive(id);
-            executionState = AgentState.WAITING_TOOL;
+            executionState =
+                    pendingPermission == null
+                            ? AgentState.WAITING_TOOL
+                            : AgentState.WAITING_PERMISSION;
         }
         return allowed;
     }
@@ -817,6 +960,7 @@ public class ChatSession {
 
     public void model(String value) {
         synchronized (this) {
+            requireWritableSession();
             if (task != null || retiring != null || pendingPermission != null)
                 throw new IllegalStateException(
                         "Finish generation or resolve the pending permission first.");
@@ -935,6 +1079,8 @@ public class ChatSession {
 
     private void updateMetadata() {
         var selected = persistence.current();
+        childHistory =
+                selected != null && persistence.sessions().tasks().find(selected.id()).isPresent();
         sessionId = selected == null ? null : selected.id();
         sessionTitle = selected == null ? null : selected.title();
         projectName = persistence.sessions().project().name();
@@ -948,6 +1094,11 @@ public class ChatSession {
         }
         var service = persistence();
         switch (action) {
+            case "parent" -> {
+                if (service.current() == null || service.current().parentSessionId() == null)
+                    throw new IllegalStateException("No parent session");
+                service.open(service.current().parentSessionId());
+            }
             case "new" -> service.create(model);
             case "open" -> service.open(argument);
             case "resume" -> service.resume(model);
@@ -989,6 +1140,21 @@ public class ChatSession {
                         case ACTIVE -> "In use";
                         default -> "Ready";
                     };
+            if (childHistory)
+                service.sessions()
+                        .tasks()
+                        .find(service.current().id())
+                        .ifPresent(
+                                t ->
+                                        info(
+                                                "Subagent "
+                                                        + t.agent()
+                                                        + " · "
+                                                        + t.status()
+                                                        + " · /parent to return"
+                                                        + (t.diagnostic() == null
+                                                                ? ""
+                                                                : "\n" + t.diagnostic())));
             try {
                 config.resolveModel(model);
             } catch (IllegalArgumentException unavailable) {
@@ -1022,8 +1188,21 @@ public class ChatSession {
             worker = task == null ? retiring : task;
             cancel();
         }
-        if (worker != null) worker.join(5000);
-        if (persistence != null) persistence.close();
+        boolean interrupted = false;
+        if (worker != null)
+            while (worker.isAlive()) {
+                try {
+                    worker.join();
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                    worker.interrupt();
+                }
+            }
+        try {
+            if (persistence != null) persistence.close();
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt();
+        }
     }
 
     public synchronized List<ChatMessage> history() {

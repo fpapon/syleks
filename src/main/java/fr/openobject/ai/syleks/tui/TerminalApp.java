@@ -86,7 +86,7 @@ public class TerminalApp implements AutoCloseable {
     }
 
     public void restoreAfterRestart(RestartRequest request) {
-        session.model(session.configuredModel());
+        if (!session.childHistory()) session.model(session.configuredModel());
         editor.setText(request.draft());
         sessionViews.restore(request.sessionId(), request.drafts());
         sessionPicker.close();
@@ -600,6 +600,9 @@ public class TerminalApp implements AutoCloseable {
                 case "/restart" -> restartChat();
                 case "/new", "/clear" -> changeSession("new", "");
                 case "/sessions" -> openSessions();
+                case "/children" -> openSessions(true);
+                case "/parent" -> changeSession("parent", "");
+                case "/session" -> changeSession("open", arg);
                 case "/resume" -> changeSession("resume", "");
                 case "/rename" -> changeSession("rename", arg);
                 case "/fork" -> changeSession("fork", "");
@@ -1204,6 +1207,10 @@ public class TerminalApp implements AutoCloseable {
     }
 
     private void openSessions() {
+        openSessions(false);
+    }
+
+    private void openSessions(boolean children) {
         if (session.snapshot().busy() || session.snapshot().permission() != null) {
             session.info("Finish generation or resolve its permission before changing sessions.");
             return;
@@ -1212,7 +1219,12 @@ public class TerminalApp implements AutoCloseable {
         sessionWorker.submit(
                 () -> {
                     try {
-                        var values = session.persistence().sessions().list();
+                        var values =
+                                children
+                                        ? session.persistence()
+                                                .sessions()
+                                                .children(session.snapshot().sessionId())
+                                        : session.persistence().sessions().list();
                         completions.add(
                                 () -> {
                                     sessionPicker.open(values, session.snapshot().sessionId());

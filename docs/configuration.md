@@ -149,6 +149,8 @@ Agents also support boolean `disable` and `hidden`. Disabled agents cannot be se
 
 A round is one model response and any tool calls it requests. It is not a user message count or time limit. A final response with no tool calls ends the turn immediately. If the last allowed round requests tools, their results are recorded and Syleks stops with a limit notice; send another message to continue. The count resets for every message or subagent task.
 
+The optional `subagents` object adds finite child execution ceilings: `max_depth` (3), `max_parallel` (4), `max_tasks` (32), `max_rounds` (16), `max_session_rounds` (128), and `timeout_seconds` (120). The values in parentheses are defaults. Task/round counters are durable per root session and include nested tasks; an agent's `max_rounds: -1` cannot remove the common child ceiling. See [Subagents](subagents.md) for ranges, batch syntax and deadline behavior. The existing setup form preserves these numeric settings when saved.
+
 ## Token sidebar
 
 `/sidebar [auto|show|hide]` saves visibility in the existing provider-selection `config.json`. Context color thresholds are configured with `context_warning_percent` and `context_critical_percent` in that file. See [Token usage](token-usage.md) for the exact location, defaults and precision limits.

@@ -4,7 +4,17 @@ import java.util.Objects;
 
 /** Execution metadata must never be inferred from model-visible text. */
 public record ToolResult(
-        Status status, String content, Integer exitCode, boolean timedOut, boolean truncated) {
+        Status status,
+        String content,
+        Integer exitCode,
+        boolean timedOut,
+        boolean truncated,
+        java.util.List<String> childSessionIds) {
+    public ToolResult(
+            Status status, String content, Integer exitCode, boolean timedOut, boolean truncated) {
+        this(status, content, exitCode, timedOut, truncated, java.util.List.of());
+    }
+
     public enum Status {
         SUCCESS,
         DENIED,
@@ -15,6 +25,7 @@ public record ToolResult(
     public ToolResult {
         Objects.requireNonNull(status);
         Objects.requireNonNull(content);
+        childSessionIds = java.util.List.copyOf(childSessionIds);
     }
 
     public static ToolResult success(String content) {

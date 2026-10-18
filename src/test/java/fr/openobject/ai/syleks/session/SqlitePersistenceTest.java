@@ -22,7 +22,7 @@ class SqlitePersistenceTest {
                         for (var item :
                                 Map.of(
                                                 "user_version",
-                                                "3",
+                                                "4",
                                                 "journal_mode",
                                                 "wal",
                                                 "foreign_keys",
@@ -77,6 +77,8 @@ class SqlitePersistenceTest {
                     c -> {
                         try (var statement = c.createStatement()) {
                             statement.execute("DROP TABLE llm_usage");
+                            statement.execute("DROP TABLE agent_tasks");
+                            statement.execute("DROP TABLE agent_task_budgets");
                             statement.execute("ALTER TABLE sessions DROP COLUMN account_id");
                             statement.execute("PRAGMA user_version=1");
                         }
@@ -101,6 +103,8 @@ class SqlitePersistenceTest {
                         try (var statement = c.createStatement()) {
                             statement.execute("DROP TABLE llm_usage");
                             statement.execute("PRAGMA user_version=2");
+                            statement.execute("DROP TABLE agent_tasks");
+                            statement.execute("DROP TABLE agent_task_budgets");
                         }
                         return null;
                     });
@@ -139,6 +143,29 @@ class SqlitePersistenceTest {
                 assertTrue(rows.next());
                 assertEquals(0, rows.getInt(1));
             }
+        }
+    }
+
+    @Test
+    void upgradesVersionThreeForTasksWithoutChangingExistingMessages() throws Exception {
+        String id;
+        try (var f = new SessionFixture(root)) {
+            id = f.sessions.create("qwen3:8b", "Ollama").id();
+            f.conversation.add(id, "user", "existing v3", MessageStatus.COMPLETE);
+            f.database.write(
+                    c -> {
+                        try (var statement = c.createStatement()) {
+                            statement.execute("DROP TABLE agent_tasks");
+                            statement.execute("DROP TABLE agent_task_budgets");
+                            statement.execute("PRAGMA user_version=3");
+                        }
+                        return null;
+                    });
+        }
+        try (var f = new SessionFixture(root)) {
+            assertEquals("existing v3", f.conversation.history(id).getFirst().content());
+            assertTrue(f.sessions.tasks().find(id).isEmpty());
+            assertEquals(0, f.sessions.children(id).size());
         }
     }
 

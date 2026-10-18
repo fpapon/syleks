@@ -12,6 +12,19 @@ public class ToolExecutor {
     private final AppConfig config;
     private final AgentTools files;
     private final LocalCommandRunner commands;
+    @io.yupiik.fusion.framework.build.api.scanning.Injection TaskManager manager;
+    private TaskManager fallbackManager;
+
+    @io.yupiik.fusion.framework.build.api.lifecycle.Init
+    void initialize() {
+        if (manager != null) manager.ready();
+    }
+
+    public synchronized TaskManager manager() {
+        if (manager != null) return manager;
+        if (fallbackManager == null) fallbackManager = new TaskManager(config);
+        return fallbackManager;
+    }
 
     public ToolExecutor(AppConfig config) {
         this.config = config;
@@ -25,6 +38,12 @@ public class ToolExecutor {
     }
 
     public ToolResult execute(
+            String actor, ToolCall call, AgentTools.Gate approvals, Started started)
+            throws InterruptedException {
+        return manager().effect(call, () -> executeEffect(actor, call, approvals, started));
+    }
+
+    private ToolResult executeEffect(
             String actor, ToolCall call, AgentTools.Gate approvals, Started started)
             throws InterruptedException {
         if (Thread.currentThread().isInterrupted())

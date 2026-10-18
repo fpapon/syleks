@@ -190,7 +190,14 @@ class CommandToolTest {
         session.send("Run a command");
         await(() -> !session.snapshot().busy());
         assertFalse(Files.exists(project.resolve("marker.txt")));
-        assertFalse(requests.remove().containsKey("tools"));
+        var definitions = (List<?>) requests.remove().get("tools");
+        assertFalse(
+                definitions.stream()
+                        .anyMatch(
+                                t ->
+                                        ((Map<?, ?>) ((Map<?, ?>) t).get("function"))
+                                                .get("name")
+                                                .equals("bash")));
         var messages = assertInstanceOf(List.class, requests.remove().get("messages"));
         assertTrue(
                 assertInstanceOf(Map.class, messages.getLast())

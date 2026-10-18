@@ -32,6 +32,8 @@ Now ask a concrete question, for example: “Find the Java entry point, read the
 
 Without a configuration file, chat, delegation (`task`), and Markdown saving are allowed; shell commands ask; the other tools are denied.
 
+The built-in Explore subagent has its own read/search policy, but delegated tools remain capped by the parent's permissions. Grant the parent the necessary read/search permissions to use it. The `task` tool creates persistent children and supports bounded batches; see [Subagents](subagents.md). Each child's effective decision intersects its own policy with every ancestor: DENY dominates ASK, which requires approval. Remembered approvals never relax an ancestor's DENY.
+
 The **generated starter configuration** changes these rules:
 
 | Operation | Global | Plan override | Build override |

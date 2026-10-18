@@ -62,7 +62,7 @@ public class ConfigInitializer {
                         "/agent-config.schema.json",
                         directory.resolve("agent-config.schema.json"),
                         fileAttributes));
-        for (var name : List.of("build", "plan", "architect", "reviewer")) {
+        for (var name : List.of("build", "plan", "architect", "reviewer", "explore")) {
             results.add(
                     create(
                             "/defaults/agents/" + name + ".md",
@@ -128,7 +128,7 @@ public class ConfigInitializer {
                         "/agent-config.schema.json",
                         directory.resolve("agent-config.schema.json"),
                         attributes);
-                for (String name : List.of("build", "plan", "architect", "reviewer")) {
+                for (String name : List.of("build", "plan", "architect", "reviewer", "explore")) {
                     create(
                             "/defaults/agents/" + name + ".md",
                             directory.resolve("agents/" + name + ".md"),

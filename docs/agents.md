@@ -11,7 +11,7 @@ An agent combines instructions, a model selection, generation settings, and perm
 - **Tab** cycles enabled, visible primary agents while chat is idle.
 - `@reviewer Review this code: …` or `/subagent reviewer Review this code: …` runs a specialist task.
 
-Build and Plan are built in. Setup also creates Architect and Reviewer Markdown definitions; these are available after setup and restart. Names and descriptions appear in `/agents`.
+Build, Plan and the Explore subagent are built in. Setup also creates editable Architect, Reviewer and Explore Markdown definitions; these are available after setup and restart. Names and descriptions appear in `/agents`.
 
 The selected agent's configured permissions determine what it may actually do. Plan is not an OS-enforced read-only environment: the starter Plan policy asks before shell commands, and a shell command can modify files. Inspect `/permissions` before delegating work.
 
@@ -19,9 +19,9 @@ The selected agent's configured permissions determine what it may actually do. P
 
 A primary agent handles the main conversation. A subagent handles an explicitly supplied task, then returns its labeled answer to the main conversation. That answer becomes available to subsequent follow-ups, and the original primary agent is restored.
 
-**Subagents receive their own instructions and your supplied task, not the parent's entire transcript.** Include the context or code they need, or allow tools for them to inspect it. A subagent call must pass the caller's `task` permission and the subagent's `chat` permission; tools use the subagent's own rules.
+**Subagents receive their own instructions and your supplied task, not the parent's entire transcript.** Include the context or code they need, or allow tools for them to inspect it. Delegation requires `task` and effective `chat` permission. Child tools are constrained by the child's permissions and every ancestor's permissions; a child cannot override an ancestor's DENY.
 
-Only one invocation runs at a time. Automatic model-initiated delegation, parallel subagents, and recursive delegation are not supported.
+The model can delegate through the structured `task` tool, including batches of independent subagents with bounded parallelism. Each child has a persisted session, deadline, finite round budget and correlation to its parent call. Recursion is bounded and cycles are rejected. See [Subagents](subagents.md) for schemas, limits, cancellation, navigation and usage accounting.
 
 ## Create a custom agent
 
@@ -112,6 +112,6 @@ Changing the primary agent keeps the conversation and its project-instruction sn
 
 ## Size limits
 
-Each Markdown agent file, inline JSON agent prompt, global instruction file and project instruction file is limited to **128 KiB of UTF-8**. At most **128 Markdown files** are read across all inherited locations, totalling **1 MiB**, and the final catalog contains at most **128 agents including Build and Plan**. The JSON configuration itself is limited to **1 MiB**.
+Each Markdown agent file, inline JSON agent prompt, global instruction file and project instruction file is limited to **128 KiB of UTF-8**. At most **128 Markdown files** are read across all inherited locations, totalling **1 MiB**, and the final catalog contains at most **128 agents including Build, Plan and Explore**. The JSON configuration itself is limited to **1 MiB**.
 
 Combined effective instructions, including source labels, are limited to **256 KiB** and must also fit the selected model's context budget. Oversized instructions fail explicitly without being silently truncated. These byte limits do not imply a particular model can accept that much context. The editor schema checks booleans and basic structure; the application also validates byte limits, references and effective catalog size.

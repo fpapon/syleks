@@ -55,6 +55,24 @@ final class AgentCatalog {
                         null,
                         false,
                         false));
+        agents.put(
+                "explore",
+                new AgentDefinition(
+                        "explore",
+                        "Explore repository code without modifying files",
+                        AgentDefinition.Mode.SUBAGENT,
+                        null,
+                        null,
+                        "Explore the repository using read and search tools. Return concise findings with file paths. Do not modify files or execute commands.",
+                        PermissionPolicy.parse(
+                                Map.of(
+                                        "read", "allow", "glob", "allow", "grep", "allow", "list",
+                                        "allow", "edit", "deny", "write", "deny", "bash", "deny",
+                                        "task", "deny"),
+                                configFile),
+                        null,
+                        false,
+                        false));
         if (settings.containsKey("agent")) {
             if (!(settings.get("agent") instanceof Map<?, ?> entries))
                 throw invalid(configFile, "agent must be an object");

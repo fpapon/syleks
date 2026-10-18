@@ -28,6 +28,7 @@ public class AppConfig {
     private final PermissionPolicy globalPermissions;
     private final Path workspace;
     private final Path home;
+    private final SubagentLimits subagentLimits;
 
     public AppConfig(JsonMapper json) {
         this(
@@ -50,6 +51,10 @@ public class AppConfig {
                     "SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
+        this.subagentLimits =
+                SubagentLimits.parse(
+                        settings.containsKey("subagents") ? settings.get("subagents") : Map.of(),
+                        file);
         var url =
                 environment.getOrDefault(
                         "OLLAMA_URL",
@@ -444,6 +449,20 @@ public class AppConfig {
 
     public Path home() {
         return home;
+    }
+
+    public SubagentLimits subagentLimits() {
+        return subagentLimits;
+    }
+
+    /** Includes hidden agents: hiding affects UI discovery, never authority. */
+    public boolean delegationAvailable(String actor) {
+        return agents.values().stream()
+                .filter(a -> !a.disable() && a.mode().subagent() && !a.name().equals(actor))
+                .anyMatch(
+                        a ->
+                                permissions(actor).evaluate("task", a.name())
+                                        != PermissionPolicy.Decision.DENY);
     }
 
     public Path workspace() {

@@ -35,11 +35,18 @@ public class AgentRuntime {
             AgentObserver observer)
             throws Exception {
         var messages = new ArrayList<>(history);
+        maxRounds = tools.roundLimit(maxRounds);
         try {
             for (int round = 0; maxRounds == -1 || round < maxRounds; round++) {
                 interrupted();
                 state(observer, AgentState.THINKING);
-                var turn = source.next(List.copyOf(messages));
+                tools.beforeRound();
+                Turn turn;
+                try {
+                    turn = source.next(List.copyOf(messages));
+                } finally {
+                    tools.afterRound();
+                }
                 interrupted();
                 if (observer != null)
                     observer.round(turn.content(), turn.reasoning(), turn.calls());

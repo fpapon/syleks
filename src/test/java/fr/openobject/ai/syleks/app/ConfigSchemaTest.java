@@ -56,6 +56,7 @@ class ConfigSchemaTest {
         for (var content :
                 List.of(
                         "{}",
+                        "{\"subagents\":{\"max_depth\":3,\"max_parallel\":2,\"max_tasks\":32,\"max_rounds\":16,\"max_session_rounds\":128,\"timeout_seconds\":120}}",
                         "{\"agent\":{\"reviewer\":{\"disable\":true,\"hidden\":false}}}",
                         "{\"max_rounds\":-1}",
                         "{\"agent\":{\"build\":{\"max_rounds\":-1}}}",
@@ -73,6 +74,9 @@ class ConfigSchemaTest {
         for (var content :
                 List.of(
                         "[]",
+                        "{\"subagents\":{\"timeout_seconds\":0}}",
+                        "{\"subagents\":{\"max_rounds\":-1}}",
+                        "{\"subagents\":{\"unknown\":1}}",
                         "{\"agent\":{\"reviewer\":{\"disable\":\"true\"}}}",
                         "{\"agent\":{\"reviewer\":{\"hidden\":null}}}",
                         "{\"providers\":{}}",

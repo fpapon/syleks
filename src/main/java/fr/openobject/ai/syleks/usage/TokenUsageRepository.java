@@ -66,12 +66,22 @@ public class TokenUsageRepository {
     }
 
     public List<LlmUsageEvent> load(String session) {
+        return load(session, false);
+    }
+
+    public List<LlmUsageEvent> loadTree(String session) {
+        return load(session, true);
+    }
+
+    private List<LlmUsageEvent> load(String session, boolean children) {
         return database.read(
                 c -> {
                     var result = new ArrayList<LlmUsageEvent>();
                     try (var s =
                             c.prepareStatement(
-                                    "SELECT * FROM llm_usage WHERE session_id=? ORDER BY created_at, request_id")) {
+                                    children
+                                            ? "WITH RECURSIVE tree(id) AS (SELECT ? UNION SELECT t.session_id FROM agent_tasks t JOIN tree ON t.parent_session_id=tree.id) SELECT * FROM llm_usage WHERE session_id IN (SELECT id FROM tree) ORDER BY created_at, request_id"
+                                            : "SELECT * FROM llm_usage WHERE session_id=? ORDER BY created_at, request_id")) {
                         s.setString(1, session);
                         try (var r = s.executeQuery()) {
                             while (r.next()) {
@@ -79,7 +89,7 @@ public class TokenUsageRepository {
                                 result.add(
                                         new LlmUsageEvent(
                                                 r.getString("request_id"),
-                                                session,
+                                                r.getString("session_id"),
                                                 r.getString("provider_id"),
                                                 r.getString("model_id"),
                                                 timestamp,
@@ -113,6 +123,22 @@ public class TokenUsageRepository {
     private static Long number(ResultSet r, String name) throws SQLException {
         long value = r.getLong(name);
         return r.wasNull() ? null : value;
+    }
+
+    public List<String> ancestors(String session) {
+        return database.read(
+                c -> {
+                    var result = new ArrayList<String>();
+                    try (var s =
+                            c.prepareStatement(
+                                    "WITH RECURSIVE lineage(id) AS (SELECT ? UNION SELECT t.parent_session_id FROM agent_tasks t JOIN lineage ON t.session_id=lineage.id WHERE t.parent_session_id IS NOT NULL) SELECT id FROM lineage")) {
+                        s.setString(1, session);
+                        try (var r = s.executeQuery()) {
+                            while (r.next()) result.add(r.getString(1));
+                        }
+                    }
+                    return result;
+                });
     }
 
     /** Only called while holding the existing exclusive session lease. */

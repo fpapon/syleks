@@ -47,6 +47,9 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | `/agent` | List agents |
 | `/agent NAME` | Select a primary agent |
 | `/subagent NAME TASK` | Run a task with a subagent |
+| `/children` | Browse direct child task sessions |
+| `/parent` | Return to the parent session |
+| `/session ID` | Open a saved session, including a child history |
 | `@NAME TASK` | Alternative way to invoke a subagent |
 | `/permissions` | Show the active agent's effective permissions |
 | `/permissions NAME` | Show another agent's effective permissions |
