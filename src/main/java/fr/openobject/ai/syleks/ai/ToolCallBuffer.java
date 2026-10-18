@@ -88,7 +88,7 @@ final class ToolCallBuffer {
             // IDs bind OpenAI tool results to calls; Ollama binds them by tool_name.
             if (openAi && entry.id.isBlank()) throw new IOException("OpenAI tool call has no ID");
             if (openAi && !ids.add(entry.id)) throw new IOException("Duplicate OpenAI tool call ID");
-            result.add(new ToolCall(entry.id.isEmpty() ? "call_" + indexed.getKey() : entry.id, entry.name, arguments));
+            result.add(new ToolCall(entry.id.isEmpty() ? "call_" + java.util.UUID.randomUUID() : entry.id, entry.name, arguments));
         }
         return List.copyOf(result);
     }

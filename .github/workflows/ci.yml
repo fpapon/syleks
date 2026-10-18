@@ -14,3 +14,9 @@ jobs:
           cache: maven
       - name: Build and test
         run: mvn -B --no-transfer-progress clean verify
+      - name: Check packaged CLI and SQLite runtime
+        env:
+          SYLEKS_DATA_DIR: ${{ runner.temp }}/syleks-data
+        run: |
+          java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar --help
+          java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar session list

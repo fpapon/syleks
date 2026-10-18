@@ -19,7 +19,11 @@ public class TerminalApp {
     private final Editor editor = new Editor();
     private final PermissionPrompt permissionPrompt = new PermissionPrompt();
     private final ChatRenderer renderer = new ChatRenderer();
-    private int scroll;
+    private final SessionPicker sessionPicker = new SessionPicker();
+    private final SessionViewState sessionViews = new SessionViewState();
+    private final java.util.concurrent.ExecutorService sessionWorker = java.util.concurrent.Executors.newSingleThreadExecutor(Thread.ofVirtual().factory());
+    private final java.util.concurrent.ConcurrentLinkedQueue<Runnable> completions = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private boolean sessionLoading;
     private boolean palette;
     private boolean running = true;
     private boolean paste;
@@ -27,6 +31,17 @@ public class TerminalApp {
 
     public TerminalApp(ChatSession session) {
         this.session = session;
+    }
+
+    public void initialize(fr.openobject.ai.syleks.app.Main.Options options) {
+        if (options.action().equals("default")) {
+            // Startup occurs before entering the UI loop. Opening a picker never creates an empty session.
+            var sessions = session.persistence().sessions().list();
+            if (!sessions.isEmpty()) sessionPicker.open(sessions, null);
+        } else {
+            session.sessionAction(options.action(), options.id());
+            sessionViews.switchTo(session.snapshot().sessionId(), editor);
+        }
     }
 
     public void run() throws Exception {
@@ -39,33 +54,61 @@ public class TerminalApp {
                 int lastWidth = -1, lastHeight = -1;
                 var reader = terminal.reader();
                 while (running) {
+                    Runnable completion;
+                    while ((completion = completions.poll()) != null) completion.run();
                     var size = terminal.getSize();
                     int width = Math.max(1, size.getColumns()), height = Math.max(1, size.getRows());
                     terminalWidth = width;
                     terminalHeight = height;
                     if (lastWidth != width || lastHeight != height) {
-                        scroll = 0;
+                        sessionViews.scroll(0);
                         lastWidth = width;
                         lastHeight = height;
                     }
                     var snapshot = session.snapshot();
+                    if (!sessionLoading) sessionViews.identifyInitial(snapshot.sessionId());
                     permissionPrompt.sync(snapshot.permission());
-                    var screen = renderer.render(snapshot, editor, width, height, scroll, palette, permissionPrompt);
+                    var screen = renderer.render(snapshot, editor, width, height, sessionViews.scroll(), palette, permissionPrompt);
+                    if (sessionPicker.isOpen()) {
+                        sessionPicker.paint(screen.canvas());
+                        screen = new ChatRenderer.Screen(screen.canvas(), screen.cursorX(), screen.cursorY(), false);
+                    }
+                    if (sessionLoading) screen.canvas().text(2, 0, "Loading sessions…", TerminalCanvas.BLUE, TerminalCanvas.BG, false);
                     painter.paint(terminal, screen);
                     int input = reader.read(70);
                     if (input == -1) break;
                     if (input >= 0) handle(input, reader);
                 }
             } finally {
-                session.cancel();
-                terminal.writer().print("\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h");
-                terminal.flush();
-                terminal.setAttributes(saved);
+                try { session.shutdown(); }
+                finally {
+                    sessionWorker.shutdownNow();
+                    terminal.writer().print("\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h");
+                    terminal.flush();
+                    terminal.setAttributes(saved);
+                }
             }
         }
     }
 
     void handle(int key, NonBlockingReader reader) throws Exception {
+        if (sessionLoading) {
+            if (key == 4 || key == 3) running = false;
+            return;
+        }
+        if (sessionPicker.isOpen()) {
+            if (key == 27) { handleEscape(reader); return; }
+            if (key == 4) { running = false; return; }
+            if (key == 3) { sessionPicker.close(); return; }
+            if (paste) return;
+            if (key == '\r' || key == '\n') {
+                var selected = sessionPicker.selected();
+                if (selected != null) changeSession("open", selected.id());
+            } else if (key == 127 || key == 8) sessionPicker.backspace();
+            else if (key >= 32) sessionPicker.type(key);
+            return;
+        }
+        if (key == 18) { openSessions(); return; } // Ctrl+R preserves the current draft.
         // Use the last rendered request ID: a key for an old panel cannot approve its replacement.
         // Ignore bracketed paste while approval controls have focus, including pasted Enter.
         if (permissionPrompt.request() != null) {
@@ -128,6 +171,7 @@ public class TerminalApp {
     private void handleEscape(NonBlockingReader reader) throws Exception {
         int second = reader.read(20);
         if (second != '[' && second != 'O') {
+            if (sessionPicker.isOpen()) { sessionPicker.close(); return; }
             if (session.snapshot().busy() || permissionPrompt.request() != null) session.cancel();
             else palette = false;
             return;
@@ -139,6 +183,16 @@ public class TerminalApp {
             if (end < 0) break;
             sequence.append((char) end);
             if (end >= 0x40 && end <= 0x7e) break;
+        }
+        if (sessionPicker.isOpen()) {
+            switch (sequence.toString()) {
+                case "A" -> sessionPicker.move(-1);
+                case "B" -> sessionPicker.move(1);
+                case "200~" -> paste = true;
+                case "201~" -> paste = false;
+                default -> { }
+            }
+            return;
         }
         if (permissionPrompt.request() != null) {
             if (sequence.toString().equals("200~")) paste = true;
@@ -170,26 +224,26 @@ public class TerminalApp {
     }
 
     private void scrollUp(int n) {
-        scroll = Math.min(scroll + n, renderer.maxScroll(session.snapshot(), terminalWidth, terminalHeight));
+        sessionViews.scroll(Math.min(sessionViews.scroll() + n, renderer.maxScroll(session.snapshot(), terminalWidth, terminalHeight)));
     }
 
     private void scrollDown(int n) {
-        scroll = Math.max(0, scroll - n);
+        sessionViews.scroll(Math.max(0, sessionViews.scroll() - n));
     }
 
     private void submit() throws Exception {
         var value = editor.text().strip();
         if (value.isBlank()) return;
         if (value.startsWith("/")) {
-            command(value);
             editor.clear();
-            scroll = 0;
+            command(value);
+            sessionViews.scroll(0);
             return;
         }
         try {
             if (session.send(value)) {
                 editor.clear();
-                scroll = 0;
+                sessionViews.scroll(0);
             }
         } catch (IllegalArgumentException | IllegalStateException ex) {
             session.info(ex.getMessage());
@@ -202,12 +256,16 @@ public class TerminalApp {
         String arg = parts.length == 2 ? parts[1].strip() : "";
         try {
             switch (name) {
+                case "/new", "/clear" -> changeSession("new", "");
+                case "/sessions" -> openSessions();
+                case "/resume" -> changeSession("resume", "");
+                case "/rename" -> changeSession("rename", arg);
+                case "/fork" -> changeSession("fork", "");
                 case "/help" ->
-                        session.info("Commandes: /help /clear /model NOM /agents /agent NOM /subagent NOM TACHE /permissions [AGENT] /approve [once|always] /deny /demo /save CHEMIN /quit | Tab mode, Ctrl+P palette, Ctrl+O nouvelle ligne, Ctrl+C annuler, Ctrl+D quitter");
-                case "/clear" -> session.clear();
+                        session.info("Sessions: /new /sessions /resume /rename TITLE /fork · Ctrl+R sessions. Commandes: /help /clear /model NOM /agents /agent NOM /subagent NOM TACHE /permissions [AGENT] /approve [once|always] /deny /demo /save CHEMIN /quit | Tab mode, Ctrl+P palette, Ctrl+O nouvelle ligne, Ctrl+C annuler, Ctrl+D quitter");
                 case "/model" -> {
                     if (arg.isEmpty()) session.info("Utilisation: /model provider/model (ou un modèle Ollama)");
-                    else session.model(arg);
+                    else changeModel(arg);
                 }
                 case "/agent" -> {
                     if (arg.isEmpty()) session.listAgents();
@@ -232,6 +290,45 @@ public class TerminalApp {
         } catch (IllegalArgumentException | IllegalStateException ex) {
             session.info(ex.getMessage());
         }
+    }
+
+    private void changeModel(String model) {
+        sessionLoading = true;
+        sessionWorker.submit(() -> {
+            try { session.model(model); }
+            catch (RuntimeException e) { session.info(e.getMessage()); }
+            finally { completions.add(() -> sessionLoading = false); }
+        });
+    }
+
+    private void openSessions() {
+        if (session.snapshot().busy() || session.snapshot().permission() != null) {
+            session.info("Finish generation or resolve its permission before changing sessions."); return;
+        }
+        sessionLoading = true;
+        sessionWorker.submit(() -> {
+            try {
+                var values = session.persistence().sessions().list();
+                completions.add(() -> { sessionPicker.open(values, session.snapshot().sessionId()); sessionLoading = false; });
+            } catch (RuntimeException e) { completions.add(() -> { session.info(e.getMessage()); sessionLoading = false; }); }
+        });
+    }
+
+    private void changeSession(String action, String argument) {
+        sessionViews.identifyInitial(session.snapshot().sessionId());
+        if (session.snapshot().busy() || session.snapshot().permission() != null) {
+            session.info("Finish generation or resolve its permission before changing sessions."); return;
+        }
+        sessionLoading = true;
+        sessionWorker.submit(() -> {
+            try {
+                session.sessionAction(action, argument);
+                completions.add(() -> {
+                    sessionViews.switchTo(session.snapshot().sessionId(), editor);
+                    sessionPicker.close(); sessionViews.scroll(0); palette = false; permissionPrompt.sync(null); sessionLoading = false;
+                });
+            } catch (RuntimeException e) { completions.add(() -> { session.info(e.getMessage()); sessionLoading = false; }); }
+        });
     }
 
     private void export(String arg) throws Exception {

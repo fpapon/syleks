@@ -14,8 +14,14 @@
         <junit.version>5.13.4</junit.version>
         <arthur.version>1.0.10</arthur.version>
         <graalvm.version>25.0.2</graalvm.version>
+        <sqlite.version>3.53.2.0</sqlite.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>${sqlite.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.yupiik.fusion</groupId>
             <artifactId>fusion-api</artifactId>
@@ -74,7 +80,7 @@
                     <arguments>
                         <argument>-classpath</argument>
                         <classpath/>
-                        <argument>io.yupiik.fusion.framework.api.main.Launcher</argument>
+                        <argument>fr.openobject.ai.syleks.app.Main</argument>
                         <argument>chat</argument>
                     </arguments>
                 </configuration>
@@ -108,6 +114,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.6.0</version>
+                <configuration>
+                    <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -126,7 +135,7 @@
                                         implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>io.yupiik.fusion.framework.api.main.Launcher</mainClass>
+                                    <mainClass>fr.openobject.ai.syleks.app.Main</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
@@ -163,7 +172,7 @@
                             </execution>
                         </executions>
                         <configuration>
-                            <main>io.yupiik.fusion.framework.api.main.Launcher</main>
+                            <main>fr.openobject.ai.syleks.app.Main</main>
 <!--                            <nativeImage>${arthur.nativeImage}</nativeImage>-->
                             <graalDownloadUrl>https://gds.oracle.com/download/graal/25i4/latest/graalvm-jdk-25i4-25_linux-x64_bin.tar.gz</graalDownloadUrl>
                             <graalVersion>${graalvm.version}</graalVersion>

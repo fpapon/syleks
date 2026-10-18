@@ -5,6 +5,9 @@ import fr.openobject.ai.syleks.app.PermissionPolicy;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.model.PermissionRequest;
+import fr.openobject.ai.syleks.session.AgentService;
+import fr.openobject.ai.syleks.session.model.MessageStatus;
+import io.yupiik.fusion.framework.build.api.scanning.Injection;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 
 import java.io.IOException;
@@ -21,6 +24,12 @@ import java.util.concurrent.CompletableFuture;
  */
 @DefaultScoped
 public class ChatSession {
+    @Injection
+    AgentService persistence;
+    private String sessionId;
+    private String sessionTitle;
+    private String projectName;
+    private volatile Thread retiring;
     private final OllamaClient ollama;
     private final AppConfig config;
     private final LocalCommandRunner commands;
@@ -69,15 +78,19 @@ public class ChatSession {
         if (task != null)
             history.add(ChatMessage.now("assistant", responsePrefix + pending + (pending.isEmpty() ? "▌" : "")));
         var displayedModel = task == null ? model : runningModel;
-        var connection = config.resolveModel(displayedModel);
+        AppConfig.ModelConnection connection;
+        try { connection = config.resolveModel(displayedModel); }
+        catch (IllegalArgumentException unavailable) {
+            connection = new AppConfig.ModelConnection(null, displayedModel, "Unavailable · /model to replace", displayedModel, "", null, null, false);
+        }
         return new ChatSnapshot(List.copyOf(history), displayedModel, status, task != null,
                 task == null ? agent : runningAgent, connection.providerName(), connection.displayName(),
                 pendingPermission == null ? null : new PermissionRequest(pendingPermission.id(), pendingPermission.description(),
-                        pendingPermission.details(), pendingPermission.tool() != null));
+                        pendingPermission.details(), pendingPermission.tool() != null), sessionId, sessionTitle, projectName);
     }
 
     public synchronized boolean send(String text) {
-        if (task != null || pendingPermission != null || text.isBlank()) return false;
+        if (task != null || retiring != null || pendingPermission != null || text.isBlank()) return false;
         if (text.startsWith("@")) {
             var parts = text.substring(1).split("\\s+", 2);
             if (parts.length < 2 || parts[1].isBlank()) throw new IllegalArgumentException("Usage: @subagent task");
@@ -97,7 +110,7 @@ public class ChatSession {
     }
 
     public synchronized boolean subagent(String name, String prompt) {
-        if (task != null || pendingPermission != null) return false;
+        if (task != null || retiring != null || pendingPermission != null) return false;
         if (prompt.isBlank()) throw new IllegalArgumentException("Usage: /subagent name task");
         var definition = config.agent(name);
         if (!definition.mode().subagent()) throw new IllegalArgumentException("Agent " + name + " is primary only; select it with /agent " + name);
@@ -148,6 +161,7 @@ public class ChatSession {
             info("Approved for this session: " + request.tool().agent() + " / " + request.tool().operation() +
                     " (all targets subject to deny rules). Configuration is unchanged.");
         }
+        if (persistence != null && request.tool() != null) persistence.authorization(mode.equals("always") ? "USER_ALWAYS" : "USER_ONCE");
         pendingPermission = null;
         status = task == null ? "Ready" : "Generating";
         try { request.action().run(); }
@@ -167,6 +181,7 @@ public class ChatSession {
         var description = request.description();
         pendingPermission = null;
         request.refuse().run();
+        if (persistence != null && request.tool() != null) persistence.authorization("DENIED");
         notifyAll();
         status = task == null ? "Denied" : "Generating";
         info("Permission refused: " + description);
@@ -215,15 +230,48 @@ public class ChatSession {
         status = prefix.isEmpty() ? "Generating" : "Subagent " + selectedAgent;
         var id = ++revision;
         task = Thread.ofVirtual().name("chat-" + selectedAgent).start(() -> {
+            AgentService.Generation generation = null;
+            String error = null;
             try {
-                ollama.stream(selectedModel, selectedAgent, history, delta -> append(id, delta),
-                        call -> executeTool(id, selectedAgent, call));
-                finish(id, null);
+                if (persistence == null) {
+                    ollama.stream(selectedModel, selectedAgent, history, delta -> append(id, delta),
+                            call -> executeTool(id, selectedAgent, call));
+                } else {
+                    generation = persistence.begin(selectedModel, selectedAgent, history.getLast().content(), !prefix.isEmpty());
+                    synchronized (this) {
+                        checkActive(id);
+                        updateMetadata();
+                        if (generation.context().omittedMessages() > 0) info("Context limited: " + generation.context().omittedMessages() + " older messages omitted; full history remains in SQLite.");
+                    }
+                    var persistentGeneration = generation;
+                    generation.onContextLimited(count -> {
+                        synchronized (this) { info("Context limited: " + count + " older messages omitted; full history remains in SQLite."); }
+                    });
+                    ollama.streamPrepared(selectedModel, selectedAgent, generation.context().messages(), delta -> {
+                        append(id, delta);
+                        persistentGeneration.append(delta);
+                    }, call -> {
+                        persistentGeneration.startTool(call);
+                        return executeTool(id, selectedAgent, call);
+                    }, generation);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                finish(id, "Cancelled");
+                error = "Cancelled";
             } catch (Exception e) {
-                finish(id, "Error: " + safeMessage(e));
+                error = "Error: " + safeMessage(e);
+            } finally {
+                if (generation != null) {
+                    // JDBC finalization must still run after an interrupt, outside the UI/session monitor.
+                    boolean interrupted = Thread.interrupted();
+                    try { generation.finish(error == null ? MessageStatus.COMPLETE
+                            : error.equals("Cancelled") || interrupted ? MessageStatus.INTERRUPTED
+                            : MessageStatus.ERROR); }
+                    catch (RuntimeException failure) { error = "Error: " + safeMessage(failure); }
+                    finally { if (interrupted) Thread.currentThread().interrupt(); }
+                }
+                finish(id, error);
+                retiring = null;
             }
         });
     }
@@ -355,8 +403,11 @@ public class ChatSession {
     // Called under the session monitor. Remembered choices can only relax ASK, never DENY.
     private PermissionPolicy.Decision toolDecision(String actor, String operation, String target) {
         var decision = config.permissions(actor).evaluate(operation, target);
-        return decision == PermissionPolicy.Decision.ASK && toolGrants.contains(new ToolGrant(actor, operation))
-                ? PermissionPolicy.Decision.ALLOW : decision;
+        boolean remembered = decision == PermissionPolicy.Decision.ASK && toolGrants.contains(new ToolGrant(actor, operation));
+        var effective = remembered ? PermissionPolicy.Decision.ALLOW : decision;
+        if (persistence != null) persistence.authorization(effective == PermissionPolicy.Decision.DENY ? "DENIED"
+                : effective == PermissionPolicy.Decision.ASK ? "AWAITING_APPROVAL" : remembered ? "SESSION_APPROVAL" : "POLICY_ALLOWED");
+        return effective;
     }
 
     private static String fenced(String content, String language) {
@@ -414,6 +465,7 @@ public class ChatSession {
         pending = new StringBuilder();
         task = null;
         status = "Cancelled";
+        retiring = previous;
         previous.interrupt();
         return true;
     }
@@ -425,15 +477,21 @@ public class ChatSession {
         status = "Ready";
     }
 
-    public synchronized void model(String value) {
-        if (task != null || pendingPermission != null) throw new IllegalStateException("Finish generation or resolve the pending permission first.");
-        config.resolveModel(value);
-        model = value;
-        info("Modèle sélectionné : " + model);
+    public void model(String value) {
+        synchronized (this) {
+            if (task != null || retiring != null || pendingPermission != null) throw new IllegalStateException("Finish generation or resolve the pending permission first.");
+            config.resolveModel(value);
+        }
+        if (persistence != null) persistence.model(value);
+        synchronized (this) {
+            model = value;
+            if (persistence != null) updateMetadata();
+            info("Modèle sélectionné : " + model);
+        }
     }
 
     public synchronized void agent(String value) {
-        if (task != null || pendingPermission != null) throw new IllegalStateException("Finish generation or resolve the pending permission before switching agents.");
+        if (task != null || retiring != null || pendingPermission != null) throw new IllegalStateException("Finish generation or resolve the pending permission before switching agents.");
         var definition = config.agent(value);
         if (!definition.mode().primary()) throw new IllegalArgumentException("Agent " + value + " is a subagent; invoke it with @" + value + " task");
         agent = value;
@@ -460,7 +518,7 @@ public class ChatSession {
     }
 
     public synchronized void demo() {
-        if (task != null || pendingPermission != null) throw new IllegalStateException("Finish generation or resolve the pending permission before opening the demo.");
+        if (task != null || retiring != null || pendingPermission != null) throw new IllegalStateException("Finish generation or resolve the pending permission before opening the demo.");
         preview = List.of(
                 ChatMessage.now("system", "Visual demo · simulated results; no files are read or modified."),
                 ChatMessage.now("user", "Analyse le service UserService.java et propose des améliorations."),
@@ -485,6 +543,56 @@ public class ChatSession {
     public synchronized void info(String message) {
         preview = List.of();
         messages.add(ChatMessage.now("system", message));
+    }
+
+    /** Explicit injection also allows integration tests to use an isolated database. */
+    public void persistence(AgentService service) { this.persistence = service; }
+
+    public AgentService persistence() {
+        if (persistence == null) throw new IllegalStateException("Persistent sessions are unavailable");
+        return persistence;
+    }
+
+    private void updateMetadata() {
+        var selected = persistence.current();
+        sessionId = selected == null ? null : selected.id();
+        sessionTitle = selected == null ? null : selected.title();
+        projectName = persistence.sessions().project().name();
+    }
+
+    public void sessionAction(String action, String argument) {
+        synchronized (this) {
+            if (task != null || retiring != null || pendingPermission != null) throw new IllegalStateException("Finish generation or resolve its permission before changing sessions");
+        }
+        var service = persistence();
+        switch (action) {
+            case "new" -> service.create(model);
+            case "open" -> service.open(argument);
+            case "resume" -> service.resume(model);
+            case "rename" -> service.rename(argument);
+            case "fork" -> { if (!argument.isBlank()) service.open(argument); service.fork(); }
+            default -> throw new IllegalArgumentException("Unknown session action: " + action);
+        }
+        var restored = service.history();
+        synchronized (this) {
+            messages.clear(); messages.addAll(restored); preview = List.of(); pending = new StringBuilder();
+            toolGrants.clear(); pendingPermission = null; responsePrefix = "";
+            model = service.current().model(); updateMetadata();
+            status = switch (service.current().status()) {
+                case INTERRUPTED -> "Interrupted";
+                case ACTIVE -> "In use";
+                default -> "Ready";
+            };
+            try { config.resolveModel(model); }
+            catch (IllegalArgumentException unavailable) { info("Saved model unavailable: " + model + ". Use /model provider/model to explicitly select a replacement."); }
+        }
+    }
+
+    public void shutdown() throws InterruptedException {
+        Thread worker;
+        synchronized (this) { worker = task == null ? retiring : task; cancel(); }
+        if (worker != null) worker.join(5000);
+        if (persistence != null) persistence.close();
     }
 
     public synchronized List<ChatMessage> history() {

@@ -1,6 +1,7 @@
 {
   "resources": [
     { "glob": "META-INF/services/**" },
+    { "glob": "db/migrations/**" },
     { "module": "java.desktop", "glob": "javax/swing/text/html/parser/html32.bdtd" }
   ]
 }

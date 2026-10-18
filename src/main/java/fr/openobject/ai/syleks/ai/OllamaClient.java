@@ -25,6 +25,8 @@ import java.util.function.Consumer;
  */
 @DefaultScoped
 public class OllamaClient {
+    private final ThreadLocal<Observer> observer = new ThreadLocal<>();
+    private final ThreadLocal<Boolean> persistentRequest = ThreadLocal.withInitial(() -> false);
     private final AppConfig config;
     private final HttpClient http;
     private final JsonMapper json;
@@ -78,6 +80,21 @@ public class OllamaClient {
                             "required", List.of("command"), "additionalProperties", false))));
         }
         if (!definitions.isEmpty()) request.put("tools", definitions);
+        if (persistentRequest.get()) {
+            int window = config.contextWindow(model);
+            int reserve = config.responseTokens(model);
+            var bounded = fr.openobject.ai.syleks.session.ContextService.limit(messages, window, reserve,
+                    json.toString(definitions).getBytes(StandardCharsets.UTF_8).length);
+            request.put("messages", bounded.messages());
+            if (bounded.omittedMessages() > 0 && observer.get() != null) observer.get().contextLimited(bounded.omittedMessages());
+            if (connection.openAiCompatible()) request.put("max_tokens", reserve);
+            else {
+                var options = new LinkedHashMap<String, Object>();
+                if (temperature != null) options.put("temperature", temperature);
+                options.put("num_ctx", window); options.put("num_predict", reserve);
+                request.put("options", options);
+            }
+        }
         return json.toString(request);
     }
 
@@ -90,12 +107,33 @@ public class OllamaClient {
     }
 
     public void stream(String model, String agent, List<ChatMessage> history, Consumer<String> receive, ToolHandler tools) throws Exception {
+        streamConversation(model, agent, conversation(agent, history), receive, tools, null);
+    }
+
+    public interface Observer {
+        default void contextLimited(int count) { }
+        void round(String content, String reasoning, List<ToolCall> calls);
+        void toolResult(ToolCall call, String result);
+        void nextRound();
+    }
+
+    public void streamPrepared(String model, String agent, List<Map<String, Object>> history, Consumer<String> receive,
+                               ToolHandler tools, Observer observer) throws Exception {
+        persistentRequest.set(true);
+        this.observer.set(observer);
+        try { streamConversation(model, agent, history, receive, tools, observer); }
+        finally { persistentRequest.remove(); this.observer.remove(); }
+    }
+
+    private void streamConversation(String model, String agent, List<Map<String, Object>> history, Consumer<String> receive,
+                                    ToolHandler tools, Observer observer) throws Exception {
         var connection = config.resolveModel(model);
-        var messages = conversation(agent, history);
+        var messages = new ArrayList<>(history);
         int maxRounds = config.maxRounds(agent);
         for (int round = 0; round < maxRounds; round++) {
             checkInterrupted();
             var turn = streamTurn(model, agent, messages, receive);
+            if (observer != null) observer.round(turn.content(), turn.thinking(), turn.calls());
             if (turn.calls().isEmpty()) return;
             var assistant = new LinkedHashMap<String, Object>();
             assistant.put("role", "assistant");
@@ -114,11 +152,13 @@ public class OllamaClient {
             for (var call : turn.calls()) {
                 checkInterrupted();
                 String result = tools.execute(call);
+                if (observer != null) observer.toolResult(call, result);
                 checkInterrupted();
                 messages.add(connection.openAiCompatible()
                         ? Map.of("role", "tool", "tool_call_id", call.id(), "content", result)
                         : Map.of("role", "tool", "tool_name", call.name(), "content", result));
             }
+            if (observer != null && round + 1 < maxRounds) observer.nextRound();
         }
         throw new IOException("Stopped after " + maxRounds + " model/tool rounds; send a new message to continue");
     }

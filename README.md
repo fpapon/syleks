@@ -4,6 +4,21 @@ A dark, OpenCode/Codex-inspired full-screen agent TUI for **Ollama and OpenAI-co
 
 > **Status: working-source MVP.** Java 25 and Maven 3.9+ are required. The test suite covers configuration, rendering, streaming protocols, permissions, and local command execution. Verify your chosen model server and terminal in your own environment.
 
+## Persistent sessions
+
+Conversations are saved locally in SQLite, grouped by canonical project root (including Git worktrees). Start with `bin/syleks --new`, resume with `bin/syleks -c`, or select a conversation with `/sessions` / Ctrl+R. The legacy `java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar chat` launch remains supported.
+
+```sh
+mvn clean verify
+bin/syleks --help
+bin/syleks session list
+bin/syleks --continue
+```
+
+The default database is `~/.local/share/syleks/syleks.db`; `XDG_DATA_HOME` and `SYLEKS_DATA_DIR` override it. Sessions retain messages, streamed fragments and structured tool history. `/new`, `/resume`, `/rename TITLE` and `/fork` manage conversations without deleting previous history. Explicit JSON export and deletion are available through `session export ID` and `session delete ID`.
+
+See [docs/sessions.md](docs/sessions.md) for architecture, migrations, context budgets, concurrency, recovery, privacy, commands and manual validation. JSON exports may include confidential prompts, reasoning and tool results. `/clear` now starts a new persistent session.
+
 ## Stack
 
 - **Yupiik Fusion 1.2.0** (`fusion-api`, `fusion-cli`): annotation-generated dependency injection and `@Command` launcher.
@@ -24,7 +39,7 @@ ollama pull qwen3:8b
 ollama serve   # only if Ollama is not already running
 
 mvn clean package
-java -jar target/syleks-0.1.0-SNAPSHOT.jar chat
+java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar chat
 ```
 
 To compile and launch directly with Maven in an interactive terminal:
@@ -150,7 +165,7 @@ To connect to your **on-premise Ollama** server:
 ```bash
 export OLLAMA_URL=http://YOUR-PRIVATE-OLLAMA-SERVER:11434
 export OLLAMA_MODEL=qwen3:8b   # replace with the exact name from `ollama list`
-java -jar target/syleks-0.1.0-SNAPSHOT.jar chat
+java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar chat
 ```
 
 The app appends `/api/chat` to `OLLAMA_URL`. No SaaS API or telemetry is configured. **Prefer HTTPS with auth or a private VPN** for connections to a separate server: plain HTTP on a network is not confidential.

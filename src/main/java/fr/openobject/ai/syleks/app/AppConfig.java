@@ -19,6 +19,8 @@ import java.util.Map;
  */
 @DefaultScoped
 public class AppConfig {
+    private final int contextWindow;
+    private final int responseTokens;
     private final URI endpoint;
     private final String defaultModel;
     private final String systemPrompt;
@@ -39,6 +41,9 @@ public class AppConfig {
 
     AppConfig(JsonMapper json, Path home, Map<String, String> environment, Path project) {
         this.workspace = project.toAbsolutePath().normalize();
+        this.contextWindow = positiveEnvironment(environment, "SYLEKS_CONTEXT_WINDOW", 8192);
+        this.responseTokens = positiveEnvironment(environment, "SYLEKS_RESPONSE_TOKENS", 2048);
+        if (responseTokens >= contextWindow) throw new IllegalArgumentException("SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
         var url = environment.getOrDefault("OLLAMA_URL",
@@ -186,6 +191,17 @@ public class AppConfig {
         }
         throw new IllegalStateException("Invalid limit." + key + " in " + file + ": expected a positive integer");
     }
+
+    private static int positiveEnvironment(Map<String, String> environment, String key, int fallback) {
+        String value = environment.get(key);
+        if (value == null) return fallback;
+        try { int parsed = Integer.parseInt(value); if (parsed > 0) return parsed; }
+        catch (NumberFormatException ignored) { }
+        throw new IllegalArgumentException(key + " must be a positive integer");
+    }
+
+    public int contextWindow(String model) { var configured = resolveModel(model).contextLimit(); return configured == null ? contextWindow : configured; }
+    public int responseTokens(String model) { var configured = resolveModel(model).outputLimit(); return configured == null ? Math.min(responseTokens, Math.max(1, contextWindow(model) / 4)) : configured; }
 
     public ModelConnection resolveModel(String selection) {
         if (selection == null || !selection.matches("[A-Za-z0-9._:/-]{1,240}")) {

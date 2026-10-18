@@ -77,13 +77,13 @@ public final class ChatRenderer {
 
         canvas.text(left, layout.header(), "▣", BLUE, BG, false);
         canvas.text(left + 3, layout.header(), "Syleks", WHITE, BG, false);
-        var path = fitPath(workspace, Math.max(0, bodyWidth - 20));
+        var path = fitPath(snapshot.projectName() == null ? workspace : snapshot.projectName() + " · " + workspace, Math.max(0, bodyWidth - 20));
         canvas.text(right - textWidth(path) + 1, layout.header(), path, SUB, BG, false);
         canvas.text(left, layout.divider(), "─".repeat(bodyWidth), BORDER, BG, false);
 
         var details = fit(snapshot.providerName() + " · Java 25", Math.max(0, bodyWidth / 3));
         int titleWidth = bodyWidth - textWidth(details) - 3;
-        canvas.text(left, layout.title(), fit(sessionTitle(snapshot.messages()), titleWidth), WHITE, BG, false);
+        canvas.text(left, layout.title(), fit(snapshot.sessionTitle() == null ? sessionTitle(snapshot.messages()) : snapshot.sessionTitle(), titleWidth), WHITE, BG, false);
         canvas.text(right - textWidth(details) + 1, layout.title(), details, SUB, BG, false);
 
         var transcript = transcript(snapshot.messages(), bodyWidth);
@@ -474,7 +474,7 @@ public final class ChatRenderer {
     }
 
     private void paintPalette(TerminalCanvas canvas) {
-        String[] commands = {"/help          List commands", "/clear         Reset conversation", "/model ID      Change model",
+        String[] commands = {"/sessions      Browse sessions · Ctrl+R", "/new /resume   New / latest conversation", "/rename TITLE /fork  Rename / fork session", "/help          List commands", "/clear         New conversation", "/model ID      Change model",
                 "/agent NAME    Select primary agent", "/agents        List agents", "/subagent NAME TASK  Run subagent", "/permissions   Show agent permissions", "/approve [once|always] /deny  Resolve permission", "/demo          Show visual demo", "/save PATH     Export conversation",
                 "Tab            Cycle primary agents", "Esc            Close palette"};
         int width = Math.min(64, canvas.width() - 4), height = commands.length + 3;
