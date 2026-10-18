@@ -33,17 +33,46 @@ public final class Main {
                 out.println("""
                         Syleks — persistent local AI sessions
                         Usage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]
+                               syleks config init [--defaults]
                                syleks session list
                                syleks session delete <id>
                                syleks session export <id>
                         No option: open the TUI and offer this project's sessions.
                         -c: resume the latest session; create one if this project has none.
+                        config init: open the configuration TUI to create/update provider and model settings.
+                        In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
+                        Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
+                        --defaults: skip questions and use the bundled provider/model settings without an API key.
                         Exports are JSON on stdout and may contain confidential content. Redirect explicitly.
                         Session IDs are restricted to the current project. Use --help for this message.
                         """);
                 return 0;
             }
-            if (args.length > 0 && args[0].equals("session")) {
+            if (args.length > 0 && args[0].equals("config")) {
+                require((args.length == 2 || args.length == 3 && args[2].equals("--defaults")) && args[1].equals("init"));
+                if (args.length == 2 && System.console() != null) {
+                    try (var terminal = TerminalApp.openTerminal()) {
+                        TerminalApp.ConfigurationResult result;
+                        try (var container = ConfiguringContainer.of().start();
+                             var initializer = container.lookup(ConfigInitializer.class);
+                             var wizard = container.lookup(ConfigInitWizard.class)) {
+                            result = TerminalApp.configure(initializer.instance(), wizard.instance(), terminal);
+                        }
+                        if (result.restart()) chat(new Options("default", ""), terminal);
+                    }
+                } else {
+                    try (var container = ConfiguringContainer.of().start(); var instance = container.lookup(ConfigInitializer.class)) {
+                        var home = ConfigInitializer.home();
+                        String configuration = null;
+                        if (args.length == 2 && !java.nio.file.Files.exists(home.resolve(".config/syleks/agent-config.json"), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                            try (var wizard = container.lookup(ConfigInitWizard.class)) { configuration = wizard.instance().configure(out); }
+                        }
+                        for (var result : instance.instance().initialize(home, configuration)) {
+                            out.println((result.created() ? "Created " : "Skipped existing ") + safe(result.path().toString()));
+                        }
+                    }
+                }
+            } else if (args.length > 0 && args[0].equals("session")) {
                 require(args.length >= 2);
                 String operation = args[1];
                 require(operation.equals("list") ? args.length == 2 : (operation.equals("delete") || operation.equals("export")) && args.length == 3);
@@ -60,14 +89,30 @@ public final class Main {
                     }
                 }
             } else {
-                var options = parse(args);
-                try (var container = ConfiguringContainer.of().start(); var instance = container.lookup(TerminalApp.class)) {
-                    var app = instance.instance(); app.initialize(options); app.run();
-                }
+                chat(parse(args));
             }
             return 0;
         } catch (IllegalArgumentException e) { error.println("Syleks: " + safe(e.getMessage())); return 2; }
         catch (Exception e) { error.println("Syleks: " + safe(e.getMessage())); return 1; }
     }
+    private static void chat(Options options) throws Exception {
+        try (var terminal = TerminalApp.openTerminal()) { chat(options, terminal); }
+    }
+
+    private static void chat(Options options, TerminalApp.TerminalHandle terminal) throws Exception {
+        TerminalApp.RestartRequest restart = null;
+        while (true) {
+            try (var container = ConfiguringContainer.of().start(); var instance = container.lookup(TerminalApp.class)) {
+                var app = instance.instance();
+                app.initialize(options);
+                if (restart != null) app.restoreAfterRestart(restart);
+                app.run(terminal);
+                restart = app.restartRequest();
+            }
+            if (restart == null) return;
+            options = restart.sessionId() == null ? new Options("new", "") : new Options("open", restart.sessionId());
+        }
+    }
+
     private static String safe(String value) { return value == null ? "Operation failed" : value.replaceAll("[\\p{Cc}]", " "); }
 }

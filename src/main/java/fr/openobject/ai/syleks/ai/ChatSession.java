@@ -588,6 +588,10 @@ public class ChatSession {
         }
     }
 
+    public Path configurationHome() { return config.home(); }
+
+    public String configuredModel() { return config.agentModel(config.defaultAgent(), config.defaultModel()); }
+
     public void shutdown() throws InterruptedException {
         Thread worker;
         synchronized (this) { worker = task == null ? retiring : task; cancel(); }

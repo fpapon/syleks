@@ -8,6 +8,10 @@ final class SessionViewState {
     private final Map<String, String> drafts = new HashMap<>();
     private String active = "";
     private int scroll;
+    Map<String, String> snapshot(String currentDraft) {
+        var copy = new HashMap<>(drafts); copy.put(active, currentDraft); return Map.copyOf(copy);
+    }
+    void restore(String id, Map<String, String> values) { drafts.clear(); drafts.putAll(values); active = id == null ? "" : id; scroll = 0; }
     void identifyInitial(String id) { if (active.isEmpty() && id != null) active = id; }
     void scroll(int value) { scroll = value; }
     int scroll() { return scroll; }

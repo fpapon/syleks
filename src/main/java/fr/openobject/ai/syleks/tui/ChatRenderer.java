@@ -474,7 +474,7 @@ public final class ChatRenderer {
     }
 
     private void paintPalette(TerminalCanvas canvas) {
-        String[] commands = {"/sessions      Browse sessions · Ctrl+R", "/new /resume   New / latest conversation", "/rename TITLE /fork  Rename / fork session", "/help          List commands", "/clear         New conversation", "/model ID      Change model",
+        String[] commands = {"/config        Configure provider and model", "/restart       Reload configuration and resume", "/sessions      Browse sessions · Ctrl+R", "/new /resume   New / latest conversation", "/rename TITLE /fork  Rename / fork session", "/help          List commands", "/clear         New conversation", "/model ID      Change model",
                 "/agent NAME    Select primary agent", "/agents        List agents", "/subagent NAME TASK  Run subagent", "/permissions   Show agent permissions", "/approve [once|always] /deny  Resolve permission", "/demo          Show visual demo", "/save PATH     Export conversation",
                 "Tab            Cycle primary agents", "Esc            Close palette"};
         int width = Math.min(64, canvas.width() - 4), height = commands.length + 3;

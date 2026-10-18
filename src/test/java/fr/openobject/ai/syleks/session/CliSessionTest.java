@@ -75,6 +75,50 @@ class CliSessionTest {
         }
     }
 
+    @Test void initializesConfigurationThroughFusionWithoutOpeningTheSessionDatabase() throws Exception {
+        var initialized = cli("config", "init", "--defaults");
+        assertEquals(0, initialized.code(), initialized.output());
+        assertTrue(initialized.output().contains("Created "));
+        var config = root.resolve("home/.config/syleks/agent-config.json");
+        assertTrue(Files.isRegularFile(config));
+        assertTrue(Files.isRegularFile(root.resolve("home/.config/syleks/agents/build.md")));
+        assertFalse(Files.exists(root.resolve("data")));
+        Files.writeString(config, "a custom config that cannot be parsed");
+        var repeated = cli("config", "init");
+        assertEquals(0, repeated.code(), repeated.output());
+        assertTrue(repeated.output().contains("Skipped existing "));
+        assertEquals("a custom config that cannot be parsed", Files.readString(config));
+        assertFalse(Files.exists(root.resolve("data")));
+        assertEquals(2, cli("config", "init", "--force").code());
+        assertTrue(cli("--help").output().contains("config init"));
+    }
+
+    @Test void asksForSettingsAndWritesTheAnswersWithoutEchoingTheApiKey() throws Exception {
+        var process = start("fr.openobject.ai.syleks.app.Main", "config", "init");
+        try (var input = process.outputWriter(java.nio.charset.StandardCharsets.UTF_8)) {
+            input.write(String.join("\n", List.of("team", "Team server", "http://localhost:8000/v1", "test-secret-key", "test-model", "Test model", "16384", "2048", "20", "0.2", "30", "0.1", "30")) + "\n");
+        }
+        assertTrue(process.waitFor(12, TimeUnit.SECONDS));
+        String output = new String(process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        String error = new String(process.getErrorStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(0, process.exitValue(), error);
+        assertTrue(output.contains("Provider ID"));
+        assertFalse(output.contains("test-secret-key"));
+        var config = Files.readString(root.resolve("home/.config/syleks/agent-config.json"));
+        assertTrue(config.contains("team/test-model"));
+        assertTrue(config.contains("test-secret-key"));
+        assertFalse(Files.exists(root.resolve("data")));
+    }
+
+    @Test void cancelsInitializationOnEofBeforeCreatingFiles() throws Exception {
+        var process = start("fr.openobject.ai.syleks.app.Main", "config", "init");
+        process.getOutputStream().close();
+        assertTrue(process.waitFor(12, TimeUnit.SECONDS));
+        assertEquals(1, process.exitValue());
+        assertFalse(Files.exists(root.resolve("home/.config/syleks")));
+        assertTrue(new String(process.getErrorStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).contains("cancelled"));
+    }
+
     private String probe(String... args) throws Exception {
         var all = new ArrayList<String>(); all.add(root.toString()); all.addAll(List.of(args));
         var process = start("fr.openobject.ai.syleks.session.SessionProcess", all.toArray(String[]::new));

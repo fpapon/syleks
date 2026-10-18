@@ -1,6 +1,8 @@
 package fr.openobject.ai.syleks.tui;
 
 import fr.openobject.ai.syleks.ai.ChatSession;
+import fr.openobject.ai.syleks.app.ConfigInitWizard;
+import fr.openobject.ai.syleks.app.ConfigInitializer;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.NonBlockingReader;
@@ -14,8 +16,14 @@ import java.util.Locale;
  * Event loop is single threaded; networking only touches ChatSession via synchronized methods.
  */
 @DefaultScoped
-public class TerminalApp {
+public class TerminalApp implements AutoCloseable {
     private final ChatSession session;
+    private final ConfigInitializer configInitializer;
+    private final ConfigInitWizard configWizard;
+    private ConfigurationModal configurationModal;
+    private RestartRequest restartRequest;
+    public record RestartRequest(String sessionId, String draft, java.util.Map<String, String> drafts) { }
+    public record ConfigurationResult(boolean saved, boolean restart) { }
     private final Editor editor = new Editor();
     private final PermissionPrompt permissionPrompt = new PermissionPrompt();
     private final ChatRenderer renderer = new ChatRenderer();
@@ -29,8 +37,23 @@ public class TerminalApp {
     private boolean paste;
     private int terminalWidth = 100, terminalHeight = 30;
 
-    public TerminalApp(ChatSession session) {
-        this.session = session;
+    public TerminalApp(ChatSession session, ConfigInitializer configInitializer, ConfigInitWizard configWizard) {
+        this.session = session; this.configInitializer = configInitializer; this.configWizard = configWizard;
+    }
+
+    @io.yupiik.fusion.framework.build.api.lifecycle.Destroy
+    @Override public void close() {
+        try { session.shutdown(); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        finally { sessionWorker.shutdownNow(); }
+    }
+
+    public RestartRequest restartRequest() { return restartRequest; }
+    public void restoreAfterRestart(RestartRequest request) {
+        session.model(session.configuredModel());
+        editor.setText(request.draft());
+        sessionViews.restore(request.sessionId(), request.drafts());
+        sessionPicker.close();
     }
 
     public void initialize(fr.openobject.ai.syleks.app.Main.Options options) {
@@ -44,54 +67,76 @@ public class TerminalApp {
         }
     }
 
-    public void run() throws Exception {
-        try (var terminal = TerminalBuilder.builder().system(true).encoding(StandardCharsets.UTF_8).build()) {
-            var saved = terminal.enterRawMode();
-            var painter = new TerminalPainter();
+    /** One terminal lives across Fusion-container restarts; only application services are rebuilt. */
+    public static final class TerminalHandle implements AutoCloseable {
+        private final org.jline.terminal.Terminal terminal;
+        private final org.jline.terminal.Attributes attributes;
+        private boolean closed;
+        private TerminalHandle() throws java.io.IOException {
+            this(TerminalBuilder.builder().system(true).encoding(StandardCharsets.UTF_8).build());
+        }
+        TerminalHandle(org.jline.terminal.Terminal terminal) {
+            this.terminal = terminal;
+            attributes = terminal.enterRawMode();
+            terminal.writer().print("\u001b[?1049h\u001b[?2004h\u001b[?7l"); terminal.flush();
+        }
+        @Override public void close() throws java.io.IOException {
+            if (closed) return;
+            closed = true;
             try {
-                terminal.writer().print("\u001b[?1049h\u001b[?2004h\u001b[?7l");
-                terminal.flush();
-                int lastWidth = -1, lastHeight = -1;
-                var reader = terminal.reader();
-                while (running) {
-                    Runnable completion;
-                    while ((completion = completions.poll()) != null) completion.run();
-                    var size = terminal.getSize();
-                    int width = Math.max(1, size.getColumns()), height = Math.max(1, size.getRows());
-                    terminalWidth = width;
-                    terminalHeight = height;
-                    if (lastWidth != width || lastHeight != height) {
-                        sessionViews.scroll(0);
-                        lastWidth = width;
-                        lastHeight = height;
-                    }
-                    var snapshot = session.snapshot();
-                    if (!sessionLoading) sessionViews.identifyInitial(snapshot.sessionId());
-                    permissionPrompt.sync(snapshot.permission());
-                    var screen = renderer.render(snapshot, editor, width, height, sessionViews.scroll(), palette, permissionPrompt);
-                    if (sessionPicker.isOpen()) {
-                        sessionPicker.paint(screen.canvas());
-                        screen = new ChatRenderer.Screen(screen.canvas(), screen.cursorX(), screen.cursorY(), false);
-                    }
-                    if (sessionLoading) screen.canvas().text(2, 0, "Loading sessions…", TerminalCanvas.BLUE, TerminalCanvas.BG, false);
-                    painter.paint(terminal, screen);
-                    int input = reader.read(70);
-                    if (input == -1) break;
-                    if (input >= 0) handle(input, reader);
-                }
-            } finally {
-                try { session.shutdown(); }
-                finally {
-                    sessionWorker.shutdownNow();
-                    terminal.writer().print("\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h");
-                    terminal.flush();
-                    terminal.setAttributes(saved);
-                }
-            }
+                terminal.writer().print("\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h"); terminal.flush();
+                terminal.setAttributes(attributes);
+            } finally { terminal.close(); }
         }
     }
 
+    public static TerminalHandle openTerminal() throws java.io.IOException { return new TerminalHandle(); }
+
+    public void run() throws Exception {
+        try (var terminal = openTerminal()) { run(terminal); }
+    }
+
+    public void run(TerminalHandle handle) throws Exception {
+        var terminal = handle.terminal;
+        var painter = new TerminalPainter();
+        try {
+            int lastWidth = -1, lastHeight = -1;
+            var reader = terminal.reader();
+            while (running) {
+                drainCompletions();
+                var size = terminal.getSize();
+                int width = Math.max(1, size.getColumns()), height = Math.max(1, size.getRows());
+                terminalWidth = width;
+                terminalHeight = height;
+                if (lastWidth != width || lastHeight != height) {
+                    sessionViews.scroll(0);
+                    lastWidth = width;
+                    lastHeight = height;
+                }
+                var snapshot = session.snapshot();
+                if (!sessionLoading) sessionViews.identifyInitial(snapshot.sessionId());
+                permissionPrompt.sync(snapshot.permission());
+                var screen = renderer.render(snapshot, editor, width, height, sessionViews.scroll(), palette, permissionPrompt);
+                if (sessionPicker.isOpen()) {
+                    sessionPicker.paint(screen.canvas());
+                    screen = new ChatRenderer.Screen(screen.canvas(), screen.cursorX(), screen.cursorY(), false);
+                }
+                if (sessionLoading) screen.canvas().text(2, 0, "Loading…", TerminalCanvas.BLUE, TerminalCanvas.BG, false);
+                if (configurationModal != null) screen = configurationModal.paint(screen.canvas());
+                painter.paint(terminal, screen);
+                int input = reader.read(70);
+                if (input == -1) break;
+                if (input >= 0) handle(input, reader);
+            }
+        } finally { close(); }
+    }
+
     void handle(int key, NonBlockingReader reader) throws Exception {
+        if (configurationModal != null) {
+            if (key == 27) { handleEscape(reader); return; }
+            configurationAction(configurationModal.key(key));
+            return;
+        }
         if (sessionLoading) {
             if (key == 4 || key == 3) running = false;
             return;
@@ -108,6 +153,7 @@ public class TerminalApp {
             else if (key >= 32) sessionPicker.type(key);
             return;
         }
+        if (key == 7) { openConfiguration(); return; } // Ctrl+G preserves the chat draft.
         if (key == 18) { openSessions(); return; } // Ctrl+R preserves the current draft.
         // Use the last rendered request ID: a key for an old panel cannot approve its replacement.
         // Ignore bracketed paste while approval controls have focus, including pasted Enter.
@@ -171,6 +217,7 @@ public class TerminalApp {
     private void handleEscape(NonBlockingReader reader) throws Exception {
         int second = reader.read(20);
         if (second != '[' && second != 'O') {
+            if (configurationModal != null) { configurationAction(configurationModal.key(27)); return; }
             if (sessionPicker.isOpen()) { sessionPicker.close(); return; }
             if (session.snapshot().busy() || permissionPrompt.request() != null) session.cancel();
             else palette = false;
@@ -183,6 +230,10 @@ public class TerminalApp {
             if (end < 0) break;
             sequence.append((char) end);
             if (end >= 0x40 && end <= 0x7e) break;
+        }
+        if (configurationModal != null) {
+            configurationAction(configurationModal.sequence(sequence.toString()));
+            return;
         }
         if (sessionPicker.isOpen()) {
             switch (sequence.toString()) {
@@ -256,13 +307,18 @@ public class TerminalApp {
         String arg = parts.length == 2 ? parts[1].strip() : "";
         try {
             switch (name) {
+                case "/config" -> {
+                    if (!arg.isBlank() && !arg.equals("init") && !arg.equals("edit")) session.info("Usage: /config [init|edit]");
+                    else openConfiguration();
+                }
+                case "/restart" -> restartChat();
                 case "/new", "/clear" -> changeSession("new", "");
                 case "/sessions" -> openSessions();
                 case "/resume" -> changeSession("resume", "");
                 case "/rename" -> changeSession("rename", arg);
                 case "/fork" -> changeSession("fork", "");
                 case "/help" ->
-                        session.info("Sessions: /new /sessions /resume /rename TITLE /fork · Ctrl+R sessions. Commandes: /help /clear /model NOM /agents /agent NOM /subagent NOM TACHE /permissions [AGENT] /approve [once|always] /deny /demo /save CHEMIN /quit | Tab mode, Ctrl+P palette, Ctrl+O nouvelle ligne, Ctrl+C annuler, Ctrl+D quitter");
+                        session.info("Configuration: /config (Ctrl+G) · /restart. Sessions: /new /sessions /resume /rename TITLE /fork · Ctrl+R sessions. Commandes: /help /clear /model NOM /agents /agent NOM /subagent NOM TACHE /permissions [AGENT] /approve [once|always] /deny /demo /save CHEMIN /quit | Tab mode, Ctrl+P palette, Ctrl+O nouvelle ligne, Ctrl+C annuler, Ctrl+D quitter");
                 case "/model" -> {
                     if (arg.isEmpty()) session.info("Utilisation: /model provider/model (ou un modèle Ollama)");
                     else changeModel(arg);
@@ -290,6 +346,106 @@ public class TerminalApp {
         } catch (IllegalArgumentException | IllegalStateException ex) {
             session.info(ex.getMessage());
         }
+    }
+
+    private void openConfiguration() {
+        if (session.snapshot().busy() || session.snapshot().permission() != null) {
+            session.info("Finish generation or resolve its permission before configuring Syleks."); return;
+        }
+        sessionLoading = true;
+        sessionWorker.submit(() -> {
+            try {
+                var form = configWizard.load(session.configurationHome());
+                completions.add(() -> { configurationModal = new ConfigurationModal(form); configurationSaved = false; palette = false; sessionLoading = false; });
+            } catch (Exception e) { completions.add(() -> { session.info(e.getMessage()); sessionLoading = false; }); }
+        });
+    }
+
+    private void configurationAction(ConfigurationModal.Action action) {
+        if (action == ConfigurationModal.Action.SAVE) {
+            var modal = configurationModal;
+            modal.saving();
+            sessionWorker.submit(() -> {
+                try {
+                    configInitializer.save(session.configurationHome(), modal.form());
+                    completions.add(() -> { modal.saved(); configurationSaved = true; });
+                } catch (Exception e) { completions.add(() -> modal.failed(e.getMessage())); }
+            });
+        } else if (action == ConfigurationModal.Action.RESTART) restartChat();
+        else if (action == ConfigurationModal.Action.CLOSE) {
+            boolean saved = configurationModal.stage() == ConfigurationModal.Stage.CLOSED && configurationSaved;
+            configurationModal = null;
+            if (saved) session.info("Configuration saved. Use /restart when ready to apply it.");
+            configurationSaved = false;
+        }
+    }
+
+    private boolean configurationSaved;
+
+    void drainCompletions() { Runnable completion; while ((completion = completions.poll()) != null) completion.run(); }
+    ConfigurationModal configurationModal() { return configurationModal; }
+
+    void restartChat() {
+        if (session.snapshot().busy() || session.snapshot().permission() != null) {
+            session.info("Finish generation or resolve its permission before restarting chat."); return;
+        }
+        restartRequest = new RestartRequest(session.snapshot().sessionId(), editor.text(), sessionViews.snapshot(editor.text()));
+        running = false;
+    }
+
+    /** Standalone setup shares the chat's cell renderer and painter without constructing chat services. */
+    public static ConfigurationResult configure(ConfigInitializer initializer, ConfigInitWizard wizard,
+                                                TerminalHandle handle) throws Exception {
+        var modal = new ConfigurationModal(wizard.load(ConfigInitializer.home()));
+        var terminal = handle.terminal;
+        boolean savedConfig = false;
+        try (var worker = java.util.concurrent.Executors.newSingleThreadExecutor(Thread.ofVirtual().factory())) {
+            var painter = new TerminalPainter();
+            java.util.concurrent.Future<?> save = null;
+            while (true) {
+                if (save != null && save.isDone()) {
+                    try { save.get(); modal.saved(); savedConfig = true; }
+                    catch (java.util.concurrent.ExecutionException e) { modal.failed(e.getCause().getMessage()); }
+                    save = null;
+                }
+                var size = terminal.getSize();
+                var canvas = new TerminalCanvas(size.getColumns(), size.getRows());
+                painter.paint(terminal, modal.paint(canvas));
+                int key = terminal.reader().read(70);
+                if (key == -1) {
+                    if (save != null) save.get();
+                    return new ConfigurationResult(savedConfig || save != null, false);
+                }
+                if (key < 0) continue;
+                ConfigurationModal.Action action;
+                if (key == 27) {
+                    String sequence = configurationEscape(terminal.reader());
+                    action = sequence == null ? modal.key(27) : modal.sequence(sequence);
+                } else action = modal.key(key);
+                if (action == ConfigurationModal.Action.SAVE) {
+                    modal.saving();
+                    save = worker.submit(() -> {
+                        try { initializer.save(ConfigInitializer.home(), modal.form()); }
+                        catch (java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+                    });
+                } else if (action == ConfigurationModal.Action.CLOSE || action == ConfigurationModal.Action.RESTART) {
+                    return new ConfigurationResult(savedConfig, action == ConfigurationModal.Action.RESTART);
+                }
+            }
+        }
+    }
+
+    private static String configurationEscape(NonBlockingReader reader) throws java.io.IOException {
+        int prefix = reader.read(20);
+        if (prefix != '[' && prefix != 'O') return null;
+        var sequence = new StringBuilder();
+        for (int i = 0; i < 18; i++) {
+            int next = reader.read(25);
+            if (next < 0) break;
+            sequence.append((char) next);
+            if (next >= 0x40 && next <= 0x7e) break;
+        }
+        return sequence.toString();
     }
 
     private void changeModel(String model) {

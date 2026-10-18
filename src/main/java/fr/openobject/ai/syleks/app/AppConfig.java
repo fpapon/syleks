@@ -30,6 +30,7 @@ public class AppConfig {
     private final int maxRounds;
     private final PermissionPolicy globalPermissions;
     private final Path workspace;
+    private final Path home;
 
     public AppConfig(JsonMapper json) {
         this(json, Path.of(System.getenv().getOrDefault("HOME", System.getProperty("user.home"))), System.getenv());
@@ -40,6 +41,7 @@ public class AppConfig {
     }
 
     AppConfig(JsonMapper json, Path home, Map<String, String> environment, Path project) {
+        this.home = home;
         this.workspace = project.toAbsolutePath().normalize();
         this.contextWindow = positiveEnvironment(environment, "SYLEKS_CONTEXT_WINDOW", 8192);
         this.responseTokens = positiveEnvironment(environment, "SYLEKS_RESPONSE_TOKENS", 2048);
@@ -246,6 +248,8 @@ public class AppConfig {
     public PermissionPolicy permissions(String name) {
         return globalPermissions.overlay(agent(name).permissions());
     }
+
+    public Path home() { return home; }
 
     public Path workspace() {
         return workspace;

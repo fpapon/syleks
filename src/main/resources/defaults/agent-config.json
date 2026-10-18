@@ -1,0 +1,55 @@
+{
+  "$schema": "agent-config.schema.json",
+  "model": "local/qwen3.8-27b",
+  "provider": {
+    "local": {
+      "name": "Local",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://192.168.52.32:8000/v1"
+      },
+      "models": {
+        "qwen3.8-27b": {
+          "name": "Qwen3.8 27B UD-Q4_K_M",
+          "limit": { "context": 196608, "output": 32768 }
+        }
+      }
+    }
+  },
+  "max_rounds": 20,
+  "agent": {
+    "plan": {
+      "temperature": 0.2,
+      "max_rounds": 30,
+      "permission": {
+        "task": "deny",
+        "save": "deny",
+        "read": "allow",
+        "edit": "deny",
+        "bash": "ask"
+      }
+    },
+    "build": {
+      "temperature": 0.1,
+      "max_rounds": 30,
+      "permission": {
+        "task": "allow",
+        "save": "ask",
+        "read": "allow",
+        "edit": "deny",
+        "bash": "ask"
+      }
+    }
+  },
+  "permission": {
+    "chat": "allow",
+    "task": {
+      "*": "deny",
+      "reviewer": "ask"
+    },
+    "save": "ask",
+    "read": "allow",
+    "edit": "deny",
+    "bash": "deny"
+  }
+}

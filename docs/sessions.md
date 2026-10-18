@@ -36,6 +36,8 @@ Les identifiants d'un autre projet sont refusés, même pour l'export et la supp
 
 | Commande | Effet |
 | --- | --- |
+| `/config` ou Ctrl+G | Crée ou modifie la configuration dans une modale ; Save propose de redémarrer le chat |
+| `/restart` | Recharge la configuration dans un nouveau conteneur Fusion, avec la session et les brouillons conservés |
 | `/new` | Crée et ouvre une nouvelle session sans modifier la précédente |
 | `/sessions` ou Ctrl+R | Ouvre la sélection des sessions du projet |
 | `/resume` | Ouvre la dernière session non archivée |

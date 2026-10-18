@@ -78,6 +78,35 @@ The repository `.sdkmanrc` still selects Zulu Java 25 for JVM development; selec
 
 ## Configuration
 
+Generate a starter configuration and default agent Markdown files:
+
+```sh
+bin/syleks config init
+# Or: java -jar target/syleks-0.1.0-SNAPSHOT.jar config init
+```
+
+In an interactive terminal this opens a dark ANSI configuration form using the same renderer as chat. It works for both **new and existing** configuration files. Inside a chat, use **`/config`** (or `/config init`, `/config edit`) or **Ctrl+G** to open the same form. Ctrl+G keeps the current chat draft intact.
+
+The form edits provider ID/name, OpenAI-compatible base URL, optional API key, model ID/name, context/output token limits, global round limit, and Plan/Build temperatures and round limits. Existing values are prefilled; API keys are masked. Type to replace a selected value, use left/right to edit it, Enter/Tab to advance, and Shift+Tab/up to return. Backspace clears a selected value, including an existing API key. Esc cancels before saving.
+
+After the last field, review the settings and choose **Save**, **Back** or **Cancel**. Saving creates or atomically updates `~/.config/syleks/agent-config.json`, and fills in any missing schema and default agent Markdown files. Other providers, models, custom agent definitions and existing permissions are preserved when updating. A configuration changed by another process since the form opened is rejected instead of overwritten. Malformed existing JSON can be repaired using the form, with an explicit warning before saving.
+
+After saving, the form offers **Restart chat** or **Later**. Restart rebuilds the Fusion container, loads the new configuration and configured default model, and reopens the current persistent session with its history and unsent drafts. It never sends a chat request automatically. Later keeps the current running settings; `/restart` applies the saved configuration when ready. Configuration changes are available while chat is idle; finish or cancel generation and resolve pending permissions before opening setup.
+
+New configurations use `model: provider/model`, `provider` with `npm: @ai-sdk/openai-compatible`, model `limit.context`/`limit.output`, global `max_rounds`, and per-agent temperature, round limits and permissions. The starter policy allows chat/read, asks for saves and reviewer delegation, and denies other delegation, edit and bash globally. Plan denies task/save/edit and asks for bash. Build allows task/read, asks for save/bash, and denies edit. Per-agent rules override global rules. Existing policies are retained when editing; generated agent files never replace customized files.
+
+For unattended initialization, skip the form explicitly:
+
+```sh
+bin/syleks config init --defaults
+```
+
+`--defaults` creates only missing files and preserves existing ones. Its bundled settings use provider `local` (`Local`), base URL `http://192.168.52.32:8000/v1`, model `qwen3.8-27b` (`Qwen3.8 27B UD-Q4_K_M`), context/output limits `196608`/`32768`, global round limit `20`, and Plan/Build round limits `30` with temperatures `0.2`/`0.1`. No API key is written by `--defaults`; adjust the provider address and model to your server before chatting.
+
+Redirected stdin retains the line-based setup for scripts creating a new configuration; EOF cancels it without creating files. Existing files are preserved in this mode. Use an interactive terminal or `/config` to update an existing file.
+
+The command uses the same home directory as the configuration loader (`HOME`, falling back to Java's `user.home`). Setup itself requires neither a running model server nor a sessions database. New files have private permissions on POSIX filesystems; entered API keys are stored in the configuration file. It also creates a local `agent-config.schema.json`, plus missing `agents/build.md`, `agents/plan.md`, `agents/architect.md`, and `agents/reviewer.md` files.
+
 If upgrading from Fusion Agent, move `$HOME/.config/fusion-agent` to `$HOME/.config/syleks` and any project `.fusion-agent` directory to `.syleks`. Configuration filenames and contents stay the same.
 
 Create `$HOME/.config/syleks/agent-config.json` using this supported subset of [OpenCode provider configuration](https://docs.opencode.ai/docs/providers/). Define several providers as separate entries under the singular `provider` key. Each provider has its own base URL, optional API key, and model catalog. See [examples/agent-config.json](examples/agent-config.json):
