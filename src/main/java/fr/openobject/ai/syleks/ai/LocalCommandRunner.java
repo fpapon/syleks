@@ -39,11 +39,22 @@ public final class LocalCommandRunner {
         }
         if (timeoutSeconds < 1 || timeoutSeconds > 300)
             throw new IllegalArgumentException("timeout_seconds must be an integer from 1 to 300");
-        var process =
-                new ProcessBuilder("/bin/bash", "-c", command)
+        var builder =
+                new ProcessBuilder("/bin/bash", "--noprofile", "--norc", "-c", command)
                         .directory(directory.toFile())
-                        .redirectErrorStream(true)
-                        .start();
+                        .redirectErrorStream(true);
+        // Startup scripts, imported functions and shell options could execute or replace an
+        // approved literal command before the checked script even starts.
+        builder.environment()
+                .keySet()
+                .removeIf(
+                        name ->
+                                name.equals("BASH_ENV")
+                                        || name.equals("ENV")
+                                        || name.equals("SHELLOPTS")
+                                        || name.equals("BASHOPTS")
+                                        || name.startsWith("BASH_FUNC_"));
+        var process = builder.start();
         process.getOutputStream().close();
         var output = new CompletableFuture<String>();
         var truncated = new java.util.concurrent.atomic.AtomicBoolean();

@@ -1,5 +1,7 @@
 # Matrice de parité fonctionnelle
 
+> **Matrice historique :** la correction shell P0 est suivie séparément dans [shell-security.md](shell-security.md). Les FAIL et scores ci-dessous décrivent la campagne initiale ; aucune parité complète des tools n’est revendiquée par cette correction.
+
 Référence : [baseline.md](baseline.md). Verdict : **pas de parité fonctionnelle**. Les 53 lignes représentent des exigences composites ; un test positif sur une partie ne suffit pas à valider toute la ligne.
 
 Un test de caractérisation qui réussit en reproduisant un défaut laisse la fonctionnalité en **FAIL**. Les absences MCP sont confirmées par inspection du catalogue, du dispatch, du bootstrap et du build, sans test de protocole inventé.

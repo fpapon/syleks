@@ -93,9 +93,30 @@ Scans stop after 10,000 entries or 32 levels, and return up to 100 results by de
 
 ### Shell and web access
 
-Shell commands run through `/bin/bash -c` in the launch directory with inherited environment variables and closed standard input. Use foreground, non-interactive commands. Cancelling stops the command and its descendants during cleanup.
+Shell commands run through `/bin/bash --noprofile --norc -c` in the launch directory with closed standard input. Ordinary environment variables are inherited, but `BASH_ENV`, `ENV`, `SHELLOPTS`, `BASHOPTS`, and imported `BASH_FUNC_*` functions are removed so those shell hooks cannot run before the approved command. Use foreground, non-interactive commands. Cancelling stops the command and its descendants during cleanup.
 
-**Shell execution uses your normal OS permissions.** Allowing a shell command can allow file changes or network access regardless of separate file/web rules. Command patterns match the entire string, without parsing shell syntax; a matching compound command or pipeline is still one request. Use `ask` when you want to review it.
+**Shell execution uses your normal OS permissions.** Allowing a program can allow file changes or network access regardless of separate file/web rules. Command permissions govern shell invocations, not every action an allowed executable, script, interpreter, or child process can perform. Prefer an allowlist of trusted programs when using granular rules.
+
+With granular `bash` patterns, Syleks checks **every literal command and redirection before starting any part of the script**. This includes command lists separated by `;`, newlines, `&&`, `||`, `&`, and pipelines. A single `deny` blocks the entire script, even a branch that might not run. `ask` requires approval when no action is denied. Remembered `always` approvals never override a denial or unsupported syntax.
+
+Commands are matched with literal quotes/backslashes decoded and words separated by single spaces: `t'o'uch marker` is checked as `touch marker`. Redirections are additional targets including their operator and optional descriptor, such as `> output.txt`, `>> output.txt`, `< input.txt`, or `2> errors.txt`. Consequently, allowing `printf *` alone does not authorize `printf ok > output.txt` under a deny-by-default policy: also allow or ask for `> output.txt`. Executable names and redirection filenames are literal strings; their paths are not canonicalized. An explicit deny/ask rule matching the original whole script remains an additional restriction; a whole-script allow never skips individual checks.
+
+```json
+{
+  "permission": {
+    "bash": {
+      "*": "deny",
+      "printf *": "allow",
+      "> output.txt": "ask",
+      "touch *": "deny"
+    }
+  }
+}
+```
+
+Here `printf ok; touch marker` is refused before either command runs. `printf ok > output.txt` requires approval. The complete original script, working directory and timeout appear in the approval prompt.
+
+Granular policies accept a conservative literal subset of Bash. Variable/arithmetic/command/process substitutions, unquoted glob/brace/tilde expansion, comments, assignments, groups, control structures, here documents/strings, indirect shell commands, shell-state builtins and `printf` variable assignments are refused when they cannot be checked safely. This restriction also applies after `always` approval. For full shell scripts, use an unrestricted `"bash": "ask"` policy and review each request (or consciously grant `"bash": "allow"`). These uniform policies retain whole-shell authority. A later unconditional `*` rule overrides earlier granular rules, following the usual precedence.
 
 Web fetch follows at most five redirects, checking permission for each destination. Permitted URLs can include private/local servers. Search sends your query to DuckDuckGo's HTML search service, requires no API key, and may fail if that service blocks requests or changes its page. Search redirects require `webfetch` permission for the destination. Web content is untrusted material supplied to the model.
 
@@ -120,7 +141,7 @@ Each operation accepts `allow`, `ask`, or `deny`, or an ordered object of target
 }
 ```
 
-Patterns are case-sensitive: `*` matches any text and `?` one character. They are simple patterns, not filesystem glob syntax. Targets are model IDs for `chat`, agent names for `task`, normalized absolute file paths for file operations/`save`, full command strings for `bash`, URLs for `webfetch`, and query text for `websearch`.
+Patterns are case-sensitive: `*` matches any text and `?` one character. They are simple patterns, not filesystem glob syntax. Targets are model IDs for `chat`, agent names for `task`, normalized absolute file paths for file operations/`save`, normalized literal commands and redirections for granular `bash` rules (as described above), URLs for `webfetch`, and query text for `websearch`.
 
 The **last matching rule wins**. Put broad rules first and narrower exceptions afterward. Rules combine in this order: defaults → global permissions → agent JSON → global agent Markdown → project agent Markdown. Agent rules can grant an action denied globally, so inspect them too. The example protects dedicated reads of those paths; it does not prevent an allowed shell command from reading them.
 

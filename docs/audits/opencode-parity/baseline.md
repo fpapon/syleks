@@ -1,5 +1,7 @@
 # Référentiel figé
 
+> **Référentiel historique.** Le correctif shell P0 a été implémenté après cet audit. Voir [le suivi du correctif](shell-security.md) ; les empreintes et scores ci-dessous décrivent l’état antérieur.
+
 Audit du 18 octobre 2026, checkout Syleks `d1c179a9c412b2a86be3a6a2bd62f7e2643b4e0a`, version Maven `0.1.0-SNAPSHOT`, **avec modifications utilisateur préexistantes**. Les empreintes du code effectivement audité sont dans [source-manifest.json](source-manifest.json). Le commit seul ne reproduit donc pas cet état.
 
 ## OpenCode retenu

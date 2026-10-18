@@ -2,6 +2,7 @@ package fr.openobject.ai.syleks.ai;
 
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.app.PermissionPolicy;
+import fr.openobject.ai.syleks.app.ShellCommandPolicy;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.model.PermissionRequest;
@@ -599,9 +600,16 @@ public class ChatSession {
                 messages.add(ChatMessage.now("assistant", responsePrefix + pending));
                 pending = new StringBuilder();
             }
-            var decision = toolDecision(actor, "bash", command);
+            var assessment = ShellCommandPolicy.assess(config.permissions(actor), command);
+            var decision = toolDecision(actor, "bash", assessment.decision());
             if (decision == PermissionPolicy.Decision.DENY) {
-                var refusal = "Permission denied: " + actor + " / bash / " + command;
+                var refusal =
+                        "Permission denied: "
+                                + actor
+                                + " / bash / "
+                                + command
+                                + "\n"
+                                + assessment.reason();
                 info(refusal);
                 return refusal;
             }
@@ -726,7 +734,12 @@ public class ChatSession {
 
     // Called under the session monitor. Remembered choices can only relax ASK, never DENY.
     private PermissionPolicy.Decision toolDecision(String actor, String operation, String target) {
-        var decision = config.permissions(actor).evaluate(operation, target);
+        return toolDecision(
+                actor, operation, config.permissions(actor).evaluate(operation, target));
+    }
+
+    private PermissionPolicy.Decision toolDecision(
+            String actor, String operation, PermissionPolicy.Decision decision) {
         boolean remembered =
                 decision == PermissionPolicy.Decision.ASK
                         && toolGrants.contains(new ToolGrant(actor, operation));

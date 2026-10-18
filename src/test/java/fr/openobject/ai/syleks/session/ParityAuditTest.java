@@ -179,7 +179,7 @@ class ParityAuditTest {
     }
 
     @Test
-    void characterizesCompoundShellCommandBypassingAnExplicitCommandDeny() throws Exception {
+    void refusesCompoundShellCommandBeforeExecutingAnyPart() throws Exception {
         configure(
                 "{\"permission\":{\"bash\":{\"*\":\"deny\",\"printf *\":\"allow\",\"touch *\":\"deny\"}}}");
         try (var f = new SessionFixture(root)) {
@@ -195,8 +195,8 @@ class ParityAuditTest {
             try {
                 chat.send("Controlled shell policy probe");
                 await(chat);
-                // Defect: matching the whole shell string allows the denied second command.
-                assertTrue(Files.exists(root.resolve("project/audit-marker")));
+                assertFalse(Files.exists(root.resolve("project/audit-marker")));
+                assertTrue(wire.requests.getLast().toString().contains("Permission denied"));
                 assertNull(chat.snapshot().permission());
             } finally {
                 chat.shutdown();

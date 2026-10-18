@@ -1,5 +1,7 @@
 # Écarts et risques
 
+> **Suivi :** le contournement shell G-TOO-003/G-TOO-007 décrit ci-dessous a depuis été corrigé. [Validation et limites du correctif](shell-security.md). Les autres écarts et le score restent ceux de l’audit initial.
+
 La suite verte certifie les observations des tests, pas la parité. Les défauts ci-dessous sont laissés dans le code métier. P0 = risque de modification non autorisée démontré ; aucun scénario n’a utilisé le repository réel comme cible.
 
 ## Dix écarts prioritaires

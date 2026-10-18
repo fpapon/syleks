@@ -33,6 +33,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class CommandToolTest {
     @TempDir Path directory;
@@ -195,6 +197,73 @@ class CommandToolTest {
                         .get("content")
                         .toString()
                         .contains("Permission denied"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "printf first > prefix.txt; touch forbidden.txt",
+                "printf first > prefix.txt && touch forbidden.txt",
+                "printf first > prefix.txt || touch forbidden.txt",
+                "printf first > prefix.txt | touch forbidden.txt",
+                "printf first > prefix.txt & touch forbidden.txt",
+                "printf first > prefix.txt\nt'o'uch forbidden.txt",
+                "printf first > prefix.txt; printf \"$(touch forbidden.txt)\"",
+                "printf first > prefix.txt; printf `touch forbidden.txt`",
+                "printf first > prefix.txt; printf <(touch forbidden.txt)",
+                "printf first > prefix.txt; printf ok > forbidden.txt",
+                "printf first > prefix.txt; printf ok 2> forbidden.txt",
+                "printf first > prefix.txt; printf ok >> forbidden.txt",
+                "printf first > prefix.txt; /bin/bash -c 'touch forbidden.txt'"
+            })
+    void preflightsTheWholeScriptBeforeStartingAnyCommandOrRedirection(String command)
+            throws Exception {
+        var config =
+                config(
+                        false,
+                        "{\"permission\":{\"bash\":{\"*\":\"allow\",\"touch *\":\"deny\",\"> forbidden.txt\":\"deny\",\"2> forbidden.txt\":\"deny\",\">> forbidden.txt\":\"deny\"}}}");
+        var requests = new LinkedBlockingQueue<Map<?, ?>>();
+        var session =
+                new ChatSession(
+                        client(config, requests, ollamaCall(command), ollamaAnswer()), config);
+        try {
+            session.send("Run controlled policy probe");
+            await(() -> !session.snapshot().busy());
+            assertEquals("Ready", session.snapshot().status());
+            assertNull(session.snapshot().permission());
+            assertFalse(Files.exists(project.resolve("prefix.txt")));
+            assertFalse(Files.exists(project.resolve("forbidden.txt")));
+            assertTrue(requests.toString().contains("Permission denied"));
+        } finally {
+            session.shutdown();
+        }
+    }
+
+    @Test
+    void executesACompoundScriptOnlyWhenEveryCommandAndRedirectionIsAllowed() throws Exception {
+        var config =
+                config(
+                        false,
+                        "{\"permission\":{\"bash\":{\"*\":\"deny\",\"printf *\":\"allow\",\"> allowed.txt\":\"allow\",\">> allowed.txt\":\"allow\"}}}");
+        var requests = new LinkedBlockingQueue<Map<?, ?>>();
+        var session =
+                new ChatSession(
+                        client(
+                                config,
+                                requests,
+                                ollamaCall(
+                                        "printf first > allowed.txt; printf second >> allowed.txt"),
+                                ollamaAnswer()),
+                        config);
+        try {
+            session.send("Run permitted commands");
+            await(() -> !session.snapshot().busy());
+            assertEquals("Ready", session.snapshot().status());
+            assertEquals("firstsecond", Files.readString(project.resolve("allowed.txt")));
+            assertTrue(requests.toString().contains("Exit code: 0"));
+        } finally {
+            session.shutdown();
+        }
     }
 
     @Test
@@ -551,7 +620,9 @@ class CommandToolTest {
     @Test
     void alwaysApprovesFutureCommandsButPreservesExplicitDenials() throws Exception {
         var config =
-                config(false, "{\"permission\":{\"bash\":{\"*\":\"ask\",\"*blocked*\":\"deny\"}}}");
+                config(
+                        false,
+                        "{\"permission\":{\"bash\":{\"*\":\"ask\",\"printf blocked*\":\"deny\",\"touch *\":\"deny\"}}}");
         var requests = new LinkedBlockingQueue<Map<?, ?>>();
         var session =
                 new ChatSession(
@@ -560,7 +631,9 @@ class CommandToolTest {
                                 requests,
                                 ollamaCall("printf first > first.txt"),
                                 ollamaCall("printf second > second.txt"),
-                                ollamaCall("printf blocked > blocked.txt"),
+                                ollamaCall(
+                                        "printf safe > unexpected.txt; printf blocked > blocked.txt"),
+                                ollamaCall("printf \"$(touch hidden.txt)\""),
                                 ollamaAnswer(),
                                 ollamaCall("printf third > third.txt"),
                                 ollamaAnswer()),
@@ -577,6 +650,8 @@ class CommandToolTest {
         assertTrue(Files.exists(project.resolve("first.txt")));
         assertTrue(Files.exists(project.resolve("second.txt")));
         assertFalse(Files.exists(project.resolve("blocked.txt")));
+        assertFalse(Files.exists(project.resolve("unexpected.txt")));
+        assertFalse(Files.exists(project.resolve("hidden.txt")));
         assertTrue(requests.toString().contains("Permission denied"));
         session.clear();
         session.send("Another turn");

@@ -85,10 +85,21 @@ public record PermissionPolicy(List<Rule> rules) {
     public Decision evaluate(String operation, String target) {
         if (!OPERATIONS.contains(operation))
             throw new IllegalArgumentException("Unknown permission operation: " + operation);
-        var result = Decision.DENY;
+        if (operation.equals("bash") && !target.isBlank())
+            return ShellCommandPolicy.assess(this, target).decision();
+        return evaluateTarget(operation, target);
+    }
+
+    Decision evaluateTarget(String operation, String target) {
+        var rule = matchingRule(operation, target);
+        return rule == null ? Decision.DENY : rule.decision();
+    }
+
+    Rule matchingRule(String operation, String target) {
+        Rule result = null;
         for (var rule : rules) {
             if ((rule.operation().equals("*") || rule.operation().equals(operation))
-                    && matches(rule.target(), target)) result = rule.decision();
+                    && matches(rule.target(), target)) result = rule;
         }
         return result;
     }

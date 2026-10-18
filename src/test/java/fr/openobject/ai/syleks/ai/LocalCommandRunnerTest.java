@@ -36,6 +36,49 @@ class LocalCommandRunnerTest {
     }
 
     @Test
+    void ignoresInheritedStartupCodeFunctionsAndShellOptions() throws Exception {
+        var startup = directory.resolve("startup.sh");
+        Files.writeString(startup, "touch startup-marker\n");
+        var builder =
+                new ProcessBuilder(
+                        Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                        "-cp",
+                        System.getProperty("java.class.path"),
+                        ShellChild.class.getName(),
+                        directory.toString());
+        builder.environment().put("BASH_ENV", startup.toString());
+        builder.environment().put("ENV", startup.toString());
+        builder.environment().put("BASH_FUNC_printf%%", "() { touch function-marker; }");
+        builder.environment().put("SHELLOPTS", "xtrace");
+        builder.environment().put("BASHOPTS", "expand_aliases");
+        builder.environment().put("SYLEKS_SHELL_TEST_VALUE", "ordinary-environment");
+        var process = builder.redirectErrorStream(true).start();
+        try {
+            assertTrue(process.waitFor(10, TimeUnit.SECONDS));
+            assertEquals(0, process.exitValue());
+            assertEquals(
+                    "ordinary-environment",
+                    new String(
+                            process.getInputStream().readAllBytes(),
+                            java.nio.charset.StandardCharsets.UTF_8));
+            assertFalse(Files.exists(directory.resolve("startup-marker")));
+            assertFalse(Files.exists(directory.resolve("function-marker")));
+        } finally {
+            process.destroyForcibly();
+        }
+    }
+
+    public static class ShellChild {
+        public static void main(String[] args) throws Exception {
+            var result =
+                    new LocalCommandRunner(Path.of(args[0]))
+                            .execute("printf '%s' \"$SYLEKS_SHELL_TEST_VALUE\"", 5);
+            System.out.print(result.output());
+            if (result.exitCode() != 0) System.exit(1);
+        }
+    }
+
+    @Test
     void timesOutAndTerminatesTheCommandTree() throws Exception {
         var result =
                 new LocalCommandRunner(directory)

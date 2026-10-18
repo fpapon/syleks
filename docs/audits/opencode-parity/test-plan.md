@@ -1,5 +1,7 @@
 # Campagne de validation
 
+> **Campagne historique :** les commandes, empreintes et résultats ci-dessous décrivent l’audit initial. Après le correctif P0, utiliser [le suivi shell et sa campagne de validation](shell-security.md) ; le vérificateur des anciennes empreintes signale volontairement la modification du code.
+
 La campagne utilise la suite Maven existante et huit nouvelles sondes dans `src/test/java/fr/openobject/ai/syleks/session/ParityAuditTest.java`. Aucun test ne demande de compte, clé payante, navigateur, service Ollama permanent ou serveur MCP externe. Java 25 et Maven 3.9+ suffisent ; les tests existants ouvrant HTTP loopback nécessitent que l’environnement l’autorise.
 
 ## Reproduction
