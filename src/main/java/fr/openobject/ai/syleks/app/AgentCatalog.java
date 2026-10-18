@@ -22,7 +22,9 @@ final class AgentCatalog {
                     "temperature",
                     "prompt",
                     "permission",
-                    "max_rounds");
+                    "max_rounds",
+                    "disable",
+                    "hidden");
 
     static Map<String, AgentDefinition> load(
             JsonMapper json, Map<?, ?> settings, Path configFile, Path home, Path project) {
@@ -37,7 +39,9 @@ final class AgentCatalog {
                         null,
                         "",
                         PermissionPolicy.empty(),
-                        null));
+                        null,
+                        false,
+                        false));
         agents.put(
                 "plan",
                 new AgentDefinition(
@@ -48,7 +52,9 @@ final class AgentCatalog {
                         null,
                         "",
                         PermissionPolicy.empty(),
-                        null));
+                        null,
+                        false,
+                        false));
         if (settings.containsKey("agent")) {
             if (!(settings.get("agent") instanceof Map<?, ?> entries))
                 throw invalid(configFile, "agent must be an object");
@@ -60,25 +66,45 @@ final class AgentCatalog {
                 agents.put(name, definition(name, fields, agents.get(name), configFile));
             }
         }
-        loadDirectory(json, agents, home.resolve(".config/syleks/agents"));
-        loadDirectory(json, agents, project.resolve(".syleks/agents"));
+        var budget = new int[2];
+        loadDirectory(json, agents, home.resolve(".config/syleks/agents"), null, budget);
+        Path root = fr.openobject.ai.syleks.session.ProjectService.root(project);
+        for (Path directory : ConfigurationFiles.hierarchy(root, project))
+            loadDirectory(json, agents, directory.resolve(".syleks/agents"), root, budget);
+        if (agents.size() > 128) throw invalid(configFile, "at most 128 agents are supported");
         return Collections.unmodifiableMap(agents);
     }
 
     private static void loadDirectory(
-            JsonMapper json, Map<String, AgentDefinition> agents, Path directory) {
+            JsonMapper json,
+            Map<String, AgentDefinition> agents,
+            Path directory,
+            Path boundary,
+            int[] budget) {
         try (var files = Files.list(directory)) {
+            if (boundary != null && !directory.toRealPath().startsWith(boundary))
+                throw invalid(directory, "agent directory resolves outside the project");
             for (var file :
                     files.filter(path -> path.getFileName().toString().endsWith(".md"))
+                            .limit(129)
                             .sorted()
                             .toList()) {
+                if (++budget[0] > 128)
+                    throw invalid(directory, "at most 128 agent files are supported");
+                if (boundary != null && !file.toRealPath().startsWith(boundary))
+                    throw invalid(file, "agent file resolves outside the project");
                 var filename = file.getFileName().toString();
                 var name = filename.substring(0, filename.length() - 3);
-                var content = Files.readString(file, StandardCharsets.UTF_8);
+                var content = ConfigurationFiles.read(file, ConfigurationFiles.TEXT_LIMIT);
+                budget[1] += content.getBytes(StandardCharsets.UTF_8).length;
+                if (budget[1] > 1024 * 1024)
+                    throw invalid(directory, "agent files exceed 1 MiB in total");
                 agents.put(name, parse(json, name, content, agents.get(name), file));
             }
         } catch (NoSuchFileException e) {
-            if (e.getFile() == null || !Path.of(e.getFile()).equals(directory)) {
+            if (e.getFile() == null
+                    || !Path.of(e.getFile()).equals(directory)
+                    || Files.exists(directory, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 throw new IllegalStateException(
                         "Unable to read agent definitions in " + directory, e);
             }
@@ -132,6 +158,10 @@ final class AgentCatalog {
                             block.append(next.substring(Math.min(indent, next.length())));
                     }
                     fields.put(key, block.toString().strip());
+                } else if (key.equals("disable") || key.equals("hidden")) {
+                    if (!raw.equals("true") && !raw.equals("false"))
+                        throw invalid(file, key + " must be true or false");
+                    fields.put(key, Boolean.valueOf(raw));
                 } else if (key.equals("max_rounds")) {
                     try {
                         fields.put(key, new java.math.BigDecimal(raw));
@@ -157,8 +187,9 @@ final class AgentCatalog {
         var prompt =
                 String.join("\n", java.util.Arrays.copyOfRange(lines, bodyStart, lines.length))
                         .strip();
-        if (prompt.isBlank()) throw invalid(file, "the Markdown body must contain an agent prompt");
-        fields.put("prompt", prompt);
+        if (prompt.isBlank() && !Boolean.TRUE.equals(fields.get("disable")))
+            throw invalid(file, "the Markdown body must contain an agent prompt");
+        if (!prompt.isBlank()) fields.put("prompt", prompt);
         return definition(name, fields, previous, file);
     }
 
@@ -236,6 +267,9 @@ final class AgentCatalog {
             throw invalid(file, "invalid agent name: " + name);
         for (var key : fields.keySet())
             if (!FIELDS.contains(key)) throw invalid(file, "unsupported agent field: " + key);
+        if (fields.get("prompt") instanceof String prompt
+                && prompt.getBytes(StandardCharsets.UTF_8).length > ConfigurationFiles.TEXT_LIMIT)
+            throw invalid(file, "agent prompt exceeds 128 KiB");
         var modeText =
                 text(
                         fields,
@@ -273,7 +307,15 @@ final class AgentCatalog {
                 temperature,
                 text(fields, "prompt", previous == null ? "" : previous.prompt(), file),
                 permissions,
-                maxRounds);
+                maxRounds,
+                flag(fields, "disable", previous != null && previous.disable(), file),
+                flag(fields, "hidden", previous != null && previous.hidden(), file));
+    }
+
+    private static boolean flag(Map<?, ?> fields, String key, boolean fallback, Path file) {
+        if (!fields.containsKey(key)) return fallback;
+        if (fields.get(key) instanceof Boolean value) return value;
+        throw invalid(file, key + " must be a boolean");
     }
 
     private static String text(Map<?, ?> fields, String key, String fallback, Path file) {

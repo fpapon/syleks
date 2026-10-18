@@ -6,9 +6,9 @@ An agent combines instructions, a model selection, generation settings, and perm
 
 ## Choose an agent
 
-- `/agents` lists available agents and their modes. `/agent` also lists them.
+- `/agents` lists enabled, visible agents and their modes. `/agent` also lists them.
 - `/agent plan` or `/agent build` selects a primary agent.
-- **Tab** cycles primary agents while chat is idle.
+- **Tab** cycles enabled, visible primary agents while chat is idle.
 - `@reviewer Review this code: …` or `/subagent reviewer Review this code: …` runs a specialist task.
 
 Build and Plan are built in. Setup also creates Architect and Reviewer Markdown definitions; these are available after setup and restart. Names and descriptions appear in `/agents`.
@@ -30,7 +30,9 @@ Create a UTF-8 Markdown file in either location:
 | Location | Scope |
 | --- | --- |
 | `~/.config/syleks/agents/NAME.md` | Available globally |
-| `.syleks/agents/NAME.md` in the directory where you launch Syleks | Overrides for that launch directory |
+| `.syleks/agents/NAME.md` at the Git root and each directory down to the launch directory | Project overrides, from root to the most specific directory |
+
+Outside a Git project, only the launch directory supplies project definitions. Parent directories outside the project and sibling directories are not scanned. Project agent files/directories resolving outside the project through symlinks are rejected.
 
 The filename is the agent name. Use letters, digits, hyphens, or underscores, up to 64 characters. Example `reviewer.md`:
 
@@ -59,6 +61,8 @@ The text after frontmatter is the agent prompt. Supported fields are:
 | --- | --- |
 | `description` | Display description; defaults to the agent name |
 | `mode` | `primary`, `subagent`, or `all`; new agents default to `all` |
+| `disable` | Boolean `true` blocks selection and invocation; default `false` |
+| `hidden` | Boolean `true` removes the agent from `/agents` and Tab; default `false` |
 | `model` | Optional declared `provider/model` or Ollama model ID |
 | `temperature` | Optional number from `0` to `2` |
 | `max_rounds` | Optional `-1` for unlimited rounds, or integer from `1` to `1000` |
@@ -66,19 +70,29 @@ The text after frontmatter is the agent prompt. Supported fields are:
 
 Frontmatter supports simple plain/quoted values, comments, literal/folded multiline descriptions, and nested permission maps. It is a limited format, not a complete YAML implementation: other nested objects, aliases, tags, or tool declarations are unsupported.
 
-Agent settings can also be declared under `agent` in `agent-config.json`. Precedence is built-in defaults → JSON agent settings → global Markdown → launch-directory Markdown. Later definitions replace supplied fields and the prompt body; omitted fields retain earlier values. The effective agent prompt is combined with shared system instructions. Setup preserves customized Markdown files.
+Agent settings can also be declared under `agent` in `agent-config.json`. Precedence is built-in defaults → JSON agent settings → global Markdown → project-root Markdown → Markdown at each directory down to the launch directory. Later definitions replace supplied fields and the prompt body; omitted fields retain earlier values, including `disable` and `hidden`. Permission rules are overlaid in the same order. Setup preserves customized Markdown files.
+
+A hidden agent remains available by its explicit name (`/agent NAME` for primary/all, `@NAME task` for subagent/all), subject to the same permissions. Hiding does not grant or revoke authority. A disabled agent is unavailable through every selection and invocation path, including direct tool execution. To disable an inherited definition in Markdown, a body is optional:
+
+```markdown
+---
+disable: true
+---
+```
+
+Set `disable: false` in a later definition to re-enable it. Use actual booleans: `"true"`, `yes`, numbers and null are rejected. If every primary agent is hidden, Tab leaves the current selection unchanged. The default agent must exist, be enabled and have mode `primary` or `all`; a hidden default is permitted.
 
 Copyable examples are in [architect.md](../examples/agents/architect.md) and [reviewer.md](../examples/agents/reviewer.md).
 
 ## Model and startup selection
 
-An agent's `model` overrides the default when selected. Without an override, primary agents use the configured default model, while subagents inherit the current primary model. `/model` changes the active selection until another primary agent is selected.
+An agent's `model` overrides the default when selected and can select another provider using `provider/model`. Without an override, primary agents use the configured default model, while subagents inherit the current primary model. `/model` changes the active selection until another primary agent is selected. Temperature is sent as Ollama `options.temperature` or Chat Completions `temperature`; the Responses adapters keep their existing payload and omit this sampling field. Account/model support remains provider-specific.
 
-To start with another primary agent, add `"default_agent": "architect"` to your existing configuration and restart. The name must exist and have mode `primary` or `all`.
+To start with another primary agent, add `"default_agent": "architect"` to your existing configuration and restart. Agent definitions, global instructions and environment settings are immutable during a running application instance: `/restart` rebuilds the services and applies the configured default agent/model while reopening the conversation. A disabled/missing default, invalid mode/model reference, invalid boolean or malformed definition fails loading; the application does not silently substitute another agent. Even disabled definitions are validated.
 
 ## Give the project shared instructions
 
-Put an `AGENTS.md` file at your project's Git root, or at the launch directory if it is not a Git project. For example:
+Put global instructions in `~/.config/syleks/AGENTS.md`. Put project instructions in `AGENTS.md` at your project's Git root, with additional files in directories down to where you launch Syleks. Outside Git, only the launch directory supplies project instructions. For example:
 
 ```markdown
 # Project instructions
@@ -88,8 +102,16 @@ Run mvn test before reporting a code change as verified.
 Do not include credentials in examples or logs.
 ```
 
-Syleks reads this file as project instructions when recording the first turn of a session. The limit is 128 KiB. Existing sessions keep their recorded instructions; start `/new` to use changed project instructions.
+The effective instructions are concatenated from general to specific: shared system prompt (`AGENT_SYSTEM_PROMPT` when set) → global instructions → selected agent prompt → project-root instructions → nested instructions down to the launch directory. Project sections identify their relative source paths. Siblings, parents above the project root, and instructions for files outside this launch ancestry are not loaded automatically. This is prompt guidance; execution permissions remain enforced separately.
+
+Syleks snapshots the project sections when recording the first turn of a session. Existing sessions keep that snapshot, including when resumed from another directory in the same Git project; start `/new` to use changed project instructions or another launch scope. Global instructions and the current agent prompt refresh after `/restart`. Broken links, non-regular files, invalid UTF-8 and project instruction links escaping the repository fail loading rather than being ignored.
 
 Changing the primary agent keeps the conversation and its project-instruction snapshot. The next model request uses the selected agent's current system prompt and permissions, including when switching Build → Plan → Build. Reopening a session also combines the selected agent's current prompt with the saved project instructions; it does not restore an obsolete agent prompt. Agent configuration changes still require `/restart`.
 
-`AGENTS.md` is distinct from custom agent definitions: it supplies shared project guidance, while `.syleks/agents/*.md` defines selectable agents. The latter location is relative to the **launch directory**, so launch from your project root if you keep definitions there.
+`AGENTS.md` supplies shared guidance; `.syleks/agents/*.md` defines agents. Instructions below the launch directory are not dynamically loaded when a tool reads a file there.
+
+## Size limits
+
+Each Markdown agent file, inline JSON agent prompt, global instruction file and project instruction file is limited to **128 KiB of UTF-8**. At most **128 Markdown files** are read across all inherited locations, totalling **1 MiB**, and the final catalog contains at most **128 agents including Build and Plan**. The JSON configuration itself is limited to **1 MiB**.
+
+Combined effective instructions, including source labels, are limited to **256 KiB** and must also fit the selected model's context budget. Oversized instructions fail explicitly without being silently truncated. These byte limits do not imply a particular model can accept that much context. The editor schema checks booleans and basic structure; the application also validates byte limits, references and effective catalog size.

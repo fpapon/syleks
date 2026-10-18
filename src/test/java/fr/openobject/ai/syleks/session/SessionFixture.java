@@ -21,8 +21,12 @@ public final class SessionFixture implements AutoCloseable {
     public final AgentService agent;
 
     public SessionFixture(Path root) throws Exception {
-        Files.createDirectories(root.resolve("project"));
-        config = AppConfigFixtures.defaults(mapper.instance(), root);
+        this(root, root.resolve("project"));
+    }
+
+    public SessionFixture(Path root, Path workspace) throws Exception {
+        Files.createDirectories(workspace);
+        config = AppConfigFixtures.atWorkspace(mapper.instance(), root, workspace);
         paths =
                 DataPaths.configured(
                         root.resolve("home"),

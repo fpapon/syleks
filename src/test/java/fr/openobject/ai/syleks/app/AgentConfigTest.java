@@ -391,6 +391,185 @@ class AgentConfigTest {
                 mapper.instance(), home, Map.of("AGENT_SYSTEM_PROMPT", "Shared prompt"), project);
     }
 
+    @Test
+    void disablesInvocationAndHidesDiscoveryWithoutUsingHiddenAsAPermission() throws Exception {
+        write(
+                home.resolve(".config/syleks/agent-config.json"),
+                """
+                {"agent":{"retired":{"disable":true,"mode":"all"},
+                  "internal":{"hidden":true,"mode":"all","model":"internal-model"}}}
+                """);
+        var config = config();
+        assertEquals(List.of("build", "plan"), config.primaryAgents());
+        assertThrows(IllegalArgumentException.class, () -> config.agent("retired"));
+        var requests = new LinkedBlockingQueue<Request>();
+        var session = new ChatSession(client(config, requests), config);
+        try {
+            assertThrows(IllegalArgumentException.class, () -> session.agent("retired"));
+            assertThrows(IllegalArgumentException.class, () -> session.send("@retired task"));
+            session.listAgents();
+            assertFalse(session.history().getLast().content().contains("internal"));
+            assertFalse(session.history().getLast().content().contains("retired"));
+            session.agent("internal");
+            assertEquals("internal-model", session.snapshot().model());
+            session.toggleAgent();
+            assertEquals("build", session.snapshot().agent());
+            assertTrue(session.send("@internal isolated task"));
+            assertEquals("internal", requests.poll(2, TimeUnit.SECONDS).agent());
+            awaitIdle(session);
+            assertEquals("build", session.snapshot().agent());
+            var denied =
+                    new fr.openobject.ai.syleks.ai.ToolExecutor(config)
+                            .execute(
+                                    "retired",
+                                    new fr.openobject.ai.syleks.ai.ToolCall(
+                                            "one",
+                                            "write",
+                                            Map.of("path", "never", "content", "fictional")),
+                                    (op, target, details) -> true,
+                                    () -> fail("Disabled agent must not start a tool"));
+            assertEquals(fr.openobject.ai.syleks.ai.ToolResult.Status.FAILED, denied.status());
+            assertFalse(Files.exists(project.resolve("never")));
+        } finally {
+            session.shutdown();
+        }
+    }
+
+    @Test
+    void handlesNoVisiblePrimaryAgentAndRejectsDisabledDefaults() throws Exception {
+        var file = home.resolve(".config/syleks/agent-config.json");
+        write(file, "{\"agent\":{\"build\":{\"hidden\":true},\"plan\":{\"disable\":true}}}");
+        var config = config();
+        assertTrue(config.primaryAgents().isEmpty());
+        var session = new ChatSession(client(config, new LinkedBlockingQueue<>()), config);
+        try {
+            session.toggleAgent();
+            assertEquals("build", session.snapshot().agent());
+        } finally {
+            session.shutdown();
+        }
+        write(file, "{\"agent\":{\"build\":{\"disable\":true}}}");
+        assertThrows(IllegalStateException.class, this::config);
+        write(file, "{\"agent\":{\"build\":{\"mode\":\"subagent\"}}}");
+        assertThrows(IllegalStateException.class, this::config);
+    }
+
+    @Test
+    void inheritsFlagsAndRequiresActualBooleansInJsonAndMarkdown() throws Exception {
+        var file = home.resolve(".config/syleks/agent-config.json");
+        for (String field : List.of("disable", "hidden")) {
+            for (String value : List.of("null", "1", "\"true\"", "{}", "[]")) {
+                write(file, "{\"agent\":{\"reviewer\":{\"" + field + "\":" + value + "}}}");
+                assertThrows(IllegalStateException.class, this::config);
+            }
+            write(file, "{}");
+            for (String value : List.of("yes", "1", "\"true\"", "null")) {
+                agent(false, "reviewer", "---\n" + field + ": " + value + "\n---\nReview code.");
+                assertThrows(IllegalStateException.class, this::config);
+            }
+        }
+        write(
+                file,
+                "{\"agent\":{\"reviewer\":{\"disable\":true,\"hidden\":true,\"temperature\":0.4}}}");
+        agent(false, "reviewer", "---\nmode: all\n---\nGlobal review.");
+        assertThrows(IllegalArgumentException.class, () -> config().agent("reviewer"));
+        agent(true, "reviewer", "---\ndisable: false\n---\nProject review.");
+        assertTrue(config().agent("reviewer").hidden());
+        assertEquals(0.4, config().temperature("reviewer"));
+        agent(true, "reviewer", "---\ndisable: false\nhidden: false\n---\nProject review.");
+        assertTrue(config().primaryAgents().contains("reviewer"));
+        agent(true, "reviewer", "---\ndisable: true\n---\n");
+        assertThrows(IllegalArgumentException.class, () -> config().agent("reviewer"));
+    }
+
+    @Test
+    void inheritsAgentDefinitionsFromGitRootToLaunchDirectoryAndReloadsOnlyWithNewConfiguration()
+            throws Exception {
+        var process = new ProcessBuilder("git", "init", "--quiet", project.toString()).start();
+        assertTrue(process.waitFor(5, TimeUnit.SECONDS));
+        assertEquals(0, process.exitValue());
+        var nested = Files.createDirectories(project.resolve("module/src"));
+        write(home.resolve(".config/syleks/AGENTS.md"), "GLOBAL_GUIDANCE");
+        agent(
+                false,
+                "reviewer",
+                "---\nmode: all\nmodel: global-model\ntemperature: 0.1\nhidden: true\n---\nGlobal review.");
+        agent(true, "reviewer", "---\nmodel: root-model\ntemperature: 0.3\n---\nRoot review.");
+        var local =
+                write(
+                        nested.resolve(".syleks/agents/reviewer.md"),
+                        "---\nhidden: false\nmax_rounds: 2\n---\nNESTED_GUIDANCE");
+        var config =
+                new AppConfig(
+                        mapper.instance(),
+                        home,
+                        Map.of("AGENT_SYSTEM_PROMPT", "BASE_GUIDANCE"),
+                        nested);
+        assertEquals("root-model", config.agentModel("reviewer", "fallback"));
+        assertEquals(0.3, config.temperature("reviewer"));
+        assertEquals(2, config.maxRounds("reviewer"));
+        assertTrue(config.primaryAgents().contains("reviewer"));
+        assertEquals(
+                "BASE_GUIDANCE\n\nGlobal instructions:\nGLOBAL_GUIDANCE\n\nNESTED_GUIDANCE",
+                config.systemPrompt("reviewer"));
+        Files.writeString(local, "---\ndisable: true\n---\n");
+        assertFalse(config.agent("reviewer").disable());
+        var restarted = new AppConfig(mapper.instance(), home, Map.of(), nested);
+        assertThrows(IllegalArgumentException.class, () -> restarted.agent("reviewer"));
+    }
+
+    @Test
+    void boundsConfigurationAndAgentFilesAndRejectsBrokenOrEscapingProjectLinks() throws Exception {
+        Path file = agent(true, "reviewer", "x".repeat(ConfigurationFiles.TEXT_LIMIT + 1));
+        assertThrows(IllegalStateException.class, this::config);
+        Files.write(file, new byte[] {(byte) 0xc3, (byte) 0x28});
+        assertThrows(IllegalStateException.class, this::config);
+        Files.delete(file);
+        var outside = Files.writeString(directory.resolve("outside.md"), "OUTSIDE_SECRET_FIXTURE");
+        Files.createSymbolicLink(file, outside);
+        assertThrows(IllegalStateException.class, this::config);
+        Files.delete(file);
+        Files.createSymbolicLink(file, directory.resolve("missing.md"));
+        assertThrows(IllegalStateException.class, this::config);
+        Files.delete(file);
+        var settings = home.resolve(".config/syleks/agent-config.json");
+        write(settings, " ".repeat(1024 * 1024 + 1));
+        assertThrows(IllegalStateException.class, this::config);
+        write(settings, "{\"agent\":{\"reviewer\":{\"prompt\":\"" + "é".repeat(65537) + "\"}}}");
+        assertThrows(IllegalStateException.class, this::config);
+    }
+
+    @Test
+    void boundsTheNumberAndCombinedSizeOfAgentFiles() throws Exception {
+        for (int i = 0; i < 129; i++) agent(true, "agent-" + i, "Prompt");
+        assertThrows(IllegalStateException.class, this::config);
+        for (int i = 0; i < 129; i++)
+            Files.delete(project.resolve(".syleks/agents/agent-" + i + ".md"));
+        for (int i = 0; i < 9; i++)
+            agent(true, "agent-" + i, "x".repeat(ConfigurationFiles.TEXT_LIMIT));
+        assertThrows(IllegalStateException.class, this::config);
+    }
+
+    @Test
+    void rejectsInvalidGlobalInstructionsAndUnknownConfiguredAgentModelsAtStartup()
+            throws Exception {
+        Path global =
+                write(
+                        home.resolve(".config/syleks/AGENTS.md"),
+                        "é".repeat(ConfigurationFiles.TEXT_LIMIT / 2 + 1));
+        assertThrows(IllegalStateException.class, this::config);
+        Files.write(global, new byte[] {(byte) 0xc3});
+        assertThrows(IllegalStateException.class, this::config);
+        Files.delete(global);
+        write(
+                home.resolve(".config/syleks/agent-config.json"),
+                """
+                {"provider":{"fixture":{"options":{"baseURL":"http://127.0.0.1:1/v1"},"models":{"valid":{}}}},
+                 "agent":{"reviewer":{"model":"fixture/missing","disable":true}}}
+                """);
+        assertThrows(IllegalStateException.class, this::config);
+    }
+
     private Map<?, ?> payload(String content) {
         return assertInstanceOf(Map.class, mapper.instance().fromString(Object.class, content));
     }

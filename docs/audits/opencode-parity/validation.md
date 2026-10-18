@@ -4,6 +4,8 @@
 
 > Pour la phase 2 P1, voir [la validation du moteur agentique commun](agentic-engine.md). Les résultats ci-dessous restent ceux de l’audit initial.
 
+> Pour la phase 3 P1/P2, voir [la validation des agents et des instructions](agents.md).
+
 **Résultat final : `BUILD SUCCESS`, 246 tests, 0 failure, 0 error, 0 skipped.** Les huit nouveaux tests sont inclus dans ce total. La réussite des tests de caractérisation ne corrige pas les quatre lignes FAIL de la matrice.
 
 ## Environnement

@@ -9,7 +9,9 @@ public record AgentDefinition(
         Double temperature,
         String prompt,
         PermissionPolicy permissions,
-        Integer maxRounds) {
+        Integer maxRounds,
+        boolean disable,
+        boolean hidden) {
     public enum Mode {
         PRIMARY,
         SUBAGENT,

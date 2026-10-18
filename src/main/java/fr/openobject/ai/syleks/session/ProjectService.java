@@ -16,9 +16,7 @@ public class ProjectService {
     }
 
     public static Project identify(Path directory, ProjectRepository projects) {
-        Path root = canonical(directory);
-        String gitRoot = git(root, "rev-parse", "--show-toplevel");
-        if (gitRoot != null) root = canonical(Path.of(gitRoot));
+        Path root = root(directory);
         String remote = git(root, "config", "--get", "remote.origin.url");
         // Do not persist credentials embedded in a remote URL.
         if (remote != null)
@@ -27,6 +25,13 @@ public class ProjectService {
                 root.toString(),
                 remote,
                 root.getFileName() == null ? root.toString() : root.getFileName().toString());
+    }
+
+    public static Path root(Path directory) {
+        Path root = canonical(directory);
+        String gitRoot = git(root, "rev-parse", "--show-toplevel");
+        if (gitRoot != null) root = canonical(Path.of(gitRoot));
+        return root;
     }
 
     public static Path canonical(Path path) {

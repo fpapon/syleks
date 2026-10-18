@@ -89,7 +89,7 @@ Sessions remember their selected model. Ordinary resume keeps that model even if
 
 If a provider was removed, the history remains readable; Syleks asks you to select a replacement. If a model is missing on the server, Syleks reports the server error rather than silently substituting or downloading another model.
 
-The selected agent's current system prompt is combined with the conversation's saved project instructions. Changing Build → Plan → Build therefore changes the effective prompt and permissions without replacing the conversation. To apply changed project instructions, start `/new`. Valid tool-call/result pairs are retained in request order. Internal reasoning and visual-only parts are not automatically sent back as model messages.
+The selected agent's current system prompt and startup-loaded global instructions are combined with the conversation's saved project instructions. The project snapshot includes `AGENTS.md` from the Git root down to the original launch directory. Changing Build → Plan → Build therefore changes the effective prompt and permissions without replacing the conversation. `/restart` reloads agents and global instructions. To apply changed project instructions or another launch scope, start `/new`. Valid tool-call/result pairs are retained in request order. Internal reasoning and visual-only parts are not automatically sent back as model messages.
 
 A model cannot accept unlimited history. Syleks estimates size, reserves output space, and includes the most recent complete turns that fit. A notice identifies omitted older context. **The complete saved conversation remains intact**, but the model may no longer see its older details. There is no automatic summary or compaction into a generated summary.
 

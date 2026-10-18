@@ -56,6 +56,7 @@ class ConfigSchemaTest {
         for (var content :
                 List.of(
                         "{}",
+                        "{\"agent\":{\"reviewer\":{\"disable\":true,\"hidden\":false}}}",
                         "{\"max_rounds\":-1}",
                         "{\"agent\":{\"build\":{\"max_rounds\":-1}}}",
                         "{\"ollama_url\":\"http://localhost:11434\",\"ollama_model\":\"qwen3:8b\"}",
@@ -72,6 +73,8 @@ class ConfigSchemaTest {
         for (var content :
                 List.of(
                         "[]",
+                        "{\"agent\":{\"reviewer\":{\"disable\":\"true\"}}}",
+                        "{\"agent\":{\"reviewer\":{\"hidden\":null}}}",
                         "{\"providers\":{}}",
                         "{\"model\":\"bare-model\"}",
                         "{\"max_rounds\":0}",

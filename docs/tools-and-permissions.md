@@ -147,6 +147,6 @@ Each operation accepts `allow`, `ask`, or `deny`, or an ordered object of target
 
 Patterns are case-sensitive: `*` matches any text and `?` one character. They are simple patterns, not filesystem glob syntax. Targets are model IDs for `chat`, agent names for `task`, normalized absolute file paths for file operations/`save`, normalized literal commands and redirections for granular `bash` rules (as described above), URLs for `webfetch`, and query text for `websearch`.
 
-The **last matching rule wins**. Put broad rules first and narrower exceptions afterward. Rules combine in this order: defaults → global permissions → agent JSON → global agent Markdown → project agent Markdown. Agent rules can grant an action denied globally, so inspect them too. The example protects dedicated reads of those paths; it does not prevent an allowed shell command from reading them.
+The **last matching rule wins**. Put broad rules first and narrower exceptions afterward. Rules combine in this order: defaults → global permissions → agent JSON → global agent Markdown → project-root agent Markdown → agent Markdown down to the launch directory. Agent rules can grant an action denied globally, so inspect them too. The example protects dedicated reads of those paths; it does not prevent an allowed shell command from reading them.
 
 `"permission": "deny"` denies every operation at that level; an operation key `"*"` also addresses all operations. Application loading of configuration, agent definitions, and shared project instructions is separate from model tool permissions.

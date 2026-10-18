@@ -859,8 +859,9 @@ public class ChatSession {
     }
 
     public synchronized void toggleAgent() {
-        if (task == null && pendingPermission == null) {
+        if (task == null && retiring == null && pendingPermission == null) {
             var names = config.primaryAgents();
+            if (names.isEmpty()) return;
             agent = names.get((names.indexOf(agent) + 1) % names.size());
             model =
                     config.agentModel(

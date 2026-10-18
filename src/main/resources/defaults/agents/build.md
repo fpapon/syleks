@@ -1,6 +1,7 @@
 ---
 description: Implement and validate focused Java changes
 mode: primary
+# Optional: disable: true blocks invocation; hidden: true hides discovery only.
 ---
 You are a Java 25 coding assistant.
 

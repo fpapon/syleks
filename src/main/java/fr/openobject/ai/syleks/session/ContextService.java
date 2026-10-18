@@ -1,6 +1,7 @@
 package fr.openobject.ai.syleks.session;
 
 import fr.openobject.ai.syleks.app.AppConfig;
+import fr.openobject.ai.syleks.app.ConfigurationFiles;
 import fr.openobject.ai.syleks.session.model.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
@@ -27,22 +28,24 @@ public class ContextService {
     }
 
     public String instructions(String agent) {
-        return config.systemPrompt(agent) + projectInstructions();
+        return ConfigurationFiles.instructions(config.systemPrompt(agent) + projectInstructions());
     }
 
     public String projectInstructions() {
-        String result = "";
-        Path instructions = Path.of(projects.current().rootPath()).resolve("AGENTS.md");
-        try {
-            if (Files.isRegularFile(instructions)) {
-                if (Files.size(instructions) > 128 * 1024)
-                    throw new IllegalStateException("Project AGENTS.md exceeds 128 KiB");
-                result = PROJECT_MARKER + Files.readString(instructions);
-            }
-        } catch (java.io.IOException e) {
-            throw new IllegalStateException("Unable to read project instructions", e);
+        var result = new StringBuilder();
+        Path root = Path.of(projects.current().rootPath());
+        for (Path directory : ConfigurationFiles.hierarchy(root, config.workspace())) {
+            var file = directory.resolve("AGENTS.md");
+            String text = ConfigurationFiles.optional(file, ConfigurationFiles.TEXT_LIMIT, root);
+            if (text.isBlank()) continue;
+            result.append(PROJECT_MARKER)
+                    .append("[")
+                    .append(root.relativize(file))
+                    .append("]\n")
+                    .append(text);
+            ConfigurationFiles.instructions(result.toString());
         }
-        return result;
+        return result.toString();
     }
 
     public record Context(List<Map<String, Object>> messages, int omittedMessages) {}
@@ -128,7 +131,10 @@ public class ContextService {
                     int marker = text.indexOf(PROJECT_MARKER);
                     projectSnapshot = marker < 0 ? "" : text.substring(marker);
                 }
-                text = new StringBuilder(config.systemPrompt(agent) + projectSnapshot);
+                text =
+                        new StringBuilder(
+                                ConfigurationFiles.instructions(
+                                        config.systemPrompt(agent) + projectSnapshot));
             }
             if (toolResult != null) result.add(toolResult);
             else if (!text.isEmpty() || !calls.isEmpty()) {

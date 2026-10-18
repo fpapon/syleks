@@ -9,7 +9,10 @@ public final class AppConfigFixtures {
     private AppConfigFixtures() {}
 
     public static AppConfig defaults(JsonMapper json, Path directory) {
-        return new AppConfig(
-                json, directory.resolve("home"), Map.of(), directory.resolve("project"));
+        return atWorkspace(json, directory, directory.resolve("project"));
+    }
+
+    public static AppConfig atWorkspace(JsonMapper json, Path directory, Path workspace) {
+        return new AppConfig(json, directory.resolve("home"), Map.of(), workspace);
     }
 }

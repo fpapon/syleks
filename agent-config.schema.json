@@ -41,7 +41,7 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
       "default": "build",
-      "description": "Must resolve to a primary or all-mode agent, including Markdown definitions."
+      "description": "Must resolve to an enabled primary or all-mode agent, including Markdown definitions."
     },
     "max_rounds": {
       "$ref": "#/$defs/rounds",
@@ -55,6 +55,7 @@
       "propertyNames": {
         "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
       },
+      "maxProperties": 128,
       "additionalProperties": {
         "$ref": "#/$defs/agent"
       }
@@ -188,6 +189,16 @@
     "agent": {
       "type": "object",
       "properties": {
+        "disable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disables selection and invocation, including explicit calls. Inherited until overridden."
+        },
+        "hidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hides the agent from /agents and Tab cycling; explicit selection/invocation remains available."
+        },
         "description": {
           "$ref": "#/$defs/nonBlank"
         },
@@ -206,7 +217,9 @@
           "maximum": 2
         },
         "prompt": {
-          "$ref": "#/$defs/nonBlank"
+          "$ref": "#/$defs/nonBlank",
+          "maxLength": 131072,
+          "description": "Agent prompt; runtime limit is 128 KiB of UTF-8."
         },
         "permission": {
           "$ref": "#/$defs/permission"

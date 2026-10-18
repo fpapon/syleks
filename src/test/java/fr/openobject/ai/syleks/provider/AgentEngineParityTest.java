@@ -21,6 +21,150 @@ class AgentEngineParityTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ollama", "compat", "chatgpt", "openai-api"})
+    void customHiddenAgentUsesItsOwnModelPromptParametersAndPermissions(String provider)
+            throws Exception {
+        try (var auth = new AuthFixture(root.resolve("auth"))) {
+            var steps = new ConcurrentLinkedQueue<ToolCall>();
+            var requests = new CopyOnWriteArrayList<Map<?, ?>>();
+            var failure = new java.util.concurrent.atomic.AtomicReference<Throwable>();
+            auth.server.createContext(
+                    "/api/chat", ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.server.createContext(
+                    "/v1/chat/completions",
+                    ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.responsesHandler.set(ex -> reply(ex, auth, provider, steps, requests, failure));
+            auth.modelsHandler.set(
+                    ex ->
+                            AuthFixture.respond(
+                                    ex,
+                                    200,
+                                    provider.equals("openai-api")
+                                            ? "{\"data\":[{\"id\":\"test-model\"},{\"id\":\"agent-model\"}]}"
+                                            : "{\"models\":[{\"slug\":\"test-model\",\"visibility\":\"list\"},{\"slug\":\"agent-model\",\"visibility\":\"list\"}]}"));
+            String account =
+                    provider.equals("chatgpt")
+                            ? auth.login(null).account().id()
+                            : provider.equals("openai-api")
+                                    ? auth.auth.apiKey("fictional-key").account().id()
+                                    : null;
+            Path home = Files.createDirectories(root.resolve("home/.config/syleks"));
+            Files.writeString(
+                    home.resolve("agent-config.json"),
+                    auth.json.toString(
+                            Map.of(
+                                    "default_agent",
+                                    "architect",
+                                    "model",
+                                    provider + "/test-model",
+                                    "ollama_url",
+                                    auth.base.toString(),
+                                    "provider",
+                                    Map.of(
+                                            "compat",
+                                            Map.of(
+                                                    "options",
+                                                    Map.of(
+                                                            "baseURL",
+                                                            auth.base.resolve("v1").toString()),
+                                                    "models",
+                                                    Map.of(
+                                                            "test-model",
+                                                            Map.of(),
+                                                            "agent-model",
+                                                            Map.of()))),
+                                    "permission",
+                                    Map.of("read", "allow", "write", "allow"),
+                                    "agent",
+                                    Map.of(
+                                            "architect",
+                                            Map.of("temperature", 0.1, "max_rounds", 3),
+                                            "retired",
+                                            Map.of("disable", true)))));
+            Files.writeString(home.resolve("AGENTS.md"), "GLOBAL_INSTRUCTIONS");
+            Files.createDirectories(home.resolve("agents"));
+            Files.writeString(
+                    home.resolve("agents/architect.md"),
+                    "---\nmode: primary\ntemperature: 0.4\n---\nGLOBAL_AGENT_PROMPT");
+            Path project = Files.createDirectories(root.resolve("project/.syleks/agents"));
+            Files.writeString(
+                    project.resolve("architect.md"),
+                    "---\nmode: all\nhidden: true\nmodel: "
+                            + provider
+                            + "/agent-model\ntemperature: 0.6\npermission:\n  write: deny\n---\nPROJECT_AGENT_PROMPT");
+            Files.writeString(root.resolve("project/AGENTS.md"), "PROJECT_INSTRUCTIONS");
+            Files.writeString(root.resolve("project/source.txt"), "fixture content");
+            try (var db = new SessionFixture(root)) {
+                var chat = chat(db, auth, provider, account);
+                try {
+                    chat.listAgents();
+                    assertFalse(chat.history().getLast().content().contains("architect"));
+                    assertFalse(chat.history().getLast().content().contains("retired"));
+                    assertThrows(IllegalArgumentException.class, () -> chat.agent("retired"));
+                    assertThrows(
+                            IllegalArgumentException.class, () -> chat.subagent("retired", "task"));
+                    assertTrue(requests.isEmpty());
+                    // Agent overrides route independently of the active provider selection.
+                    chat.providers().useModel("ollama/test-model");
+                    chat.agent("build");
+                    assertEquals("ollama/test-model", chat.snapshot().model());
+                    chat.agent("architect");
+                    assertEquals(provider + "/agent-model", chat.snapshot().model());
+                    steps.add(new ToolCall("read", "read", Map.of("path", "source.txt")));
+                    steps.add(
+                            new ToolCall(
+                                    "write",
+                                    "write",
+                                    Map.of("path", "forbidden", "content", "fictional")));
+                    steps.add(answer());
+                    assertTrue(chat.send("Inspect the fixture"));
+                    await(chat, failure);
+                    assertEquals(3, requests.size());
+                    assertEquals(3, chat.usageSnapshot().requests());
+                    for (var request : requests) {
+                        assertEquals("agent-model", request.get("model"));
+                        assertPrompt(request, "PROJECT_AGENT_PROMPT", "GLOBAL_AGENT_PROMPT");
+                        String sent = request.toString();
+                        assertTrue(sent.contains("GLOBAL_INSTRUCTIONS"));
+                        assertTrue(sent.contains("PROJECT_INSTRUCTIONS"));
+                        if (provider.equals("ollama"))
+                            assertEquals(
+                                    0.6,
+                                    ((Number)
+                                                    ((Map<?, ?>) request.get("options"))
+                                                            .get("temperature"))
+                                            .doubleValue());
+                        else if (provider.equals("compat"))
+                            assertEquals(0.6, ((Number) request.get("temperature")).doubleValue());
+                        else
+                            assertFalse(
+                                    request.containsKey("temperature"),
+                                    "Responses keeps its existing supported payload");
+                    }
+                    assertFalse(Files.exists(root.resolve("project/forbidden")));
+                    var executions = db.repositories.listExecutions(db.agent.current().id());
+                    assertEquals(
+                            1,
+                            executions.stream()
+                                    .filter(t -> t.status() == ToolStatus.SUCCESS)
+                                    .count());
+                    assertEquals(
+                            1,
+                            executions.stream()
+                                    .filter(
+                                            t ->
+                                                    t.status() == ToolStatus.CANCELLED
+                                                            && t.authorization().equals("DENIED"))
+                                    .count());
+                    assertTrue(steps.isEmpty());
+                } finally {
+                    chat.shutdown();
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ollama", "compat", "chatgpt", "openai-api"})
     void buildsPlansSwitchesBackAndResumesWithTypedOutcomes(String provider) throws Exception {
         try (var auth = new AuthFixture(root.resolve("auth"))) {
             var steps = new ConcurrentLinkedQueue<ToolCall>();
