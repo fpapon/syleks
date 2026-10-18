@@ -1,0 +1,60 @@
+# Command reference
+
+[User guide](README.md)
+
+## Commands in your shell
+
+Run these from the project whose sessions you want to access. `ID` means a full session identifier from `syleks session list`; do not type the literal word `ID`.
+
+| Command | Result |
+| --- | --- |
+| `syleks` | Open chat and offer the project's existing sessions |
+| `syleks chat` | Historical equivalent of the default launch |
+| `syleks --new` | Create and open a new session |
+| `syleks -c` or `syleks --continue` | Resume the latest session; create one if there are none |
+| `syleks -s ID` or `syleks --session ID` | Open a specific session |
+| `syleks --fork ID` | Copy an entire session and open the copy |
+| `syleks config init` | Open the configuration form to create or update settings |
+| `syleks config init --defaults` | Create missing starter files without prompting or overwriting |
+| `syleks session list` | List this project's sessions with IDs, titles, update times, models, message counts, and statuses |
+| `syleks session export ID` | Write the full session as JSON to standard output |
+| `syleks session delete ID` | Permanently delete a session, without a confirmation prompt |
+| `syleks -h` or `syleks --help` | Show usage |
+
+Choose one interactive selection option at a time: `--new`, `--continue`, `--session`, or `--fork`. These also work after the historical `chat` prefix. IDs from another project are rejected; change into that project to access them.
+
+`session list` uses tab-separated columns and includes a header. Export writes JSON; redirect it explicitly to save a file. Exit codes are `0` for success, `2` for argument/identifier errors, and `1` for runtime failures such as inaccessible storage or a busy session. Error messages go to standard error.
+
+## Commands inside chat
+
+Type a command into the composer and press Enter. Internal commands are handled by Syleks instead of being sent as chat messages to the model. Unknown slash commands show an error.
+
+| Command | Result |
+| --- | --- |
+| `/help` | Show command help |
+| `/config`, `/config init`, `/config edit` | Open the same configuration form |
+| `/restart` | Reload configuration and reopen this session, preserving history and drafts |
+| `/new` | Open a new persistent session |
+| `/clear` | Same as `/new`; the previous session is retained |
+| `/sessions` | Open the searchable session picker |
+| `/resume` | Open the latest session |
+| `/rename TITLE` | Change the current session's title |
+| `/fork` | Copy this whole conversation into a new independent session |
+| `/model MODEL` | Select a configured `provider/model` or a bare Ollama model ID |
+| `/agents` | List agents and their modes |
+| `/agent` | List agents |
+| `/agent NAME` | Select a primary agent |
+| `/subagent NAME TASK` | Run a task with a subagent |
+| `@NAME TASK` | Alternative way to invoke a subagent |
+| `/permissions` | Show the active agent's effective permissions |
+| `/permissions NAME` | Show another agent's effective permissions |
+| `/approve`, `/approve once` | Allow the pending action once |
+| `/approve always` | Remember a tool approval for this agent while this session stays open |
+| `/deny` | Reject a pending action |
+| `/save PATH` | Export displayed messages as Markdown; never overwrite a file |
+| `/demo` | Preview simulated tool cards and highlighted code |
+| `/quit`, `/exit` | Quit |
+
+When the approval panel has focus, use its keyboard controls to approve or reject; the commands above also describe the session's approval actions. See [Tools and approvals](tools-and-permissions.md) for approval scope and [Chat controls](chat.md) for shortcuts.
+
+Configuration and agent files are loaded at startup. After saving changes, choose **Restart chat** or use `/restart`. Restart applies the configured default model; ordinary session resume uses the session's saved model. Restarting does not send a message automatically.

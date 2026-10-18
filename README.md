@@ -4,6 +4,8 @@ A dark, OpenCode/Codex-inspired full-screen agent TUI for **Ollama and OpenAI-co
 
 > **Status: working-source MVP.** Java 25 and Maven 3.9+ are required. The test suite covers configuration, rendering, streaming protocols, permissions, and local command execution. Verify your chosen model server and terminal in your own environment.
 
+Start with the [end-user guide](docs/README.md) for setup, configuration, chat controls, sessions, agents, tools, approvals, and troubleshooting. The [command reference](docs/commands.md) lists all CLI options and interactive commands.
+
 ## Persistent sessions
 
 Conversations are saved locally in SQLite, grouped by canonical project root (including Git worktrees). Start with `bin/syleks --new`, resume with `bin/syleks -c`, or select a conversation with `/sessions` / Ctrl+R. The legacy `java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar chat` launch remains supported.
@@ -17,7 +19,7 @@ bin/syleks --continue
 
 The default database is `~/.local/share/syleks/syleks.db`; `XDG_DATA_HOME` and `SYLEKS_DATA_DIR` override it. Sessions retain messages, streamed fragments and structured tool history. `/new`, `/resume`, `/rename TITLE` and `/fork` manage conversations without deleting previous history. Explicit JSON export and deletion are available through `session export ID` and `session delete ID`.
 
-See [docs/sessions.md](docs/sessions.md) for architecture, migrations, context budgets, concurrency, recovery, privacy, commands and manual validation. JSON exports may include confidential prompts, reasoning and tool results. `/clear` now starts a new persistent session.
+See [Sessions](docs/sessions.md) for resume, forks, context budgets, concurrency, and recovery, and [Storage and privacy](docs/storage-and-privacy.md) for database locations, migrations, and backups. JSON exports may include confidential prompts, reasoning and tool results. `/clear` now starts a new persistent session.
 
 ## Stack
 
@@ -55,26 +57,18 @@ The plugin launches a separate Java process, selects the `chat` command automati
 The optional `native` Maven profile uses [Apache Geronimo Arthur](https://geronimo.apache.org/arthur/maven.html) 1.0.9 to build `target/syleks` during `package`:
 
 ```bash
-# Select an installed GraalVM JDK 25 that includes native-image.
-export JAVA_HOME=/path/to/graalvm-jdk-25
-export PATH="$JAVA_HOME/bin:$PATH"
-java -version
-native-image --version
+# Run Maven with Java 25; this profile downloads its configured GraalVM distribution.
 mvn -Pnative clean package
 ./target/syleks chat
 ```
 
 A regular `mvn clean package` continues to build the executable JAR. The native build requires a platform C/C++ toolchain (for example GCC and development headers on Linux), zlib development headers, and enough memory for Native Image. Build on the OS/architecture where the executable will run. The configured binary uses dynamic system libraries and requires no JVM at runtime. Existing configuration, model endpoints, terminal controls, and `/bin/bash` requirements still apply.
 
-Arthur uses `${java.home}/bin/native-image`; its legacy automatic GraalVM download is bypassed. Maven must run on Java 25 or newer to compile the source. To use a separate Java 25 Native Image installation, override the executable:
-
-```bash
-mvn -Pnative -Darthur.nativeImage=/path/to/graalvm-jdk-25/bin/native-image clean package
-```
+The checked-in profile configures a GraalVM download for Linux x64. Maven must run on Java 25 or newer to compile the source. For another platform or an installed Native Image executable, adapt the Arthur configuration in `pom.xml`; the `nativeImage` configuration entry is currently commented out.
 
 The profile uses the shaded application JAR and bundled Fusion/JLine reachability metadata, enables HTTP/HTTPS and native access, and keeps JLine initialization at runtime. Application metadata includes service descriptors and the JDK HTML parser's DTD for web tools. Arthur annotation scanning is disabled because the app uses generated metadata; unsupported native-image features fail the build rather than producing a JVM fallback.
 
-The repository `.sdkmanrc` still selects Zulu Java 25 for JVM development; select GraalVM after `sdk env` when building natively. A native build has not been verified in the current development environment: only older GraalVM installations and incomplete cached Arthur dependencies are available, with dependency downloads blocked. Validate the resulting executable in an interactive terminal, including `/demo`, permissions, local commands, and your HTTP/HTTPS model connection.
+The repository `.sdkmanrc` selects Zulu Java 25 for JVM development. The native build is optional and has not been verified in the current development environment. Validate the resulting executable in an interactive terminal, including `/demo`, permissions, local commands, and your HTTP/HTTPS model connection.
 
 ## Configuration
 
@@ -175,7 +169,7 @@ The schema rejects unknown fields and invalid types, identifiers, URLs, permissi
 - `options.baseURL` receives `/chat/completions`; `options.apiKey`, when provided, is sent as a Bearer token.
 - `name` fields supply display labels. `npm` identifies the supported OpenAI-compatible protocol; this Java app does not install or execute npm packages. Other SDK protocols are unsupported.
 - The active agent starts as `build`, or the primary agent named by `default_agent`. Use `/agent NAME` to select an agent. Omitted temperatures use the server default; configured values must be 0–2.
-- `limit.output` is sent as `max_tokens`. `limit.context` is retained as metadata; automatic token counting, context enforcement, and history compaction are not implemented. Limits may be omitted.
+- `limit.output` is sent as `max_tokens`. `limit.context` sets the context budget; Syleks estimates size conservatively and selects recent complete turns that fit, reserving room for output and tools. Omitted older context is reported without deleting saved history. Automatic summary generation is not implemented. Limits may be omitted; see [Configuration](docs/configuration.md).
 - Restart after editing the file. Unreadable files, invalid JSON, or invalid settings stop startup with an error.
 
 Existing Ollama settings remain supported:
@@ -302,7 +296,7 @@ Review the supplied code and explain your findings.
 - Actions are `allow`, `ask`, or `deny`. A scalar such as `"permission": "deny"` applies to every operation. `"*"` can also be used as an operation key.
 - Effective rules combine defaults → global `permission` → agent JSON → global agent Markdown → project agent Markdown. The last matching rule wins, including target patterns. Agent overrides can explicitly grant an action denied globally.
 - Target patterns support `*` (any text) and `?` (one character), with case-sensitive matching. Targets are model IDs for `chat`, agent names for `task`, normalized absolute paths for `save`, and the exact shell command for `bash`. List broad patterns before narrower exceptions; declaration order matters.
-- `ask` pauses the action until `/approve once`, `/approve always`, or `/deny`. `/approve` is shorthand for `/approve once`. Once permits only the pending action. For agent tools, always remembers approval for that agent and tool for the rest of this app session, across targets and turns (including after `/clear`); it only relaxes `ask`, so explicit `deny` rules still apply. It does not change the configuration file or grant access to other agents/tools, and restarting the app clears remembered approvals. Chat, delegation, and session exports support once only. `/permissions [AGENT]` also lists remembered tool approvals. Esc/Ctrl+C or `/clear` cancel a pending action. Agent/model changes are blocked while an approval is pending.
+- `ask` pauses the action until approval or rejection. `/approve` is shorthand for `/approve once`. Once permits only the pending action. For agent tools, always remembers approval for that agent and tool across targets and turns while the current session stays open; it only relaxes `ask`, so explicit `deny` rules still apply. It does not change the configuration file or grant access to other agents/tools. Restart and session actions (including new/open/resume/fork/rename) clear remembered approvals. Chat, delegation, and Markdown exports support once only. `/permissions [AGENT]` also lists remembered tool approvals. Esc/Ctrl+C cancel pending work. Session/agent/model changes are blocked while an approval is pending. See [Tools and approvals](docs/tools-and-permissions.md) for panel controls.
 - Subagent calls check the caller's `task` permission for the target agent and the callee's `chat` permission for its model. An explicit manual invocation does not bypass either check.
 - `/permissions` shows the selected primary agent's effective policy; `/permissions reviewer` inspects another agent.
 
@@ -401,7 +395,7 @@ Highlighting preserves source whitespace and carries multiline comment/string st
 | Up / Down, PageUp / PageDown | Scroll conversation |
 | Bracketed paste | Paste code without sending it |
 | `/help` | Show commands |
-| `/clear` | Clear conversation (in memory) |
+| `/clear` | Open a new persistent session; keep the previous conversation |
 | `/model MODEL` | Switch to a configured `provider/model` or a bare Ollama model |
 | `/agents` | List available agents and subagents |
 | `/permissions [AGENT]` | Inspect effective permissions |
@@ -419,7 +413,7 @@ The layout uses a workspace header, blue user-message rails, shaded code cards w
 ## Architecture
 
 ```text
-Fusion CLI Launcher -> @Command ChatCommand
+Main (CLI routing) -> Fusion container
                                |
                         TerminalApp (JLine event loop)
                          |                 |
@@ -432,7 +426,7 @@ Fusion CLI Launcher -> @Command ChatCommand
 
 - TerminalApp is the only owner of terminal output. Generated content is synchronized into ChatSession via a virtual thread.
 - ChatRenderer builds a fresh cell buffer; TerminalPainter redraws only rows whose cells changed.
-- Session messages are in RAM and disappear on exit unless you explicitly use `/save`.
+- Session messages and structured tool history are saved locally in SQLite and restored on resume. Unsent drafts remain in memory only.
 - ANSI escape bytes from model output are replaced by spaces, not interpreted by the terminal.
 
 ## Current feature boundaries
@@ -444,15 +438,15 @@ The app supports streaming conversations, declared agents/subagents, and permiss
 - The model endpoint defaults to loopback (`127.0.0.1`).
 - Avoid using `OLLAMA_URL=http://...` across untrusted networks; secure remote deployments with TLS and authentication.
 - Do not enter client code if the chosen Ollama server is operated by an untrusted party.
-- No automatic chat persistence. The app reads its configuration and declared agent Markdown files at startup; permitted shell commands can access project files and their output is included in model requests.
+- Conversations are persisted automatically in the local SQLite database. The app reads configuration and declared agent Markdown files at startup; permitted shell commands can access project files and their output is included in model requests. See [Storage and privacy](docs/storage-and-privacy.md).
 - `/save` may export sensitive text in plaintext at the location you choose.
 - Model identifiers must match `[A-Za-z0-9._:/-]{1,240}`. Provider models must be declared in the configuration and available on the selected server.
 
 ## Suggested next increments
 
-1. Selectable sessions + encrypted/local-at-rest persistence.
+1. Encryption at rest and automatic context summaries.
 2. Syntax-aware diff navigation and richer Markdown tables.
-3. Tools read_file and list_files with explicit user approval.
+3. Richer file browsing and attachment workflows.
 4. OS-sandboxed execution and modifications with diff approval.
 5. File picker, fuzzy search, configurable keymap, terminal themes.
 
