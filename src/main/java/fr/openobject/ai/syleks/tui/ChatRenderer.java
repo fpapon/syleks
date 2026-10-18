@@ -567,7 +567,7 @@ public final class ChatRenderer {
         return result;
     }
 
-    private static List<String> wrapProse(String text, int width) {
+    static List<String> wrapProse(String text, int width) {
         var result = new ArrayList<String>();
         var line = new StringBuilder();
         int used = 0, lastSpace = -1;
@@ -644,32 +644,7 @@ public final class ChatRenderer {
     }
 
     private void paintPalette(TerminalCanvas canvas) {
-        String[] commands = {
-            "/config        Configure provider and model",
-            "/restart       Reload configuration and resume",
-            "/sessions      Browse sessions · Ctrl+R",
-            "/new /resume   New / latest conversation",
-            "/rename TITLE /fork  Rename / fork session",
-            "/help          List commands",
-            "/clear         New conversation",
-            "/model ID      Change model",
-            "/agent NAME    Select primary agent",
-            "/agents        List agents",
-            "/subagent NAME TASK  Run subagent",
-            "/permissions   Show agent permissions",
-            "/approve [once|always] /deny  Resolve permission",
-            "/demo          Show visual demo",
-            "/save PATH     Export conversation",
-            "Tab            Cycle primary agents",
-            "Esc            Close palette"
-        };
-        int width = Math.min(64, canvas.width() - 4), height = commands.length + 3;
-        int x = (canvas.width() - width) / 2, y = Math.max(0, (canvas.height() - height) / 2);
-        panel(canvas, x, y, width, height, INPUT, BORDER);
-        canvas.text(x + 3, y + 1, "Commands", BLUE, INPUT, false);
-        for (int index = 0; index < commands.length; index++) {
-            canvas.text(x + 3, y + index + 2, fit(commands[index], width - 6), WHITE, INPUT, false);
-        }
+        new HelpModal().paint(canvas);
     }
 
     private void panel(

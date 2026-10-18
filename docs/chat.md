@@ -23,14 +23,14 @@ The header identifies the project, session, and model. The composer shows the se
 | Up / Down | Scroll the conversation by two lines |
 | Page Up / Page Down | Scroll by eight lines |
 | Tab | Cycle primary agents while idle |
-| Ctrl+P | Show or close the command reference overlay |
+| Ctrl+P | Open or close the help popup, keeping the draft |
 | Ctrl+G | Open configuration, keeping the draft |
 | Ctrl+R | Open the session picker, keeping the draft |
 | Esc | Cancel active work or dismiss an overlay |
 | Ctrl+C | Cancel generation or a pending approval; exit when idle |
 | Ctrl+D | Exit Syleks |
 
-The command overlay is a reference, not a searchable command launcher. A normal key dismisses it. The configuration form, session picker, and approval panel have their own controls: see [Configuration](configuration.md), [Sessions](sessions.md), and [Tools and approvals](tools-and-permissions.md).
+Type `/help` or press **Ctrl+P** to open the help popup. Commands are grouped by task, followed by keyboard shortcuts and approval controls. Use **Up/Down** to scroll, **Page Up/Page Down** to move a page, and **Home/End** to jump to the start or end. Press **Esc**, **Enter**, or **Ctrl+P** to close it. Help stays out of your conversation, and Ctrl+P keeps your draft. The configuration form, session picker, and approval panel have their own controls: see [Configuration](configuration.md), [Sessions](sessions.md), and [Tools and approvals](tools-and-permissions.md).
 
 ## Stop work or leave
 

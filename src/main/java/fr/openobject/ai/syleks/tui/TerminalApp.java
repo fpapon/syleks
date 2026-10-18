@@ -41,6 +41,7 @@ public class TerminalApp implements AutoCloseable {
 
     private final Editor editor = new Editor();
     private final PermissionPrompt permissionPrompt = new PermissionPrompt();
+    private final HelpModal helpModal = new HelpModal();
     private final ChatRenderer renderer = new ChatRenderer();
     private final SessionPicker sessionPicker = new SessionPicker();
     private final SessionViewState sessionViews = new SessionViewState();
@@ -168,7 +169,7 @@ public class TerminalApp implements AutoCloseable {
                                 width,
                                 height,
                                 sessionViews.scroll(),
-                                palette,
+                                false,
                                 permissionPrompt);
                 if (sessionPicker.isOpen()) {
                     sessionPicker.paint(screen.canvas());
@@ -181,6 +182,7 @@ public class TerminalApp implements AutoCloseable {
                             .text(2, 0, "Loading…", TerminalCanvas.BLUE, TerminalCanvas.BG, false);
                 if (configurationModal != null) screen = configurationModal.paint(screen.canvas());
                 if (providerModal != null) screen = providerModal.paint(screen.canvas());
+                if (palette) screen = helpModal.paint(screen.canvas());
                 painter.paint(terminal, screen);
                 int input = reader.read(70);
                 if (input == -1) break;
@@ -250,6 +252,14 @@ public class TerminalApp implements AutoCloseable {
                 return;
             }
             configurationAction(configurationModal.key(key));
+            return;
+        }
+        if (palette) {
+            if (key == 27) handleEscape(reader);
+            else if (!paste) {
+                if (key == 4) running = false;
+                else if (key == 3 || key == 16 || key == '\r' || key == '\n') palette = false;
+            }
             return;
         }
         if (sessionLoading) {
@@ -329,17 +339,13 @@ public class TerminalApp implements AutoCloseable {
             return;
         } // Ctrl+D
         if (key == 16) {
-            palette = !palette;
+            openHelp();
             return;
         } // Ctrl+P
         if (key == 3) {
             if (!session.cancel()) running = false;
             return;
         } // Ctrl+C
-        if (palette) {
-            palette = false;
-            return;
-        }
         if (paste) {
             editor.insertCodepoint(key == '\r' ? '\n' : key);
             return;
@@ -366,6 +372,10 @@ public class TerminalApp implements AutoCloseable {
     private void handleEscape(NonBlockingReader reader) throws Exception {
         int second = reader.read(20);
         if (second != '[' && second != 'O') {
+            if (palette) {
+                palette = false;
+                return;
+            }
             if (providerModal != null) {
                 cancelProviderModal();
                 return;
@@ -389,6 +399,12 @@ public class TerminalApp implements AutoCloseable {
             if (end < 0) break;
             sequence.append((char) end);
             if (end >= 0x40 && end <= 0x7e) break;
+        }
+        if (palette) {
+            if (sequence.toString().equals("200~")) paste = true;
+            else if (sequence.toString().equals("201~")) paste = false;
+            else if (!paste) helpModal.sequence(sequence.toString());
+            return;
         }
         if (providerModal != null) {
             switch (sequence.toString()) {
@@ -512,9 +528,7 @@ public class TerminalApp implements AutoCloseable {
                 case "/resume" -> changeSession("resume", "");
                 case "/rename" -> changeSession("rename", arg);
                 case "/fork" -> changeSession("fork", "");
-                case "/help" ->
-                        session.info(
-                                "Providers: /connect /providers /models /accounts /logout. Configuration: /config (Ctrl+G) · /restart. Sessions: /new /sessions /resume /rename TITLE /fork · Ctrl+R sessions. Commandes: /help /clear /model NOM /agents /agent NOM /subagent NOM TACHE /permissions [AGENT] /approve [once|always] /deny /demo /save CHEMIN /quit | Tab mode, Ctrl+P palette, Ctrl+O nouvelle ligne, Ctrl+C annuler, Ctrl+D quitter");
+                case "/help" -> openHelp();
                 case "/model" -> {
                     if (arg.isEmpty())
                         session.info("Utilisation: /model provider/model (ou un modèle Ollama)");
@@ -544,6 +558,15 @@ public class TerminalApp implements AutoCloseable {
         } catch (IllegalArgumentException | IllegalStateException ex) {
             session.info(ex.getMessage());
         }
+    }
+
+    private void openHelp() {
+        helpModal.reset();
+        palette = true;
+    }
+
+    boolean helpOpen() {
+        return palette;
     }
 
     ProviderModal providerModal() {

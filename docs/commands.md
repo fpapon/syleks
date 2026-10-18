@@ -31,7 +31,7 @@ Type a command into the composer and press Enter. Internal commands are handled 
 
 | Command | Result |
 | --- | --- |
-| `/help` | Show command help |
+| `/help` | Open the scrollable command and keyboard reference popup |
 | `/config`, `/config init`, `/config edit` | Open the same configuration form |
 | `/restart` | Reload configuration and reopen this session, preserving history and drafts |
 | `/new` | Open a new persistent session |

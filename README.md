@@ -415,14 +415,14 @@ Highlighting preserves source whitespace and carries multiline comment/string st
 | --- | --- |
 | Enter | Send message |
 | Ctrl+O | Insert a newline (works in standard terminals) |
-| Ctrl+P | Show/close command palette |
+| Ctrl+P | Show/close scrollable help popup; keep the draft |
 | Tab | Cycle through primary agents while idle |
 | Ctrl+C or Esc | Cancel in-flight generation (Ctrl+C again exits) |
 | Ctrl+D | Exit |
 | Left / Right | Edit the text |
 | Up / Down, PageUp / PageDown | Scroll conversation |
 | Bracketed paste | Paste code without sending it |
-| `/help` | Show commands |
+| `/help` | Open command and keyboard help popup |
 | `/clear` | Open a new persistent session; keep the previous conversation |
 | `/model MODEL` | Switch to a configured `provider/model` or a bare Ollama model |
 | `/agents` | List available agents and subagents |

@@ -80,14 +80,12 @@ class ChatRestartTerminalTest {
                     keys.write("/help\r".getBytes(StandardCharsets.UTF_8));
                     keys.flush();
                     long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-                    while (!output.toString(StandardCharsets.UTF_8)
-                                    .contains("Configuration: /config")
+                    while (!output.toString(StandardCharsets.UTF_8).contains("Syleks · Help")
                             && System.nanoTime() < end) Thread.sleep(10);
                     assertTrue(
-                            output.toString(StandardCharsets.UTF_8)
-                                    .contains("Configuration: /config"),
+                            output.toString(StandardCharsets.UTF_8).contains("Syleks · Help"),
                             "The restarted chat must continue consuming terminal input");
-                    keys.write("/quit\r".getBytes(StandardCharsets.UTF_8));
+                    keys.write("\r/quit\r".getBytes(StandardCharsets.UTF_8));
                     keys.flush();
                     running.get(5, TimeUnit.SECONDS);
                     assertNull(app.restartRequest());
