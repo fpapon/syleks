@@ -33,6 +33,7 @@ Press **Ctrl+R** or enter `/sessions`.
 | Backspace | Remove a filter character |
 | Up / Down | Move the selection |
 | Enter | Open the selected session |
+| Delete | Delete the selected session; Enter confirms, Esc cancels |
 | Esc | Close the picker |
 | Ctrl+C | Close the picker without exiting chat |
 | Ctrl+D | Exit Syleks |
@@ -107,13 +108,15 @@ syleks session export ID > conversation.json
 
 JSON includes session metadata, messages, structured parts, and tool executions. It can include confidential code, prompts, reasoning, parameters, results, and secrets appearing in those contents. Store it privately and keep it out of version control. Shell redirection can overwrite a file; choose a new filename or use `set -C` in a compatible shell first. There is no session import command in this version.
 
-To delete a session:
+In the session picker (**Ctrl+R** or `/sessions`), select a row and press **Delete**, then **Enter** to confirm or **Esc** to cancel. The picker stays open and keeps its filter. Deleting the current session clears its chat and unsent draft; a new session is created when you next send a message. Deleting another session preserves your current chat and draft. A session busy in another terminal cannot be deleted.
+
+To delete a session from the shell:
 
 ```sh
 syleks session delete ID
 ```
 
-**Deletion is immediate, with no confirmation prompt, and cannot be undone in Syleks.** Check the ID first. Related messages and tool records are deleted too; forks survive. Deletion is not secure erasure from disk or backups.
+**The shell command deletes immediately, with no confirmation prompt. Deletion cannot be undone in Syleks.** Check the ID first. Related messages and tool records are deleted too; forks survive. Deletion is not secure erasure from disk or backups.
 
 ## Several terminals
 

@@ -1,0 +1,578 @@
+[
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/AgentTools.java",
+    "sha256": "cea39be638dde5863ce2c8bca6def7aec600f0010bcd56e58ccfa6af9bf2f225"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+    "sha256": "6f4b08975d2a1bd56aa408f5301a3145a26aab931353b3fbc5c0f3bfbe0c6e1b"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/LocalCommandRunner.java",
+    "sha256": "c452f900152e485adf4371904145c4d5ddd7f32cb5ae01e02b5ff88dd37ab4a1"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/OllamaClient.java",
+    "sha256": "ab9503c4b644279a01f0a2f96e68887aeaca57334fadd9b5ba29dcd6d38734aa"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolCall.java",
+    "sha256": "32674f0be5ce4557eedf36c49a2297f9b6e3fafe94d52dce5ca2a9c81594af71"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolCallBuffer.java",
+    "sha256": "d593d1d83f908076af2649b5d9a1692fe5ea1b670a515393494d027ce6a725d8"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolHandler.java",
+    "sha256": "d876f3be893c3a81a3d781458943cbcf9ef354addaa1cfc6666a79f8bbb98445"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+    "sha256": "680ee26e500f87c5f3c303bcf7cc7b67665eb336645cec362559c86a03b73556"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/AgentCatalog.java",
+    "sha256": "a9e44691fc2e205e7baa984aae9e8770dcd042dbe892ef4b98006f9f2c2c3094"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/AgentDefinition.java",
+    "sha256": "2b6be6d2f9be7820e77213fff0c00a7383def0bacecd62a88de99165ba16f092"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/AppConfig.java",
+    "sha256": "b18e18d3bc57685265923e49751bf11b823dc9716b4f080a9c1640e79dc51bf4"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/ChatCommand.java",
+    "sha256": "093f6bd20b28cc32888a55847b51968bea2c2775c9603182c90239eb89d7549c"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/ConfigInitWizard.java",
+    "sha256": "642b56d006bf75ccb6447c2fbacbb3d7525412060854ac1629064db381046283"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/ConfigInitializer.java",
+    "sha256": "f9d28751dd3848a8c5ff1767666d86dd6feb82a1a5d6024ff432ff10117ef47e"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+    "sha256": "4fc752840e297b6683af7682137830bc6458e8d6182506f37588cd459ae57695"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/PermissionPolicy.java",
+    "sha256": "0c76dc8e0751424d927a85d053095c9ad4876c8f1280aa84d41656c078a36bc3"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/app/ProviderCommands.java",
+    "sha256": "708ead5ca22fb89fae992af88b09335ca2734d6f4977321688b367b6934cd5cf"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/AuthenticationService.java",
+    "sha256": "6e7ca9c2866f945f066b7dcadb8cd2bf058e6feb2ff3be9c1563472bc456057f"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/BrowserLauncher.java",
+    "sha256": "05384331d06945e79b1d3cadc8e72d0fc91e87ca519ee9b569312a317102686f"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/ChatGptOAuthService.java",
+    "sha256": "8e92312bf527199097c85b78b971a7b33e9502c4542016aa5b4b214fe54bc91e"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/CredentialStore.java",
+    "sha256": "569af6fa3123d784b5e281cf27f74a95c9edf9513bedeeb542da092e250a215d"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/CredentialVault.java",
+    "sha256": "3083bce3d0828766fd55d8c54c4b4f0357c574ed435824b3910fe41040e6d219"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/Credentials.java",
+    "sha256": "7720c84f3e2c695f7c7cbb460b54753754ae3cce1f981f337131924b42c22ced"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/IdTokenValidator.java",
+    "sha256": "8a50c380c321a26546da53861621c0cdf7214d6c15374b1c501c3e39faca920f"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/OAuthHttp.java",
+    "sha256": "4a68e55d52206fcd4cebba2280e7ea24b6318941f573e8a7e4ea7060ff57c202"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/OpenAiOAuthEndpoints.java",
+    "sha256": "6ca82b29f54660e66e89ecefdaecfd13f82c8ff8085af3a2754c330aa3cba164"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/ProviderAccount.java",
+    "sha256": "dedf27a81dc2775a3f104e5cfdb36f1fbbd8aaaed3ddfb2f41ffda51d3347719"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/SecretServiceVault.java",
+    "sha256": "b8d3979aa812d951df0f582812401c3bece1dd2f0ad1ea56f1de6e9803255b9e"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/auth/TokenRefreshService.java",
+    "sha256": "0a6f54b5f04f9855ed01d8e2563ca0e53f8729ed042b900e559fbf963aa9e285"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/model/ChatMessage.java",
+    "sha256": "3e460a6a03c13afd964ae05fe61d3134692c6c4f39c18f8f7817a35c49ce20a4"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/model/ChatSnapshot.java",
+    "sha256": "9c613e3734664cbb64bd81e57754678567866528aec5492f8081d08ae488941b"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/model/PermissionRequest.java",
+    "sha256": "85a800f1f46d20999886e39dbd85dbdddb65438e0e813936ddac973a17f966b0"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ChatEvent.java",
+    "sha256": "77bd1bbbe56adc042560e0d4f45505482ec074380a467ee76330b9958777a531"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ChatEventListener.java",
+    "sha256": "4d34f04ac22382baacd41c901c17648bba1660e9017beebb036fd711ac957584"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ChatGptLlmProvider.java",
+    "sha256": "0f69d353b9905653e708631ab1c53db9db38e726a084457b668be662fd194a88"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ChatRequest.java",
+    "sha256": "8e5f04e5ebade3a2442e965e3513684aafafdbf5bccabae3e09806293a19d6b9"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/LlmModel.java",
+    "sha256": "58192afa24dbde4c0faa580e5b2b7f2be1b9f87bec66b6e430cc7c23b5eccd67"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/LlmProvider.java",
+    "sha256": "70764927c5aff597b2304d2c43ed744269ce34274799f906bbda061e071934f6"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/OllamaLlmProvider.java",
+    "sha256": "1ee2fa4e1d2a77c549ab607f5988e6ef84b07898c8e4812c05452137fa675b11"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/OpenAiApiLlmProvider.java",
+    "sha256": "480c2813689fa0912b02127c6a44e4bf99df6eef46047907ec79a716b4066ce9"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ProviderCapabilities.java",
+    "sha256": "ac1597728a9ef545344fe503f914d9041d3f7c6c5705dc4f7e6a8979a57d41f8"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ProviderConfiguration.java",
+    "sha256": "cb341ba35c6decb7e64ed361a1020ae4d693fcb406fa4e7e21f9f52f04ab1244"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ProviderException.java",
+    "sha256": "eca9a1b188b46a377727e24bb89a5777ff1ee79324041f14ec4b58ed7bb79aa3"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ProviderRegistry.java",
+    "sha256": "b5a443eca26a368e4dc44fa9ea8ecd9cc49578c85f24c0cd7a759ecd3d287f87"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ProviderService.java",
+    "sha256": "68033bff482f9190a83f45e402a73293c1f54830bffabb4d11c9480a41aa042b"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/provider/ResponsesLlmProvider.java",
+    "sha256": "4ee42ef483b3db5a03a056b633d95f1aeb14544caf263ef2f17f9e44c2b96aa5"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+    "sha256": "dc3e966f91347dbf7acf0a98b689d96758c5e4970d9614b23caa25d9dfc616b1"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/ContextBudget.java",
+    "sha256": "7ccfb30b5a7bad25a52caa7a2985c320a77d8b342ad4c33e5db49aa211de7456"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/ContextCompactor.java",
+    "sha256": "ebd1d744f2e7e8e43cfe0e9747227c7a82703148e43fe0f97bcc862a46e63307"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/ContextService.java",
+    "sha256": "a839932ae530e45458084a57ca005d72fe5163d8e64bd03d24548e231594f4df"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/ConversationService.java",
+    "sha256": "b418b8d3f9db4f30ff95fed19741cfd3d128aa79f584ad7ff546b840b0eea454"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/ProjectService.java",
+    "sha256": "036088117e4d30a76677ec714513923319b39ffc8de922ca79d0cb7234a0dc29"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/SessionService.java",
+    "sha256": "628f694490dc0a73e89b10b1df42a38171956a6838806f2e5d84f7cea1139b41"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/Message.java",
+    "sha256": "5d65cc9f6fef4895c4483a35579521d60add38fb60b9b85bcc23e31d0b8c2545"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/MessagePart.java",
+    "sha256": "34f10ebc5f20e4af46e071cc51e32324d0178e48f2f109f5251b438f4e6d9b96"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/MessageStatus.java",
+    "sha256": "1709c9e1d1cfa5d92efdd994011e7dd535b279c11fc88f34ec3df4ec999c7213"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/PartType.java",
+    "sha256": "f01a2f79a320544434cf9168c67ba17fd82059d402d0725a423e52b42e7d7720"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/Project.java",
+    "sha256": "b28dc0705cae144afc53ae238414b33a3f75d70720122ccdc7554d2c71e008f9"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/Session.java",
+    "sha256": "c746da49d6a832d6759315bab7fe9b999d0cc312ce43ac043afd909a475eda6a"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/SessionStatus.java",
+    "sha256": "e7152eff84487e66ac094d99efb538fc57db626ada23a9f8fc72b732ef14541e"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/ToolExecution.java",
+    "sha256": "432e836ba665480d8f6272850433deff3fbad0ae67642908000f2ffc854e0ef4"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/model/ToolStatus.java",
+    "sha256": "e43d3ceaf6267d5f6f6b01d4acac6e9636a696bffde2ebb2d7a2ef241ad4fc01"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/repository/MessagePartRepository.java",
+    "sha256": "ecbefc7013feafca5037a8009c5f2fd79d2d5d6e57fff3aede0d9c7b72ca3aa0"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/repository/MessageRepository.java",
+    "sha256": "74b78422c6fe6dc697d6e9719b6b607ec388a74ba1332a938124c4b96213a503"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/repository/ProjectRepository.java",
+    "sha256": "6082869d5c313a99ffd2c4e5ad5054e0fab0235f5af783cfb9cf0f03e80e677e"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/repository/SessionRepository.java",
+    "sha256": "e0f5adc8974d6400e41476f4aa1f8eb937ed1edf76286a204f9a44989d20a2e0"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/repository/ToolExecutionRepository.java",
+    "sha256": "84b676c8dd509cd0906a151062e7c0c0cc6c1d67c32c70cb70276cf3e8bd19a6"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/storage/DataPaths.java",
+    "sha256": "94ea80fbfbe2f3e50b10fd68edb6a37c0b4a9c88b9cf4b991627afadda4d2c31"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/storage/SessionLocks.java",
+    "sha256": "fe68e4be8e8b9f172f3fd003bf424fd1b3e3cc8b3b72d1a9cf3512402cb326bd"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/storage/SqliteDatabase.java",
+    "sha256": "cdb8ed84553119d254497d278dc7df89cd09d1610bff3af98e3ee36608283f32"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/session/storage/SqliteRepositories.java",
+    "sha256": "49902f286fbf575e7db95b6f30bc16f68d8a8ca2acc65e67bb7843614f1d2a06"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/ChatRenderer.java",
+    "sha256": "2c93d6b12fe63d5fa4184281a77c7f29af1b49951fe043b7233ee732365d8547"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/ConfigurationModal.java",
+    "sha256": "c50d14342684088d3e90459d31f38df8522d16dfdde3e2afba13ac3d39ed1ef2"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/Editor.java",
+    "sha256": "ce1b2e7ea000939487f893a4a505fb704c3c353ab9b68b0d0101ade51049126f"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/HelpModal.java",
+    "sha256": "4b929d795301f880a1398e3fded0581919b3e7faa8f64de5993b8ef93c57b50e"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/PermissionPrompt.java",
+    "sha256": "6bf5397cd649437fd6e30b4a4eb75f8e141799c3660c7cee02f69bfe1c620704"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/ProviderModal.java",
+    "sha256": "1d52fb98061bf314aea7fa180a604d41c8fe041937732eaddbd5eca7cda3392c"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/SessionPicker.java",
+    "sha256": "baa2ac9aa4799b9e1471f6f9176fa2054bb4e5c79153d2adaee6c223ea01d8e3"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/SessionViewState.java",
+    "sha256": "e8153e6b1889c11c9206ea08cb096a58f3852d2df6e3a5f5a3eb2ba529cc0e3d"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/SyntaxHighlighter.java",
+    "sha256": "86a7164856607f7f045efc687b6d2e178779c3e224bfc16210fad4359c685fc4"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/TerminalApp.java",
+    "sha256": "0ceaa1112408098077f5a5e192f81eb7a2d432b8069c61e4199c2664aed234eb"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/TerminalCanvas.java",
+    "sha256": "a1c74454c458f8f875e96fd54df78c35f77bdf26f1fcc9d75b0d4a9573a45ede"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/TerminalPainter.java",
+    "sha256": "514022b06ee928c437c273c1fa698cf72de814a624fe3b6c7264244bb464dada"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/TokenUsageSidebar.java",
+    "sha256": "3eea2694ca7a9b762fe04fdf4e23336ac17a35670e477a698661eefc47a7f202"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/tui/UsageModal.java",
+    "sha256": "5ff838aa4e16972ae9384be0e64e7663b813e3d0f3439bac4b0db0698d39a626"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/ContextMetricsService.java",
+    "sha256": "3f75fa25fab37471f82d6afffa6d46ff8a0c22cbf95904346ba9f22fd4b58be5"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/LlmUsageEvent.java",
+    "sha256": "cd1adb20f4c71ef610aa6ab147a38572d35cc000939cf9adcff22055d67de814"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/TokenUsage.java",
+    "sha256": "7bcb8123fe6bdc6c9c331814968101c44c6923dee0822b82443e0d98234ffff1"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/TokenUsageAggregator.java",
+    "sha256": "c8ba9c30ff181192bc20d444059adcebd1771581d45f202644a8f3ee716198c2"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/TokenUsageRepository.java",
+    "sha256": "eb15906cbbec528364cb7c81b734ef65f848056bae92eabf8cddfec69e51a823"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/TokenUsageService.java",
+    "sha256": "a8fd972a85b26427ba913cfca8a2eabaa67ed2ca5f5e96d09ec150e783b6c933"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/UsageInvocation.java",
+    "sha256": "4584f4324a42d08b54371e0adde0c3d1ddd66b80a7e02b2de1f1fd8a4e2e3a1d"
+  },
+  {
+    "path": "src/main/java/fr/openobject/ai/syleks/usage/UsagePreferences.java",
+    "sha256": "384c3bc73741abb234febaf58804819dedd68bfb915d981c5cc3a2333c00eebb"
+  },
+  {
+    "path": "src/main/resources/db/migrations/V001__sessions.sql",
+    "sha256": "80e2b929b847a5637380f476f1cefe8f59dea42f7aa5ebf75c56406fa90d67a8"
+  },
+  {
+    "path": "src/main/resources/db/migrations/V002__provider_accounts.sql",
+    "sha256": "d1949c766c6cff2af1dc77cb9c67285bf374a416623617abfde94a9bb86ec40d"
+  },
+  {
+    "path": "src/main/resources/db/migrations/V003__llm_usage.sql",
+    "sha256": "ae5cc77aa7701b6fd57c71de5a5fa7cb624de19e32e1ded80ca26fd166536a33"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/ai/AgentToolsTest.java",
+    "sha256": "6c0711fb16603a70aaacbe1a4523cffd0332915f520ee4c8ea9b1f771acd764d"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/ai/LocalCommandRunnerTest.java",
+    "sha256": "a128d0c81f543c48b00b85722a074ed5a53dae65fd6d5d085b6eb4d3ddb6c5b0"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/ai/OllamaChunkTest.java",
+    "sha256": "2204729b3140c514d140509f38e541629c63e5f27f7993082c095b7dc079b09c"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/AgentConfigTest.java",
+    "sha256": "100b501712ab38bed92e3026c10a1a24c5ee383b7ebbcf3690272c62d5529f0e"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/AppConfigFixtures.java",
+    "sha256": "41a39127f20cf929e55d4194bd84fb2fc39c05c36f6cfc9492159fee024eb3fd"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/AppConfigTest.java",
+    "sha256": "a70b6a0cc81791f254e559f0b3f8eb3c5f5f87f644b369f046c0d60fab51eb9b"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/CommandToolTest.java",
+    "sha256": "f1cb5be13fcfa8b9e2b857ae50dc592a5ff9866eeba0b6162e6f7388b41a9781"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/ConfigInitWizardTest.java",
+    "sha256": "9f817953120de629b27a38f28679b60983c0b3f644c1af3d827c29ec3288b53f"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/ConfigInitializerTest.java",
+    "sha256": "f6f92eb4ed261df97a6d68f2d0d35ae09456696df5c6ed971c04970387551f3f"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/ConfigSchemaTest.java",
+    "sha256": "a52af764b953001dec8099f2f86fe4ea001579d76541e9bbb5c1bbbdbb55b1f4"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/ConfigurationUpdateTest.java",
+    "sha256": "90fcba8f53da8cee54bbf5fbba290c468f20adb9042586c91ba972d5d5486424"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/PermissionConfigTest.java",
+    "sha256": "9df5a5eadb617693adc7ebde40118fc6d955a0dae8cec8b58a12d35ccb3db543"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/ProviderCliTest.java",
+    "sha256": "48fbcb9fd7d8106ae34294e7c940b90c4eae4007fe993ac0209f715dfbb8fa61"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/app/ProviderConfigTest.java",
+    "sha256": "2b3fc3c69807b8f011f4e57c072825355ea41b816d86c23ccc464ab07b051829"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/auth/AuthFixture.java",
+    "sha256": "3a86a0941a00b0156b77e24fdec63a5446477ed3b363af7a78884a0f0d6cb52e"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/auth/AuthProcess.java",
+    "sha256": "fc215d05f831b57530e458629412c432cbfce1d51ddc972d2d59899468041ae8"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/auth/BrowserLauncherTest.java",
+    "sha256": "f976e92bb612f996b44fb1ce5ed249749ebf6bc0d1cb0a941e446858218812ad"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/auth/CredentialStoreTest.java",
+    "sha256": "832340d461499a12299506891e7c00e55ddbb4f10eff59e074cd7e7a38888347"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/auth/OAuthTest.java",
+    "sha256": "c11652c98cbb8b6ae59fb66bfc486e385db9945a05ebfb41b07d2cc7d5e91653"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/auth/UsagePreferencesTest.java",
+    "sha256": "9e47d3b4f9c63fd3addfd0a451fe442cded787b3f425c2bcdf1916229d133091"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/provider/ProviderFixture.java",
+    "sha256": "c17d5f59954d8a5302313d518dd4ab27bad4964e8b869939ce0fd4108afaf87b"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/provider/ProviderServiceTest.java",
+    "sha256": "0a049f10dd4abbd3b8b8b2b79e1939fd364df15477898b112770e0fce7c81e7a"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/provider/ResponsesProviderTest.java",
+    "sha256": "c0b3d081d327873c0991897ccfa38273c32a7181136944013449d601099b758f"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/CliSessionTest.java",
+    "sha256": "fe90e8d3b0d65a06546a903a527295af294b71b997c2ce00cdfafc500dbd6f60"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/ContextServiceTest.java",
+    "sha256": "f6ecb87a1d30f790f3908bda817a59d1cfe3bea4086d6980604fe7da734a3441"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/ParityAuditTest.java",
+    "sha256": "81b72aeb6dfe853f75c1016497511093428abeef2b7fd1f5fac310df3d8b3c38"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/PersistentStreamingTest.java",
+    "sha256": "05ea9d04126c098b89df0794b0c1101bf8a43e6c0ac3d76437ee93a9d0ce5142"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/ProjectServiceTest.java",
+    "sha256": "c75a26932eaf415e0b92c1a94d139b1e195662303a5fa70c10baffa7c95ab76b"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/SessionFixture.java",
+    "sha256": "559815acc27bf6c9bd361e055d27075daab4832ade9cd45370c2ead541084e42"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/SessionProcess.java",
+    "sha256": "79ef8e60ec33a6548798e3651b67c62d0c668193d1b419f88368effdf964d41a"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/session/SqlitePersistenceTest.java",
+    "sha256": "0e01ae2e4f5f8e1c9907a804e1d13a9eb0990fc4768d0b657c4e611a5be6c82c"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/CanvasTest.java",
+    "sha256": "a9a824fa296b37746e0626da7a5fefdb29674aa30b3ed77c4ca35b9b39badcee"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/ChatConfigurationTest.java",
+    "sha256": "5a718a33cba45f92c097f03c844f49ef3cadcc58f5fbec3d7d8e174f4caa7cbc"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/ChatHelpTest.java",
+    "sha256": "11f014f93ce2bdea4a7aa4a5ee1435c51aaac0bb75a47abce37945f74aec4e98"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/ChatRestartTerminalTest.java",
+    "sha256": "790bb303c4b3c3a096bd20ff9c926bbb8de0edb1fec71691c9d2dcf0ae362b71"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/ConfigurationModalTest.java",
+    "sha256": "effba634837f158fa1320e7b1c68dedad01ee5566476fe70c10fc6e1d66a1974"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/EditorTest.java",
+    "sha256": "56659714f54e3619532183e7095f3618a606f4c245ed6aa8268fd745f970d21c"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/HelpModalTest.java",
+    "sha256": "f8b263a62b37aeb1e8794a76db3671014b23b430b4c0e1eef9b93221a0b30984"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/PermissionPromptTest.java",
+    "sha256": "b9cf4ea7ee88ba146f606fb3d997d230e7c467487de3d3587ee8ec8abf40e1a7"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/ProviderModalTest.java",
+    "sha256": "bb276c7008fa7bd4421312b36c66ec017438e34392f8c43297cdb68f3854159c"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/SessionDeletionTest.java",
+    "sha256": "4502f8c0c26ef0f65e37c3195134a90adcb2119035f4bd2b4392f077ace6f729"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/SessionPickerTest.java",
+    "sha256": "4161170c087d99aada4cd6a883358f646f6e6ddd0ecf863b27e89b203fc52b93"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/SyntaxHighlighterTest.java",
+    "sha256": "fc689dd67793bf5de06b2afc24107bf6083dbb6c05440eb9487d6e0ff675f451"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/TerminalPainterTest.java",
+    "sha256": "d1345d20ec4c357c8b305da014f4b02bf20444445c3cee56405d21194ac37900"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/tui/TokenUsageSidebarTest.java",
+    "sha256": "fa3395bbef67fdb65f03a6ddd864c451831aabc344b557e7e61004485d2f4785"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/usage/TokenUsageRepositoryTest.java",
+    "sha256": "d9c5a320d76d8d101e88b2c3c54b10d40aa799b1abbbb99843ab45f52872b592"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/usage/TokenUsageTest.java",
+    "sha256": "baf00f09bb7102e257aa9d2723e51dcb4f715f7e76af0b90553e65a27767cadc"
+  },
+  {
+    "path": "src/test/java/fr/openobject/ai/syleks/usage/UsageInvocationTest.java",
+    "sha256": "0c7126d582eeaf393ed1eca0490b9aef478a675c39f979ecabbae58e53fc24a0"
+  }
+]

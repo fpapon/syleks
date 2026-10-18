@@ -83,6 +83,87 @@ class SessionPickerTest {
         assertEquals("unsent two", editor.text());
     }
 
+    @Test
+    void confirmsTheSelectedSessionAndCancelsWithoutChangingTheFilter() {
+        var picker = new SessionPicker();
+        picker.open(List.of(session("one", "First task"), session("two", "Second task")), "one");
+        picker.type('S');
+        picker.type('e');
+        picker.requestDelete();
+        assertEquals("two", picker.pendingDeletion().id());
+        picker.type('x');
+        picker.backspace();
+        picker.move(1);
+        assertEquals("Se", picker.query());
+        var canvas = new TerminalCanvas(120, 32);
+        picker.paint(canvas);
+        assertTrue(text(canvas).contains("Delete session · Second task"));
+        assertTrue(text(canvas).contains("Enter delete permanently · Esc cancel"));
+        picker.cancelDelete();
+        assertNull(picker.pendingDeletion());
+        assertTrue(picker.isOpen());
+        assertEquals("Se", picker.query());
+        picker.requestDelete();
+        picker.close();
+        picker.open(List.of(session("one", "First task")), "one");
+        assertNull(picker.pendingDeletion());
+    }
+
+    @Test
+    void removesRowsWhilePreservingFilterAndClampingSelectionIncludingTheLastSession() {
+        var picker = new SessionPicker();
+        picker.open(List.of(session("one", "Task one"), session("two", "Task two")), "one");
+        picker.type('T');
+        picker.move(1);
+        picker.requestDelete();
+        picker.removed("two", "one");
+        assertEquals("T", picker.query());
+        assertEquals("one", picker.selected().id());
+        assertNull(picker.pendingDeletion());
+        picker.requestDelete();
+        picker.removed("one", null);
+        assertNull(picker.selected());
+        picker.requestDelete();
+        assertNull(picker.pendingDeletion());
+        assertTrue(picker.isOpen());
+        var canvas = new TerminalCanvas(120, 32);
+        picker.paint(canvas);
+        assertTrue(text(canvas).contains("No matching sessions"));
+    }
+
+    @Test
+    void showsDeletionErrorsWithoutRemovingTheSession() {
+        var picker = new SessionPicker();
+        picker.open(List.of(session("one", "First task")), "one");
+        picker.requestDelete();
+        picker.deletionFailed("Session is in use");
+        assertEquals("one", picker.selected().id());
+        assertNull(picker.pendingDeletion());
+        var canvas = new TerminalCanvas(120, 32);
+        picker.paint(canvas);
+        assertTrue(text(canvas).contains("Session is in use"));
+        picker.requestDelete();
+        assertEquals("one", picker.pendingDeletion().id());
+    }
+
+    @Test
+    void forgetsDeletedDraftsWithoutLosingOtherSessionsDrafts() {
+        var views = new SessionViewState();
+        var editor = new Editor();
+        views.identifyInitial("one");
+        editor.setText("first draft");
+        views.switchTo("two", editor);
+        editor.setText("second draft");
+        views.forget("one", editor);
+        assertEquals("second draft", editor.text());
+        assertFalse(views.snapshot(editor.text()).containsKey("one"));
+        views.scroll(12);
+        views.forget("two", editor);
+        assertEquals("", editor.text());
+        assertEquals(0, views.scroll());
+        assertFalse(views.snapshot(editor.text()).containsKey("two"));
+    }
+
     private String text(TerminalCanvas canvas) {
         var result = new StringBuilder();
         for (int y = 0; y < canvas.height(); y++) {

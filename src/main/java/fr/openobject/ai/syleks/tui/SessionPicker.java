@@ -13,6 +13,8 @@ final class SessionPicker {
     private String active;
     private int selected;
     private boolean open;
+    private Session pendingDeletion;
+    private String error;
 
     void open(List<Session> values, String current) {
         sessions = List.copyOf(values);
@@ -20,10 +22,13 @@ final class SessionPicker {
         selected = 0;
         query = "";
         open = true;
+        pendingDeletion = null;
+        error = null;
     }
 
     void close() {
         open = false;
+        pendingDeletion = null;
     }
 
     boolean isOpen() {
@@ -45,17 +50,22 @@ final class SessionPicker {
     }
 
     void type(int codepoint) {
+        if (pendingDeletion != null) return;
+        error = null;
         query += new String(Character.toChars(codepoint));
         selected = 0;
     }
 
     void backspace() {
+        if (pendingDeletion != null) return;
+        error = null;
         if (!query.isEmpty())
             query = query.substring(0, query.offsetByCodePoints(query.length(), -1));
         selected = 0;
     }
 
     void move(int direction) {
+        if (pendingDeletion != null) return;
         int size = filtered().size();
         selected = size == 0 ? 0 : Math.floorMod(selected + direction, size);
     }
@@ -65,21 +75,59 @@ final class SessionPicker {
         return list.isEmpty() ? null : list.get(Math.min(selected, list.size() - 1));
     }
 
+    void requestDelete() {
+        if (pendingDeletion == null) pendingDeletion = selected();
+        error = null;
+    }
+
+    Session pendingDeletion() {
+        return pendingDeletion;
+    }
+
+    void cancelDelete() {
+        pendingDeletion = null;
+    }
+
+    void deletionFailed(String message) {
+        pendingDeletion = null;
+        error = message;
+    }
+
+    void removed(String id, String current) {
+        sessions = sessions.stream().filter(s -> !s.id().equals(id)).toList();
+        active = current;
+        selected = Math.min(selected, Math.max(0, filtered().size() - 1));
+        pendingDeletion = null;
+        error = null;
+    }
+
     void paint(TerminalCanvas canvas) {
         int width = Math.min(110, Math.max(1, canvas.width() - 4));
         int height = Math.min(22, Math.max(1, canvas.height() - 2));
         int left = (canvas.width() - width) / 2, top = (canvas.height() - height) / 2;
         canvas.fill(left, top, width, height, INPUT);
         canvas.text(left, top, "─".repeat(width), BLUE, INPUT, false);
-        line(canvas, left, top + 1, width, "Sessions · " + query + "▌", BLUE, INPUT);
+        line(
+                canvas,
+                left,
+                top + 1,
+                width,
+                pendingDeletion == null
+                        ? "Sessions · " + query + "▌"
+                        : "Delete session · " + pendingDeletion.title(),
+                BLUE,
+                INPUT);
         line(
                 canvas,
                 left,
                 top + 2,
                 width,
-                "↑↓ select · Enter open · Esc close · type to filter",
+                pendingDeletion == null
+                        ? "↑↓ select · Enter open · Del delete · Esc close · type to filter"
+                        : "Enter delete permanently · Esc cancel",
                 SUB,
                 INPUT);
+        if (error != null) line(canvas, left, top + 3, width, error, SUB, INPUT);
         var list = filtered();
         int visible = Math.max(0, height - 5), begin = Math.max(0, selected - visible + 1);
         if (list.isEmpty())

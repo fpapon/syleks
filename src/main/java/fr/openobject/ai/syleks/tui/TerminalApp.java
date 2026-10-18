@@ -323,8 +323,12 @@ public class TerminalApp implements AutoCloseable {
             }
             if (paste) return;
             if (key == '\r' || key == '\n') {
-                var selected = sessionPicker.selected();
-                if (selected != null) changeSession("open", selected.id());
+                if (sessionPicker.pendingDeletion() != null) {
+                    deleteSelectedSession();
+                } else {
+                    var selected = sessionPicker.selected();
+                    if (selected != null) changeSession("open", selected.id());
+                }
             } else if (key == 127 || key == 8) sessionPicker.backspace();
             else if (key >= 32) sessionPicker.type(key);
             return;
@@ -431,7 +435,8 @@ public class TerminalApp implements AutoCloseable {
                 return;
             }
             if (sessionPicker.isOpen()) {
-                sessionPicker.close();
+                if (sessionPicker.pendingDeletion() != null) sessionPicker.cancelDelete();
+                else sessionPicker.close();
                 return;
             }
             if (session.snapshot().busy() || permissionPrompt.request() != null) session.cancel();
@@ -480,6 +485,9 @@ public class TerminalApp implements AutoCloseable {
         }
         if (sessionPicker.isOpen()) {
             switch (sequence.toString()) {
+                case "3~" -> {
+                    if (!paste) sessionPicker.requestDelete();
+                }
                 case "A" -> sessionPicker.move(-1);
                 case "B" -> sessionPicker.move(1);
                 case "200~" -> paste = true;
@@ -1214,6 +1222,33 @@ public class TerminalApp implements AutoCloseable {
                         completions.add(
                                 () -> {
                                     session.info(e.getMessage());
+                                    sessionLoading = false;
+                                });
+                    }
+                });
+    }
+
+    private void deleteSelectedSession() {
+        var selected = sessionPicker.pendingDeletion();
+        if (selected == null) return;
+        sessionViews.identifyInitial(session.snapshot().sessionId());
+        sessionLoading = true;
+        sessionWorker.submit(
+                () -> {
+                    try {
+                        session.sessionAction("delete", selected.id());
+                        completions.add(
+                                () -> {
+                                    sessionViews.forget(selected.id(), editor);
+                                    sessionPicker.removed(
+                                            selected.id(), session.snapshot().sessionId());
+                                    permissionPrompt.sync(null);
+                                    sessionLoading = false;
+                                });
+                    } catch (RuntimeException e) {
+                        completions.add(
+                                () -> {
+                                    sessionPicker.deletionFailed(e.getMessage());
                                     sessionLoading = false;
                                 });
                     }

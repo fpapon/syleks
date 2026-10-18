@@ -34,6 +34,15 @@ final class SessionViewState {
         return scroll;
     }
 
+    void forget(String id, Editor editor) {
+        drafts.remove(id);
+        if (active.equals(id)) {
+            active = "";
+            editor.setText("");
+            scroll = 0;
+        }
+    }
+
     void switchTo(String id, Editor editor) {
         drafts.put(active, editor.text());
         active = id == null ? "" : id;

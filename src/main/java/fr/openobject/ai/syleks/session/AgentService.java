@@ -109,6 +109,16 @@ public class AgentService implements AutoCloseable {
                         .id());
     }
 
+    public boolean delete(String id) {
+        ensureIdle();
+        sessions.delete(id);
+        if (current != null && current.id().equals(id)) {
+            current = null;
+            return true;
+        }
+        return false;
+    }
+
     public Session fork() {
         ensureIdle();
         if (current == null) throw new IllegalStateException("No active session");

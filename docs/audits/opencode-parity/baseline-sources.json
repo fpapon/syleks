@@ -1,0 +1,97 @@
+[
+  {
+    "path": "packages/web/src/content/docs/agents.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx",
+    "sha256": "0941601a02a57c97aa2072bd8accb15900dc6c78e78d99de44435c17e62e6b32"
+  },
+  {
+    "path": "packages/web/src/content/docs/tools.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx",
+    "sha256": "eb6f30fc30cd4b9932252eb07fdb08771a38f209694e4b9b4a23dd5e1a0d9a9a"
+  },
+  {
+    "path": "packages/web/src/content/docs/custom-tools.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/custom-tools.mdx",
+    "sha256": "0a5df35e96df711324244d91fc3d16001bca81cea5b91f86207a8fc55f1209fc"
+  },
+  {
+    "path": "packages/web/src/content/docs/mcp-servers.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx",
+    "sha256": "3e99f66ed4a4a40d238b539497bb8739a140e94aa7ab27fd08e4ee0c3a0c6102"
+  },
+  {
+    "path": "packages/web/src/content/docs/permissions.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/permissions.mdx",
+    "sha256": "e929098f6f772186eeb4f0eb55e332c477d88e30cb1efc45d0839dfa333b5163"
+  },
+  {
+    "path": "packages/web/src/content/docs/cli.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/cli.mdx",
+    "sha256": "184e782c1918810dfee492cdd0976c932be788974d7e982bedc1d160bd5fbd24"
+  },
+  {
+    "path": "packages/web/src/content/docs/tui.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx",
+    "sha256": "9ae91c31d49da9f125e3dbd68c67f1f9af35a2641249866434077ee57507fab6"
+  },
+  {
+    "path": "packages/web/src/content/docs/config.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/config.mdx",
+    "sha256": "5905c8c9df967f626b8f0e214fd26ccad08abade07fb7ff89f64cef7e341ea12"
+  },
+  {
+    "path": "packages/web/src/content/docs/rules.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/rules.mdx",
+    "sha256": "2d789f8467c7018a07b2307d44beb37ef13b10038aed1124aa20098cb4296fd9"
+  },
+  {
+    "path": "packages/web/src/content/docs/skills.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/skills.mdx",
+    "sha256": "7ff4df3a1a4909fa0e0025a6f086c3dbc63d09fdd578bc13f3f4ae30fcfe4627"
+  },
+  {
+    "path": "packages/web/src/content/docs/server.mdx",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/server.mdx",
+    "sha256": "56aac4ea75990012a9ebf838d074760aa91e198f3b5859b38d6786b5e2d14c39"
+  },
+  {
+    "path": "packages/opencode/src/tool/task.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/tool/task.ts",
+    "sha256": "db09fa5868ad3ecfdd83aa2bb7243f85e9e2cd13d0b19fd6f307f7a337b2b36e"
+  },
+  {
+    "path": "packages/opencode/src/tool/shell.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/tool/shell.ts",
+    "sha256": "342d742ae324782d222465c202dcdfcb7cc35a4cecf04e87f9881f1794d921ac"
+  },
+  {
+    "path": "packages/opencode/src/tool/registry.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/tool/registry.ts",
+    "sha256": "a8b24a6d58a80c42307e251905dbaa4f25ca0724569b1e531e412da934ab00fe"
+  },
+  {
+    "path": "packages/opencode/src/agent/subagent-permissions.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/agent/subagent-permissions.ts",
+    "sha256": "c3bbbd4ea8f076c9da07f5dd242bb07581bd8744b602e3e23deb02ea87601e6c"
+  },
+  {
+    "path": "packages/opencode/src/mcp/index.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/mcp/index.ts",
+    "sha256": "82c459309dfd005d25daecfabc1007d807d4bee23f6078434974277938a1c026"
+  },
+  {
+    "path": "packages/opencode/src/mcp/catalog.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/mcp/catalog.ts",
+    "sha256": "1123ce304cd647e0945aa98743f411a69988f6dde63867aea78b74c72a5abe11"
+  },
+  {
+    "path": "packages/opencode/src/mcp/oauth-provider.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/mcp/oauth-provider.ts",
+    "sha256": "f3da0edab04aa7c3da7ca00c960f4c95095e79593e8489368b11407620ed5714"
+  },
+  {
+    "path": "packages/opencode/src/effect/runtime-flags.ts",
+    "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/opencode/src/effect/runtime-flags.ts",
+    "sha256": "5b580cb96f9d5300f8ff995a29ec5e602e0e3e0200661dfff971998562f2a1a9"
+  }
+]

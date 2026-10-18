@@ -1,0 +1,2054 @@
+{
+  "schema_version": "1.0.0",
+  "audit_date": "2026-10-18",
+  "baseline": {
+    "name": "OpenCode",
+    "version": "v1.19.3",
+    "published_at": "2026-10-16T12:31:52Z",
+    "commit": "e3c4eb242585dcd77be1a867391b7c25fd47ce52",
+    "release_target_commitish": "60c9be092129745688bb3c3a752affc6cbd66ede",
+    "latest_stable_endpoint": "https://api.github.com/repos/anomalyco/opencode/releases/latest",
+    "release_url": "https://github.com/anomalyco/opencode/releases/tag/v1.19.3",
+    "documentation_generation": "MDX du tag v1.19.3 ; chemin interactif packages/opencode ; génération core/v2 non assimilée aux comportements interactifs",
+    "mcp_spec_consulted": "2026-07-28",
+    "experimental_excluded": [
+      "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS",
+      "OPENCODE_EXPERIMENTAL_LSP_TOOL",
+      "nouvelles routes core/v2 non démontrées sur le chemin interactif"
+    ]
+  },
+  "syleks": {
+    "version": "0.1.0-SNAPSHOT",
+    "commit": "d1c179a9c412b2a86be3a6a2bd62f7e2643b4e0a",
+    "dirty_at_start": true,
+    "production_changes_by_audit": false,
+    "preexisting_changes": [
+      "docs/sessions.md",
+      "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+      "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+      "src/main/java/fr/openobject/ai/syleks/tui/SessionPicker.java",
+      "src/main/java/fr/openobject/ai/syleks/tui/SessionViewState.java",
+      "src/main/java/fr/openobject/ai/syleks/tui/TerminalApp.java",
+      "src/test/java/fr/openobject/ai/syleks/tui/SessionPickerTest.java",
+      "src/test/java/fr/openobject/ai/syleks/tui/SessionDeletionTest.java"
+    ]
+  },
+  "domains": [
+    {
+      "id": "agents",
+      "name": "Agents",
+      "weight_pct": 15,
+      "metrics": {
+        "applicable": 7,
+        "assessed": 7,
+        "behaviorally_tested": 7,
+        "fully_verified": 0,
+        "verified_coverage_pct": 0.0,
+        "behavioral_coverage_pct": 100.0,
+        "present_pct": 100.0,
+        "parity_assessed_pct": 42.86,
+        "parity_tested_pct": 42.86,
+        "not_testable_pct": 0.0
+      }
+    },
+    {
+      "id": "subagents",
+      "name": "Sous-agents",
+      "weight_pct": 20,
+      "metrics": {
+        "applicable": 9,
+        "assessed": 9,
+        "behaviorally_tested": 8,
+        "fully_verified": 1,
+        "verified_coverage_pct": 11.11,
+        "behavioral_coverage_pct": 88.89,
+        "present_pct": 66.67,
+        "parity_assessed_pct": 38.89,
+        "parity_tested_pct": 43.75,
+        "not_testable_pct": 0.0
+      }
+    },
+    {
+      "id": "sessions",
+      "name": "Sessions",
+      "weight_pct": 15,
+      "metrics": {
+        "applicable": 10,
+        "assessed": 10,
+        "behaviorally_tested": 9,
+        "fully_verified": 5,
+        "verified_coverage_pct": 50.0,
+        "behavioral_coverage_pct": 90.0,
+        "present_pct": 80.0,
+        "parity_assessed_pct": 65.0,
+        "parity_tested_pct": 72.22,
+        "not_testable_pct": 0.0
+      }
+    },
+    {
+      "id": "tools",
+      "name": "Tools",
+      "weight_pct": 20,
+      "metrics": {
+        "applicable": 7,
+        "assessed": 7,
+        "behaviorally_tested": 6,
+        "fully_verified": 1,
+        "verified_coverage_pct": 14.29,
+        "behavioral_coverage_pct": 85.71,
+        "present_pct": 85.71,
+        "parity_assessed_pct": 35.71,
+        "parity_tested_pct": 41.67,
+        "not_testable_pct": 0.0
+      }
+    },
+    {
+      "id": "mcp",
+      "name": "MCP",
+      "weight_pct": 20,
+      "metrics": {
+        "applicable": 10,
+        "assessed": 10,
+        "behaviorally_tested": 0,
+        "fully_verified": 0,
+        "verified_coverage_pct": 0.0,
+        "behavioral_coverage_pct": 0.0,
+        "present_pct": 0.0,
+        "parity_assessed_pct": 0.0,
+        "parity_tested_pct": null,
+        "not_testable_pct": 0.0
+      }
+    },
+    {
+      "id": "orchestration_security",
+      "name": "Orchestration et sécurité",
+      "weight_pct": 10,
+      "metrics": {
+        "applicable": 10,
+        "assessed": 10,
+        "behaviorally_tested": 10,
+        "fully_verified": 3,
+        "verified_coverage_pct": 30.0,
+        "behavioral_coverage_pct": 100.0,
+        "present_pct": 90.0,
+        "parity_assessed_pct": 55.0,
+        "parity_tested_pct": 55.0,
+        "not_testable_pct": 0.0
+      }
+    }
+  ],
+  "features": [
+    {
+      "id": "AGT-001",
+      "domain": "agents",
+      "name": "Définition des agents",
+      "expected": "Registre, prompt, modèle/provider, paramètres, tools, permissions, activation",
+      "status": "PARTIAL",
+      "observed": "Catalogue JSON/Markdown, modèle qualifié, température, max_rounds et permissions opérationnels ; pas de disable ni top_p/options arbitraires.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/AgentCatalog.java",
+          "line": 27
+        }
+      ],
+      "tests": [
+        "AgentConfigTest#readsFrontmatterAndAppendsMarkdownToTheSharedPrompt",
+        "AgentConfigTest#overlaysJsonThenGlobalThenProjectWhilePreservingUnspecifiedSettings"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-AGT-001",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "AGT-002",
+      "domain": "agents",
+      "name": "Modes des agents",
+      "expected": "primary, subagent, all et visibilité interne",
+      "status": "PARTIAL",
+      "observed": "Trois modes validés ; aucun hidden ni agent système de compactage/titre/résumé.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/AgentDefinition.java",
+          "line": 13
+        }
+      ],
+      "tests": [
+        "AgentConfigTest#supportsPlainMarkdownAllModeAndMultilineDescriptions"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-AGT-002",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "AGT-003",
+      "domain": "agents",
+      "name": "Build et Plan",
+      "expected": "Tools de développement et restrictions Plan contrôlées à exécution",
+      "status": "PARTIAL",
+      "observed": "Lecture/édition/bash démontrés ; write DENY bloque réellement. Plan dépend de sa configuration : les agents intégrés nus partagent les permissions globales, le starter fournit des règles différentes. Pas de apply_patch.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 527
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#buildReadsEditsAndRunsAJavaTestThroughNativeToolRounds",
+        "ParityAuditTest#planExplicitDenyBlocksAnUnadvertisedWriteAtExecution"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-AGT-003",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "AGT-004",
+      "domain": "agents",
+      "name": "Agents personnalisés",
+      "expected": "Définitions globales/projet, modèles et permissions distincts",
+      "status": "PARTIAL",
+      "observed": "JSON global puis Markdown global puis projet ; erreurs explicites ; prise en compte après redémarrage. Pas de disable/hidden, pas de rechargement à chaud.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/AgentCatalog.java",
+          "line": 63
+        }
+      ],
+      "tests": [
+        "AgentConfigTest#overlaysJsonThenGlobalThenProjectWhilePreservingUnspecifiedSettings",
+        "AgentConfigTest#rejectsMalformedOrUnsupportedFrontmatterWithTheFilePath"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-AGT-004",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "AGT-005",
+      "domain": "agents",
+      "name": "Changement d’agent",
+      "expected": "Build → Plan → Build : prompt et permissions effectifs, session conservée",
+      "status": "FAIL",
+      "observed": "Session conservée mais après Build → Plan le prompt BUILD_ONLY_MARKER persiste, PLAN_ONLY_MARKER absent de la requête ; permissions calculées sur Plan.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/ContextService.java",
+          "line": 122
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesPersistedBuildPromptSurvivingSwitchToPlan"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-AGT-005",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "AGT-006",
+      "domain": "agents",
+      "name": "Instructions de projet",
+      "expected": "Instructions globales/projet/héritées, priorité et budget",
+      "status": "PARTIAL",
+      "observed": "Prompt partagé global et seul AGENTS.md racine (128 KiB max), figé dans la session. Pas de hiérarchie de fichiers AGENTS ni de règles par sous-répertoire. Budget conservateur ; isolation des projets testée.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/ContextService.java",
+          "line": 28
+        }
+      ],
+      "tests": [
+        "ContextServiceTest#includesProjectInstructionsAndAllowsExplicitModelReplacement",
+        "SqlitePersistenceTest#isolatesProjectsAndRejectsCrossProjectAccess"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-AGT-006",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "AGT-007",
+      "domain": "agents",
+      "name": "Limites et interruption",
+      "expected": "Limites d’étapes, détection de boucle, erreurs répétées, annulation/reprise",
+      "status": "PARTIAL",
+      "observed": "12 tours par défaut, override 1..1000 ou -1, interruption et reprise ; pas de détection sémantique des boucles ni de limite dédiée aux tools/erreurs. -1 peut continuer sans borne.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/OllamaClient.java",
+          "line": 171
+        }
+      ],
+      "tests": [
+        "CommandToolTest#enforcesGlobalAndPerAgentRoundLimitsIncludingSubagents",
+        "CommandToolTest#cancelsAnExecutingCommandAndDoesNotRequestAnotherModelTurn"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-AGT-007",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-001",
+      "domain": "subagents",
+      "name": "Configuration spécialisée",
+      "expected": "Rôle, prompt, provider/modèle, permissions et limites distincts",
+      "status": "PARTIAL",
+      "observed": "Définition réutilisable et override modèle/permissions/rounds ; pas de deadline par sous-agent ni quota de tokens. Modèle distinct configuré, pas validé avec modèle réel.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/AgentDefinition.java",
+          "line": 4
+        }
+      ],
+      "tests": [
+        "AgentConfigTest#readsFrontmatterAndAppendsMarkdownToTheSharedPrompt",
+        "CommandToolTest#enforcesGlobalAndPerAgentRoundLimitsIncludingSubagents"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SUB-001",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-002",
+      "domain": "subagents",
+      "name": "Délégation automatique structurée",
+      "expected": "Tool task utilisable par l’agent principal",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "ToolSchemas ne déclare pas task ; faux LLM émettant task reçoit unsupported tool task. Aucun agent parent ne reprend automatiquement après un enfant.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesMissingStructuredTaskTool"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SUB-002",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-003",
+      "domain": "subagents",
+      "name": "Invocation manuelle",
+      "expected": "Mention @agent ou commande explicite",
+      "status": "PASS_VERIFIED",
+      "observed": "@explore sélectionne le sous-agent, envoie la tâche isolée, rend le résultat puis restaure la sélection Build. /subagent mène à la même méthode.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 162
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory",
+        "AgentConfigTest#invokesASubagentWithAnIsolatedTaskAndReturnsToThePrimary"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-004",
+      "domain": "subagents",
+      "name": "Isolation du contexte",
+      "expected": "Prompt, autorisations, cycle et historique propres",
+      "status": "PARTIAL",
+      "observed": "Requête enfant sans marqueur secret fictif parent, prompt spécialisé ; cycle propre et policy du callee. Historique et workspace restent partagés, pas de session ni historique enfant autonome ; bash hérite de l’environnement hôte.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+          "line": 211
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory",
+        "CommandToolTest#usesTheExecutingSubagentsPolicyAndRestoresThePrimaryAgent"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SUB-004",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-005",
+      "domain": "subagents",
+      "name": "Sessions enfants",
+      "expected": "Parent/enfant, messages/tools, navigation et restauration",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Une seule session après invocation et réouverture ; la mention et la réponse enfant sont écrites dans le parent. parent_session_id sert au fork, pas à la délégation.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+          "line": 181
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SUB-005",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-006",
+      "domain": "subagents",
+      "name": "Résultats et erreurs",
+      "expected": "Résultats/erreurs/annulation/deadline retournés au parent",
+      "status": "PARTIAL",
+      "observed": "Résultat manuel et annulation disponibles ; mêmes erreurs LLM/tools que le chat. Aucun résultat task corrélé, agrégation parent ni timeout de sous-agent. Refus de fichier classé FAILED.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 768
+        }
+      ],
+      "tests": [
+        "AgentConfigTest#cancelsASubagentAndRestoresThePrimarySelection",
+        "CommandToolTest#usesTheExecutingSubagentsPolicyAndRestoresThePrimaryAgent"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SUB-006",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-007",
+      "domain": "subagents",
+      "name": "Sous-agents simultanés",
+      "expected": "Unités concurrentes coordonnées ; background expérimental séparé",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "task unique dans ChatSession ; nouvelle invocation refusée pendant exécution. Pas de scheduler, collecte, limite de concurrence ni résolution de conflits. Background OpenCode est expérimental, exclu des exigences stables supplémentaires.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 163
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-SUB-007",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-008",
+      "domain": "subagents",
+      "name": "Droits de délégation",
+      "expected": "Restrictions task par nom/pattern et profondeur bornée",
+      "status": "PARTIAL",
+      "observed": "Gate task du caller puis chat du callee pour invocation manuelle ; wildcard last-match. Aucune délégation LLM/récursive ni profondeur configurable. Permissions agent du parent ne constituent pas une sandbox de l’enfant (également distinctes chez OpenCode).",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 172
+        }
+      ],
+      "tests": [
+        "PermissionConfigTest#checksBothCallerDelegationAndCalleeChatPermissions"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SUB-008",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SUB-009",
+      "domain": "subagents",
+      "name": "Consommation des sous-agents",
+      "expected": "Usage par enfant et agrégation parent sans doublon",
+      "status": "PARTIAL",
+      "observed": "Usage par invocation avec modèle/provider persisté, affecté directement à la session courante ; aucun identifiant d’agent/enfant ni agrégation hiérarchique. Événements généraux idempotents testés, attribution enfant non testable sans sessions enfants.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+          "line": 258
+        }
+      ],
+      "tests": [
+        "TokenUsageRepositoryTest#upsertsIdempotentlyPersistsAcrossRestartAndDoesNotCopyForkConsumption"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SUB-009",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "SES-001",
+      "domain": "sessions",
+      "name": "Création de session",
+      "expected": "UUID, projet, titre, modèle/provider et dates",
+      "status": "PASS_VERIFIED",
+      "observed": "Création auto/explicite, UUID, projet canonique, titre issu du premier message, modèle et dates persistés.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/SessionService.java",
+          "line": 41
+        }
+      ],
+      "tests": [
+        "PersistentStreamingTest#resumesAcrossCompleteServiceReinitializationAndActuallySendsPriorContextToProvider",
+        "SqlitePersistenceTest#resumesTheMostRecentlyOpenedSessionAndPersistsRenaming"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-002",
+      "domain": "sessions",
+      "name": "Persistance structurée",
+      "expected": "Ordre, parties, appels/résultats, réouverture et migrations",
+      "status": "PASS_VERIFIED",
+      "observed": "SQLite schéma 3, migrations transactionnelles 1→2→3, parties typées et tool executions réouverts ; rollback et versions futures testés.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/storage/SqliteDatabase.java",
+          "line": 45
+        }
+      ],
+      "tests": [
+        "SqlitePersistenceTest#persistsOrderedMessagesAndCascadesDeletesIncludingPartsAndTools",
+        "SqlitePersistenceTest#failedMigrationRollsBackAllSchemaChangesAndPreservesExistingTables",
+        "PersistentStreamingTest#persistsToolCallsResultsAndExecutionStatusAndRestoresTheirNativeProtocol"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-003",
+      "domain": "sessions",
+      "name": "Reprise de conversation",
+      "expected": "-c, --session, contexte/provider/modèle restaurés",
+      "status": "PASS_VERIFIED",
+      "observed": "Routage CLI réel, reprise historique et prochain payload, compte/provider originaux conservés. Choix explicite demandé si indisponible ; policy recalculée par config courante. Défaut de changement d’agent suivi séparément AGT-005.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 25
+        }
+      ],
+      "tests": [
+        "CliSessionTest#routesLegacyAndNewArgumentsAndRejectsAmbiguousOptions",
+        "CliSessionTest#reopensAcrossTwoJvmsAndRunsRealFusionCliListExportDeleteAndHelp",
+        "PersistentStreamingTest#resumesAcrossCompleteServiceReinitializationAndActuallySendsPriorContextToProvider",
+        "ProviderServiceTest#persistsProviderAccountHistoryPartialFailuresAndResumesWithTheOriginalAccount"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-004",
+      "domain": "sessions",
+      "name": "Gestion des sessions",
+      "expected": "Listing, recherche/projet, renommage, suppression, export/import",
+      "status": "PARTIAL",
+      "observed": "CLI list/delete/export ; TUI filtre titres, rename/delete, /save sans overwrite ; pas d’import ni commande archive malgré enum ARCHIVED.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 124
+        }
+      ],
+      "tests": [
+        "CliSessionTest#reopensAcrossTwoJvmsAndRunsRealFusionCliListExportDeleteAndHelp",
+        "SqlitePersistenceTest#resumesTheMostRecentlyOpenedSessionAndPersistsRenaming"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SES-004",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-005",
+      "domain": "sessions",
+      "name": "Fork",
+      "expected": "Branche entière ou depuis un message, indépendance et usage",
+      "status": "PARTIAL",
+      "observed": "Copie transactionnelle entière avec parent et références tools remappées, sans copie usage ; pas de fork à partir d’un message.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/SessionService.java",
+          "line": 144
+        }
+      ],
+      "tests": [
+        "SqlitePersistenceTest#forksFullHistoryWithoutChangingParentAndPreservesChildrenOnParentDelete",
+        "TokenUsageRepositoryTest#upsertsIdempotentlyPersistsAcrossRestartAndDoesNotCopyForkConsumption"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SES-005",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-006",
+      "domain": "sessions",
+      "name": "Compactage",
+      "expected": "Résumé réel réduisant le contexte et gardant l’historique",
+      "status": "PARTIAL",
+      "observed": "Budget estimé UTF-8, tours anciens omis, DB intacte ; RECENT_TURNS ne résume rien. Champ summary lu mais aucun chemin utilisateur de génération de résumé.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/ContextCompactor.java",
+          "line": 11
+        }
+      ],
+      "tests": [
+        "ContextServiceTest#keepsWholeRecentTurnsAndReportsOmissionsWithoutDeletingHistory"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SES-006",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-007",
+      "domain": "sessions",
+      "name": "Annulation et récupération",
+      "expected": "Partiel persisté, statut interrompu et pas de replay destructif",
+      "status": "PASS_VERIFIED",
+      "observed": "Annulation flush, récupération après halt JVM ; appels sans résultat exclus du contexte et jamais exécutés à l’ouverture. Effet externe avant crash reste indéterminé, sans garantie exactly-once.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/ContextService.java",
+          "line": 73
+        }
+      ],
+      "tests": [
+        "CliSessionTest#recoversAfterActualProcessHaltAndReleasesItsSessionLock",
+        "PersistentStreamingTest#cancellationAndShutdownFlushPendingTextBeforeReleasingTheSession",
+        "ParityAuditTest#interruptedToolIsNotReplayedAfterReopeningTheDatabase"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-008",
+      "domain": "sessions",
+      "name": "Historique des modifications",
+      "expected": "Diff/revert/undo/redo des fichiers",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Édition directe et coloration diff ne sont pas des snapshots. Enum DIFF sans production ni commandes undo/redo/revert. Aucun mécanisme de restauration des fichiers.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/AgentTools.java",
+          "line": 235
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-SES-008",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-009",
+      "domain": "sessions",
+      "name": "Accès concurrents",
+      "expected": "Sessions distinctes et verrou session, cohérence/crash",
+      "status": "PASS_VERIFIED",
+      "observed": "WAL, busy timeout, transactions et FileLock par UUID, tests entre vrais processus concurrentiels et après kill. Pas de synchronisation des fichiers workspace entre sessions.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/storage/SessionLocks.java",
+          "line": 30
+        }
+      ],
+      "tests": [
+        "CliSessionTest#coordinatesSessionLocksBetweenRealProcessesAndReleasesAfterKill",
+        "CliSessionTest#writesDifferentSessionsFromConcurrentProcessesWithoutCorruption"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "SES-010",
+      "domain": "sessions",
+      "name": "Arbre des sous-sessions",
+      "expected": "Relations parent/enfants, messages, tools et statistiques",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Pas d’enfants issus de délégation ; le modèle de fork ne suffit pas.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+          "line": 221
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-SES-010",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tui.mdx"
+      }
+    },
+    {
+      "id": "TOO-001",
+      "domain": "tools",
+      "name": "Registre et contrats d’outils",
+      "expected": "Déclarations JSON, validation, résultats et extensibilité",
+      "status": "PARTIAL",
+      "observed": "ToolCall/ToolHandler, schémas natifs et validations explicites ; catalogue statique, résultats String, pas de registre dynamique/extension. Exceptions converties en texte.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/AgentTools.java",
+          "line": 32
+        }
+      ],
+      "tests": [
+        "AgentToolsTest#rejectsEscapesSymlinksBinaryFilesAndMalformedArguments",
+        "CommandToolTest#rejectsInvalidToolArgumentsBeforeStartingAnyProcess"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-TOO-001",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx"
+      }
+    },
+    {
+      "id": "TOO-002",
+      "domain": "tools",
+      "name": "Outils fichiers et recherche",
+      "expected": "read/write/edit/apply_patch/glob/grep ; list selon disponibilité",
+      "status": "PARTIAL",
+      "observed": "read/write/edit/glob/grep/list opérationnels et bornés ; apply_patch absent. list est un bonus Syleks, pas un tool déclaré dans tools.mdx retenu. Pas de suivi .gitignore, gros fichiers >1 MB refusés au lieu de pagination disque.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/AgentTools.java",
+          "line": 130
+        }
+      ],
+      "tests": [
+        "AgentToolsTest#writesReadsAndEditsExactMatches",
+        "AgentToolsTest#searchesListsAndFiltersDeniedFileContents",
+        "AgentToolsTest#rejectsEscapesSymlinksBinaryFilesAndMalformedArguments",
+        "ParityAuditTest#buildReadsEditsAndRunsAJavaTestThroughNativeToolRounds"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-TOO-002",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx"
+      }
+    },
+    {
+      "id": "TOO-003",
+      "domain": "tools",
+      "name": "Shell",
+      "expected": "Cwd, sortie/exit, timeout/cancel, enfants, bornes et contrôle",
+      "status": "FAIL",
+      "observed": "Cwd fixe au lancement, environnement hérité, stdout/stderr fusionnés, timeout 1..300 s, sortie 32000 caractères. Commandes évaluées en bloc : printf * autorise aussi une seconde commande touch pourtant DENY. Pas de cwd/env par appel.",
+      "severity": "P0",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/LocalCommandRunner.java",
+          "line": 43
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesCompoundShellCommandBypassingAnExplicitCommandDeny",
+        "CommandToolTest#streamsOllamaToolsAndFeedsCommandOutputBackToTheModel",
+        "CommandToolTest#cancelsAnExecutingCommandAndDoesNotRequestAnotherModelTurn"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-TOO-003",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx"
+      }
+    },
+    {
+      "id": "TOO-004",
+      "domain": "tools",
+      "name": "Outils complémentaires",
+      "expected": "Web, skill, todo, question, task ; LSP expérimental séparé",
+      "status": "PARTIAL",
+      "observed": "Fetch/search testés avec réponses simulées ; aucune API skill/todo/question/task. LSP expérimental absent sans pénalité stable distincte. Recherche DuckDuckGo live non vérifiée.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/AgentTools.java",
+          "line": 90
+        }
+      ],
+      "tests": [
+        "AgentToolsTest#fetchesHtmlAndChecksRedirectDestinationBeforeRequest",
+        "AgentToolsTest#webSearchEncodesQueryAndExtractsResultTitlesAndUrls"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-TOO-004",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx"
+      }
+    },
+    {
+      "id": "TOO-005",
+      "domain": "tools",
+      "name": "Cycle de tool calling",
+      "expected": "Schéma→appel→validation/policy→résultat persisté→tour suivant",
+      "status": "PASS_VERIFIED",
+      "observed": "Tours natifs Ollama, fragments Chat Completions, Responses fonctionnels simulés ; identifiants préservés, plusieurs appels séquentiels, erreurs renvoyées. Aucune preuve sur modèles réels.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/OllamaClient.java",
+          "line": 183
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#buildReadsEditsAndRunsAJavaTestThroughNativeToolRounds",
+        "CommandToolTest#reassemblesOpenAiToolFragmentsAndUsesMatchingToolCallIds",
+        "ResponsesProviderTest#executesExistingFunctionToolsOnlyAfterCompletedAndReplaysTheirResults",
+        "PersistentStreamingTest#persistsToolCallsResultsAndExecutionStatusAndRestoresTheirNativeProtocol"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx"
+      }
+    },
+    {
+      "id": "TOO-006",
+      "domain": "tools",
+      "name": "Tools personnalisés",
+      "expected": "Extension sans modifier le moteur, découverte/schema/policy",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "ToolHandler est un callback interne ; noms et dispatch codés dans AgentTools/ChatSession/ToolSchemas. Fusion ne découvre pas de plugins tools.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-TOO-006",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx"
+      }
+    },
+    {
+      "id": "TOO-007",
+      "domain": "tools",
+      "name": "Sécurité des outils",
+      "expected": "Confinement fichiers, commandes, sorties et secrets",
+      "status": "FAIL",
+      "observed": "Traversal, symlinks ordinaires, refus read validés ; bypass shell composé confirmé. Prompt injection atténuée par prompt uniquement ; aucune garantie contre symlink race TOCTOU, bash peut lire hors projet et l’environnement. Pas de fuite réelle de credentials constatée.",
+      "severity": "P0",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 602
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#confinesDedicatedToolsAgainstTraversalSymlinksAndFictionalSecretRead",
+        "ParityAuditTest#characterizesCompoundShellCommandBypassingAnExplicitCommandDeny"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-TOO-007",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/tools.mdx"
+      }
+    },
+    {
+      "id": "PER-001",
+      "domain": "orchestration_security",
+      "name": "Décisions de permission",
+      "expected": "ALLOW / ASK / DENY",
+      "status": "PASS_VERIFIED",
+      "observed": "Trois décisions effectives ; refus avant processus, ASK suspend puis approve/deny/cancel.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/PermissionPolicy.java",
+          "line": 27
+        }
+      ],
+      "tests": [
+        "PermissionConfigTest#blocksDeniedChatBeforeChangingHistoryOrCallingTheClient",
+        "CommandToolTest#deniesCommandsAndReportsTheDenialToTheModel",
+        "CommandToolTest#requiresSeparateApprovalsForCommandsInTheSameResponse"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/permissions.mdx"
+      }
+    },
+    {
+      "id": "PER-002",
+      "domain": "orchestration_security",
+      "name": "Portées des permissions",
+      "expected": "Global/projet/agent/sous-agent/tool/argument",
+      "status": "PARTIAL",
+      "observed": "Global JSON puis agent JSON puis global Markdown puis projet Markdown ; cible chemin/commande/nom. Pas de policy projet autonome générale, permissions de session persistées ni clé MCP libre. Modèle child séparé mais pas plafond de session.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/AppConfig.java",
+          "line": 433
+        }
+      ],
+      "tests": [
+        "PermissionConfigTest#mergesGlobalJsonAndAgentJsonAndMarkdownRules"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-PER-002",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/permissions.mdx"
+      }
+    },
+    {
+      "id": "PER-003",
+      "domain": "orchestration_security",
+      "name": "Priorités et patterns",
+      "expected": "Règles contradictoires et wildcards déterministes",
+      "status": "PASS_VERIFIED",
+      "observed": "Dernière règle correspondante gagne, * / ? sensibles à la casse, regex échappées ; agent peut surcharger le global, y compris accorder un refus global. Tester les nouvelles règles avant déploiement.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/PermissionPolicy.java",
+          "line": 85
+        }
+      ],
+      "tests": [
+        "PermissionConfigTest#matchesLiteralRegexCharactersAndHonorsTheLastMatchingRule",
+        "PermissionConfigTest#mergesGlobalJsonAndAgentJsonAndMarkdownRules"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/permissions.mdx"
+      }
+    },
+    {
+      "id": "PER-004",
+      "domain": "orchestration_security",
+      "name": "Validation utilisateur",
+      "expected": "Action/paramètres, attente, approbation/refus/annulation et trace",
+      "status": "PARTIAL",
+      "observed": "Modal TUI et approve once/always avec id anti-ancien prompt ; DENY reste prioritaire. Trace persistée pour tools mais refus fichier marqué FAILED et non CANCELLED, paramètres/résultats stockés sans redaction générale.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 267
+        }
+      ],
+      "tests": [
+        "CommandToolTest#alwaysApprovesFutureCommandsButPreservesExplicitDenials",
+        "CommandToolTest#cancelledFileApprovalDoesNotWrite",
+        "ParityAuditTest#planExplicitDenyBlocksAnUnadvertisedWriteAtExecution"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-PER-004",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/permissions.mdx"
+      }
+    },
+    {
+      "id": "PER-005",
+      "domain": "orchestration_security",
+      "name": "Contrôle au point d’exécution",
+      "expected": "Contrôle cohérent indépendant de la TUI sur chaque entrée",
+      "status": "PARTIAL",
+      "observed": "Gates dans ChatSession, donc contrôles hors renderer ; sous-agent utilise sa policy. Pas de ToolExecutor indépendant ; API AgentTools accepte tout Gate fourni, extensions/MCP absents ; bash composé contourne la granularité. Pas d’escalade parent→enfant démontrée au-delà des droits explicitement configurés.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 683
+        }
+      ],
+      "tests": [
+        "CommandToolTest#usesTheExecutingSubagentsPolicyAndRestoresThePrimaryAgent",
+        "ParityAuditTest#planExplicitDenyBlocksAnUnadvertisedWriteAtExecution"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-PER-005",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/permissions.mdx"
+      }
+    },
+    {
+      "id": "MCP-001",
+      "domain": "mcp",
+      "name": "Configuration MCP",
+      "expected": "Plusieurs serveurs global/projet, env/headers/timeouts/enabled",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-001",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-002",
+      "domain": "mcp",
+      "name": "Transport stdio",
+      "expected": "Processus, initialize, négociation, découverte, call et close",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-002",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-003",
+      "domain": "mcp",
+      "name": "Transport distant",
+      "expected": "Streamable HTTP et fallback SSE existants dans le tag",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-003",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-004",
+      "domain": "mcp",
+      "name": "Catalogue MCP",
+      "expected": "tools/list, tools/call, schémas et catalogue changeant",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-004",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-005",
+      "domain": "mcp",
+      "name": "Intégration MCP au LLM",
+      "expected": "Tools namespacés, permissions, historique, résultat au modèle",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-005",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-006",
+      "domain": "mcp",
+      "name": "Collisions MCP",
+      "expected": "Isolation des noms, outils natifs protégés, déconnexion",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-006",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-007",
+      "domain": "mcp",
+      "name": "Authentification MCP",
+      "expected": "Headers/OAuth PKCE/découverte/refresh propres aux serveurs",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-007",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-008",
+      "domain": "mcp",
+      "name": "Resources et prompts MCP",
+      "expected": "Resources/read/templates et prompts/list/get optionnels supportés dans le tag",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P2",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-008",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-009",
+      "domain": "mcp",
+      "name": "Résilience MCP",
+      "expected": "Timeout/erreurs/arrêt/JSON invalide/cancel/reconnect",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-009",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "MCP-010",
+      "domain": "mcp",
+      "name": "Sécurité MCP",
+      "expected": "Contrôle lancement/réseau/credentials/tools et budget descriptions",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Aucun client MCP, transport JSON-RPC, configuration ou branche MCP dans le registre/dispatch/dépendances. Aucun test de connexion possible : les scénarios restent bloqués par absence d’implémentation, pas par indisponibilité externe. OAuth LLM et GET webfetch ne valent pas MCP.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ToolSchemas.java",
+          "line": 10
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 573
+        },
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/app/Main.java",
+          "line": 20
+        },
+        {
+          "path": "pom.xml",
+          "line": 21
+        }
+      ],
+      "tests": [],
+      "validation_kind": "static_absence",
+      "gap_id": "G-MCP-010",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/mcp-servers.mdx"
+      }
+    },
+    {
+      "id": "ORC-001",
+      "domain": "orchestration_security",
+      "name": "Boucle agentique",
+      "expected": "Tours LLM/tools répétés avec policies et contexte",
+      "status": "PASS_VERIFIED",
+      "observed": "Lecture→édition→test Java→réponse sur quatre requêtes avec persistance ; boucle agentique réelle. Boucles dupliquées entre OllamaClient et ResponsesLlmProvider.",
+      "severity": null,
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/OllamaClient.java",
+          "line": 161
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#buildReadsEditsAndRunsAJavaTestThroughNativeToolRounds",
+        "ResponsesProviderTest#continuesUnlimitedToolRoundsUntilTheModelAnswers"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": null,
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "ORC-002",
+      "domain": "orchestration_security",
+      "name": "États et transitions",
+      "expected": "Idle/thinking/tool/permission/completed/failed/cancelled",
+      "status": "PARTIAL",
+      "observed": "États UI String, task/revision/retiring, statut session/message/tool séparés ; annulation et attente testées. Pas d’automate typé unique ; refus fichier FAILED et erreur shell exit non nul peut être SUCCESS du tool.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+          "line": 392
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#planExplicitDenyBlocksAnUnadvertisedWriteAtExecution",
+        "PersistentStreamingTest#cancellationAndShutdownFlushPendingTextBeforeReleasingTheSession"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-ORC-002",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "ORC-003",
+      "domain": "orchestration_security",
+      "name": "Orchestration des enfants",
+      "expected": "Délégation/agrégation/annulation et arbre persistant",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Exécution manuelle dans ChatSession ; pas de graphe de tâches ni résultat task, pas d’arbre de délégation.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/ai/ChatSession.java",
+          "line": 162
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesMissingStructuredTaskTool",
+        "ParityAuditTest#characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-ORC-003",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "ORC-004",
+      "domain": "orchestration_security",
+      "name": "Gestion du contexte",
+      "expected": "Système/historique/tools/résumés/budget/changement d’agent",
+      "status": "FAIL",
+      "observed": "Paires calls/results et budget conservés, mais prompt agent obsolète après switch ; pas de résumé généré. Historique reconstruit avec envelope dépendant du provider sélectionné.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/ContextService.java",
+          "line": 45
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#characterizesPersistedBuildPromptSurvivingSwitchToPlan",
+        "ContextServiceTest#excludesOrphanedToolCallsAfterACrash"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-ORC-004",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    },
+    {
+      "id": "ORC-005",
+      "domain": "orchestration_security",
+      "name": "Reprise et effets de bord",
+      "expected": "Interruption aux frontières tool et absence de replay dangereux",
+      "status": "PARTIAL",
+      "observed": "Appels interrompus non rejoués et statut persistant ; crash réel génération testé. Pas de journal atomique avec effet filesystem/process externe, pas de sondes crash après effet mais avant résultat sur toutes les frontières. Exactly-once non démontré.",
+      "severity": "P1",
+      "evidence": [
+        {
+          "path": "src/main/java/fr/openobject/ai/syleks/session/AgentService.java",
+          "line": 472
+        }
+      ],
+      "tests": [
+        "ParityAuditTest#interruptedToolIsNotReplayedAfterReopeningTheDatabase",
+        "CliSessionTest#recoversAfterActualProcessHaltAndReleasesItsSessionLock"
+      ],
+      "validation_kind": "behavioral",
+      "gap_id": "G-ORC-005",
+      "reference": {
+        "url": "https://github.com/anomalyco/opencode/blob/e3c4eb242585dcd77be1a867391b7c25fd47ce52/packages/web/src/content/docs/agents.mdx"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "id": "AgentConfigTest#cancelsASubagentAndRestoresThePrimarySelection",
+      "class_name": "fr.openobject.ai.syleks.app.AgentConfigTest",
+      "method": "cancelsASubagentAndRestoresThePrimarySelection",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.AgentConfigTest.xml"
+    },
+    {
+      "id": "AgentConfigTest#invokesASubagentWithAnIsolatedTaskAndReturnsToThePrimary",
+      "class_name": "fr.openobject.ai.syleks.app.AgentConfigTest",
+      "method": "invokesASubagentWithAnIsolatedTaskAndReturnsToThePrimary",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.AgentConfigTest.xml"
+    },
+    {
+      "id": "AgentConfigTest#overlaysJsonThenGlobalThenProjectWhilePreservingUnspecifiedSettings",
+      "class_name": "fr.openobject.ai.syleks.app.AgentConfigTest",
+      "method": "overlaysJsonThenGlobalThenProjectWhilePreservingUnspecifiedSettings",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.AgentConfigTest.xml"
+    },
+    {
+      "id": "AgentConfigTest#readsFrontmatterAndAppendsMarkdownToTheSharedPrompt",
+      "class_name": "fr.openobject.ai.syleks.app.AgentConfigTest",
+      "method": "readsFrontmatterAndAppendsMarkdownToTheSharedPrompt",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.AgentConfigTest.xml"
+    },
+    {
+      "id": "AgentConfigTest#rejectsMalformedOrUnsupportedFrontmatterWithTheFilePath",
+      "class_name": "fr.openobject.ai.syleks.app.AgentConfigTest",
+      "method": "rejectsMalformedOrUnsupportedFrontmatterWithTheFilePath",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.AgentConfigTest.xml"
+    },
+    {
+      "id": "AgentConfigTest#supportsPlainMarkdownAllModeAndMultilineDescriptions",
+      "class_name": "fr.openobject.ai.syleks.app.AgentConfigTest",
+      "method": "supportsPlainMarkdownAllModeAndMultilineDescriptions",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.AgentConfigTest.xml"
+    },
+    {
+      "id": "AgentToolsTest#fetchesHtmlAndChecksRedirectDestinationBeforeRequest",
+      "class_name": "fr.openobject.ai.syleks.ai.AgentToolsTest",
+      "method": "fetchesHtmlAndChecksRedirectDestinationBeforeRequest",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.ai.AgentToolsTest.xml"
+    },
+    {
+      "id": "AgentToolsTest#rejectsEscapesSymlinksBinaryFilesAndMalformedArguments",
+      "class_name": "fr.openobject.ai.syleks.ai.AgentToolsTest",
+      "method": "rejectsEscapesSymlinksBinaryFilesAndMalformedArguments",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.ai.AgentToolsTest.xml"
+    },
+    {
+      "id": "AgentToolsTest#searchesListsAndFiltersDeniedFileContents",
+      "class_name": "fr.openobject.ai.syleks.ai.AgentToolsTest",
+      "method": "searchesListsAndFiltersDeniedFileContents",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.ai.AgentToolsTest.xml"
+    },
+    {
+      "id": "AgentToolsTest#webSearchEncodesQueryAndExtractsResultTitlesAndUrls",
+      "class_name": "fr.openobject.ai.syleks.ai.AgentToolsTest",
+      "method": "webSearchEncodesQueryAndExtractsResultTitlesAndUrls",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.ai.AgentToolsTest.xml"
+    },
+    {
+      "id": "AgentToolsTest#writesReadsAndEditsExactMatches",
+      "class_name": "fr.openobject.ai.syleks.ai.AgentToolsTest",
+      "method": "writesReadsAndEditsExactMatches",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.ai.AgentToolsTest.xml"
+    },
+    {
+      "id": "CliSessionTest#coordinatesSessionLocksBetweenRealProcessesAndReleasesAfterKill",
+      "class_name": "fr.openobject.ai.syleks.session.CliSessionTest",
+      "method": "coordinatesSessionLocksBetweenRealProcessesAndReleasesAfterKill",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.CliSessionTest.xml"
+    },
+    {
+      "id": "CliSessionTest#recoversAfterActualProcessHaltAndReleasesItsSessionLock",
+      "class_name": "fr.openobject.ai.syleks.session.CliSessionTest",
+      "method": "recoversAfterActualProcessHaltAndReleasesItsSessionLock",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.CliSessionTest.xml"
+    },
+    {
+      "id": "CliSessionTest#reopensAcrossTwoJvmsAndRunsRealFusionCliListExportDeleteAndHelp",
+      "class_name": "fr.openobject.ai.syleks.session.CliSessionTest",
+      "method": "reopensAcrossTwoJvmsAndRunsRealFusionCliListExportDeleteAndHelp",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.CliSessionTest.xml"
+    },
+    {
+      "id": "CliSessionTest#routesLegacyAndNewArgumentsAndRejectsAmbiguousOptions",
+      "class_name": "fr.openobject.ai.syleks.session.CliSessionTest",
+      "method": "routesLegacyAndNewArgumentsAndRejectsAmbiguousOptions",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.CliSessionTest.xml"
+    },
+    {
+      "id": "CliSessionTest#writesDifferentSessionsFromConcurrentProcessesWithoutCorruption",
+      "class_name": "fr.openobject.ai.syleks.session.CliSessionTest",
+      "method": "writesDifferentSessionsFromConcurrentProcessesWithoutCorruption",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.CliSessionTest.xml"
+    },
+    {
+      "id": "CommandToolTest#alwaysApprovesFutureCommandsButPreservesExplicitDenials",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "alwaysApprovesFutureCommandsButPreservesExplicitDenials",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#cancelledFileApprovalDoesNotWrite",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "cancelledFileApprovalDoesNotWrite",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#cancelsAnExecutingCommandAndDoesNotRequestAnotherModelTurn",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "cancelsAnExecutingCommandAndDoesNotRequestAnotherModelTurn",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#deniesCommandsAndReportsTheDenialToTheModel",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "deniesCommandsAndReportsTheDenialToTheModel",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#enforcesGlobalAndPerAgentRoundLimitsIncludingSubagents",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "enforcesGlobalAndPerAgentRoundLimitsIncludingSubagents",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#reassemblesOpenAiToolFragmentsAndUsesMatchingToolCallIds",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "reassemblesOpenAiToolFragmentsAndUsesMatchingToolCallIds",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#rejectsInvalidToolArgumentsBeforeStartingAnyProcess",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "rejectsInvalidToolArgumentsBeforeStartingAnyProcess",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#requiresSeparateApprovalsForCommandsInTheSameResponse",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "requiresSeparateApprovalsForCommandsInTheSameResponse",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#streamsOllamaToolsAndFeedsCommandOutputBackToTheModel",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "streamsOllamaToolsAndFeedsCommandOutputBackToTheModel",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "CommandToolTest#usesTheExecutingSubagentsPolicyAndRestoresThePrimaryAgent",
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "method": "usesTheExecutingSubagentsPolicyAndRestoresThePrimaryAgent",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.CommandToolTest.xml"
+    },
+    {
+      "id": "ContextServiceTest#excludesOrphanedToolCallsAfterACrash",
+      "class_name": "fr.openobject.ai.syleks.session.ContextServiceTest",
+      "method": "excludesOrphanedToolCallsAfterACrash",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ContextServiceTest.xml"
+    },
+    {
+      "id": "ContextServiceTest#includesProjectInstructionsAndAllowsExplicitModelReplacement",
+      "class_name": "fr.openobject.ai.syleks.session.ContextServiceTest",
+      "method": "includesProjectInstructionsAndAllowsExplicitModelReplacement",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ContextServiceTest.xml"
+    },
+    {
+      "id": "ContextServiceTest#keepsWholeRecentTurnsAndReportsOmissionsWithoutDeletingHistory",
+      "class_name": "fr.openobject.ai.syleks.session.ContextServiceTest",
+      "method": "keepsWholeRecentTurnsAndReportsOmissionsWithoutDeletingHistory",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ContextServiceTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#buildReadsEditsAndRunsAJavaTestThroughNativeToolRounds",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "buildReadsEditsAndRunsAJavaTestThroughNativeToolRounds",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#characterizesCompoundShellCommandBypassingAnExplicitCommandDeny",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "characterizesCompoundShellCommandBypassingAnExplicitCommandDeny",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#characterizesMissingStructuredTaskTool",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "characterizesMissingStructuredTaskTool",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#characterizesPersistedBuildPromptSurvivingSwitchToPlan",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "characterizesPersistedBuildPromptSurvivingSwitchToPlan",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#confinesDedicatedToolsAgainstTraversalSymlinksAndFictionalSecretRead",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "confinesDedicatedToolsAgainstTraversalSymlinksAndFictionalSecretRead",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#interruptedToolIsNotReplayedAfterReopeningTheDatabase",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "interruptedToolIsNotReplayedAfterReopeningTheDatabase",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "ParityAuditTest#planExplicitDenyBlocksAnUnadvertisedWriteAtExecution",
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "method": "planExplicitDenyBlocksAnUnadvertisedWriteAtExecution",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.ParityAuditTest.xml"
+    },
+    {
+      "id": "PermissionConfigTest#blocksDeniedChatBeforeChangingHistoryOrCallingTheClient",
+      "class_name": "fr.openobject.ai.syleks.app.PermissionConfigTest",
+      "method": "blocksDeniedChatBeforeChangingHistoryOrCallingTheClient",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.PermissionConfigTest.xml"
+    },
+    {
+      "id": "PermissionConfigTest#checksBothCallerDelegationAndCalleeChatPermissions",
+      "class_name": "fr.openobject.ai.syleks.app.PermissionConfigTest",
+      "method": "checksBothCallerDelegationAndCalleeChatPermissions",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.PermissionConfigTest.xml"
+    },
+    {
+      "id": "PermissionConfigTest#matchesLiteralRegexCharactersAndHonorsTheLastMatchingRule",
+      "class_name": "fr.openobject.ai.syleks.app.PermissionConfigTest",
+      "method": "matchesLiteralRegexCharactersAndHonorsTheLastMatchingRule",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.PermissionConfigTest.xml"
+    },
+    {
+      "id": "PermissionConfigTest#mergesGlobalJsonAndAgentJsonAndMarkdownRules",
+      "class_name": "fr.openobject.ai.syleks.app.PermissionConfigTest",
+      "method": "mergesGlobalJsonAndAgentJsonAndMarkdownRules",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.app.PermissionConfigTest.xml"
+    },
+    {
+      "id": "PersistentStreamingTest#cancellationAndShutdownFlushPendingTextBeforeReleasingTheSession",
+      "class_name": "fr.openobject.ai.syleks.session.PersistentStreamingTest",
+      "method": "cancellationAndShutdownFlushPendingTextBeforeReleasingTheSession",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.PersistentStreamingTest.xml"
+    },
+    {
+      "id": "PersistentStreamingTest#persistsToolCallsResultsAndExecutionStatusAndRestoresTheirNativeProtocol",
+      "class_name": "fr.openobject.ai.syleks.session.PersistentStreamingTest",
+      "method": "persistsToolCallsResultsAndExecutionStatusAndRestoresTheirNativeProtocol",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.PersistentStreamingTest.xml"
+    },
+    {
+      "id": "PersistentStreamingTest#resumesAcrossCompleteServiceReinitializationAndActuallySendsPriorContextToProvider",
+      "class_name": "fr.openobject.ai.syleks.session.PersistentStreamingTest",
+      "method": "resumesAcrossCompleteServiceReinitializationAndActuallySendsPriorContextToProvider",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.PersistentStreamingTest.xml"
+    },
+    {
+      "id": "ProviderServiceTest#persistsProviderAccountHistoryPartialFailuresAndResumesWithTheOriginalAccount",
+      "class_name": "fr.openobject.ai.syleks.provider.ProviderServiceTest",
+      "method": "persistsProviderAccountHistoryPartialFailuresAndResumesWithTheOriginalAccount",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.provider.ProviderServiceTest.xml"
+    },
+    {
+      "id": "ResponsesProviderTest#continuesUnlimitedToolRoundsUntilTheModelAnswers",
+      "class_name": "fr.openobject.ai.syleks.provider.ResponsesProviderTest",
+      "method": "continuesUnlimitedToolRoundsUntilTheModelAnswers",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.provider.ResponsesProviderTest.xml"
+    },
+    {
+      "id": "ResponsesProviderTest#executesExistingFunctionToolsOnlyAfterCompletedAndReplaysTheirResults",
+      "class_name": "fr.openobject.ai.syleks.provider.ResponsesProviderTest",
+      "method": "executesExistingFunctionToolsOnlyAfterCompletedAndReplaysTheirResults",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.provider.ResponsesProviderTest.xml"
+    },
+    {
+      "id": "SqlitePersistenceTest#failedMigrationRollsBackAllSchemaChangesAndPreservesExistingTables",
+      "class_name": "fr.openobject.ai.syleks.session.SqlitePersistenceTest",
+      "method": "failedMigrationRollsBackAllSchemaChangesAndPreservesExistingTables",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.SqlitePersistenceTest.xml"
+    },
+    {
+      "id": "SqlitePersistenceTest#forksFullHistoryWithoutChangingParentAndPreservesChildrenOnParentDelete",
+      "class_name": "fr.openobject.ai.syleks.session.SqlitePersistenceTest",
+      "method": "forksFullHistoryWithoutChangingParentAndPreservesChildrenOnParentDelete",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.SqlitePersistenceTest.xml"
+    },
+    {
+      "id": "SqlitePersistenceTest#isolatesProjectsAndRejectsCrossProjectAccess",
+      "class_name": "fr.openobject.ai.syleks.session.SqlitePersistenceTest",
+      "method": "isolatesProjectsAndRejectsCrossProjectAccess",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.SqlitePersistenceTest.xml"
+    },
+    {
+      "id": "SqlitePersistenceTest#persistsOrderedMessagesAndCascadesDeletesIncludingPartsAndTools",
+      "class_name": "fr.openobject.ai.syleks.session.SqlitePersistenceTest",
+      "method": "persistsOrderedMessagesAndCascadesDeletesIncludingPartsAndTools",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.SqlitePersistenceTest.xml"
+    },
+    {
+      "id": "SqlitePersistenceTest#resumesTheMostRecentlyOpenedSessionAndPersistsRenaming",
+      "class_name": "fr.openobject.ai.syleks.session.SqlitePersistenceTest",
+      "method": "resumesTheMostRecentlyOpenedSessionAndPersistsRenaming",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.session.SqlitePersistenceTest.xml"
+    },
+    {
+      "id": "TokenUsageRepositoryTest#upsertsIdempotentlyPersistsAcrossRestartAndDoesNotCopyForkConsumption",
+      "class_name": "fr.openobject.ai.syleks.usage.TokenUsageRepositoryTest",
+      "method": "upsertsIdempotentlyPersistsAcrossRestartAndDoesNotCopyForkConsumption",
+      "outcome": "passed",
+      "report": "target/surefire-reports/TEST-fr.openobject.ai.syleks.usage.TokenUsageRepositoryTest.xml"
+    }
+  ],
+  "validation": {
+    "maven_result": "BUILD SUCCESS",
+    "suite": {
+      "tests": 246,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "paid_services_used": false,
+    "real_model_capabilities_verified": false,
+    "manual_real_terminal_verified": false,
+    "java": "OpenJDK 25 Zulu25.28+85-CA (build 25+36-LTS)",
+    "maven": "Apache Maven 3.9.16",
+    "command": "mvn -B --no-transfer-progress clean verify",
+    "finished_at": "2026-10-18T20:37:51+02:00",
+    "duration_seconds": 29.838,
+    "formatting": "PASS",
+    "packaging": "PASS",
+    "fusion_annotation_processing": "PASS",
+    "cli_smoke": "PASS",
+    "scope_note": "Tests des capacités de transport sur fixtures ; aucun modèle réel, compte réel ou serveur MCP exécuté."
+  },
+  "coverage": {
+    "applicable": 53,
+    "assessed": 53,
+    "behaviorally_tested": 40,
+    "fully_verified": 10,
+    "verified_coverage_pct": 18.87,
+    "behavioral_coverage_pct": 75.47,
+    "present_pct": 67.92,
+    "parity_assessed_pct": 39.62,
+    "parity_tested_pct": 52.5,
+    "not_testable_pct": 0.0,
+    "weighted_parity_assessed_pct": 36.6,
+    "weighted_parity_tested_pct": null,
+    "weighted_parity_tested_reason": "MCP sans tests comportementaux : ne pas renormaliser silencieusement son poids de 20 %."
+  },
+  "schema_document": "report-schema.md",
+  "limitations": [
+    {
+      "id": "LIM-REAL-MODELS",
+      "status": "NOT_TESTABLE",
+      "reason": "Aucun modèle réel Ollama/OpenAI/ChatGPT ni autorisation de consommation payante ; aucune garantie sur les capacités effectives, quota, contexte ou abonnement."
+    },
+    {
+      "id": "LIM-REAL-TERMINAL",
+      "status": "NOT_TESTABLE",
+      "reason": "Pas de validation visuelle humaine en terminal réel ; tests TUI simulés existants exécutés."
+    },
+    {
+      "id": "LIM-MCP-E2E",
+      "status": "NOT_IMPLEMENTED",
+      "reason": "Scénarios protocolaires non exécutés faute de client Syleks ; absence connue, pas résultat réseau ambigu."
+    },
+    {
+      "id": "LIM-EXHAUSTIVE-SECURITY",
+      "status": "NOT_TESTABLE",
+      "reason": "Pas de preuve exhaustive contre TOCTOU, processus détachés, prompt injection modèle, secret redaction et toutes frontières crash."
+    }
+  ],
+  "e2e_scenarios": [
+    {
+      "id": "E2E-001",
+      "status": "PARTIAL",
+      "observed": "Lecture, edit et Java réels ; pas apply_patch",
+      "scored": false
+    },
+    {
+      "id": "E2E-002",
+      "status": "PARTIAL",
+      "observed": "Write DENY testé, pas restriction Plan complète",
+      "scored": false
+    },
+    {
+      "id": "E2E-003",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "task absent",
+      "scored": false
+    },
+    {
+      "id": "E2E-004",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Enfants concurrents absents",
+      "scored": false
+    },
+    {
+      "id": "E2E-005",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Enfants persistants absents",
+      "scored": false
+    },
+    {
+      "id": "E2E-006",
+      "status": "FAIL",
+      "observed": "Bypass shell composé démontré",
+      "scored": false
+    },
+    {
+      "id": "E2E-007",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Client stdio MCP absent",
+      "scored": false
+    },
+    {
+      "id": "E2E-008",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Client HTTP MCP absent",
+      "scored": false
+    },
+    {
+      "id": "E2E-009",
+      "status": "NOT_IMPLEMENTED",
+      "observed": "Tools MCP absents",
+      "scored": false
+    },
+    {
+      "id": "E2E-010",
+      "status": "PARTIAL",
+      "observed": "Halt et frontière tool testés ; pas crash après effet avant résultat",
+      "scored": false
+    },
+    {
+      "id": "E2E-011",
+      "status": "PARTIAL",
+      "observed": "Formats distincts testés ; parcours complet non paramétré sur tous providers",
+      "scored": false
+    },
+    {
+      "id": "E2E-012",
+      "status": "PARTIAL",
+      "observed": "File tools confinés, shell autorité hôte",
+      "scored": false
+    }
+  ],
+  "provider_capabilities": [
+    {
+      "provider": "ollama",
+      "text": "simulated_transport_verified",
+      "streaming": "simulated_transport_verified",
+      "tool_calling": "NDJSON multi-round verified",
+      "parallel_tool_execution": "NOT_IMPLEMENTED",
+      "structured_output": "NOT_IMPLEMENTED",
+      "reasoning": "thinking parsed on Ollama ; no effort/variant contract; real capability unknown",
+      "context_limits": "configured_estimate_only",
+      "usage_metrics": "provider counters when available; unknown on interruption",
+      "real_model_validation": "NOT_TESTABLE"
+    },
+    {
+      "provider": "configured-openai-compatible",
+      "text": "simulated_transport_verified",
+      "streaming": "simulated_transport_verified",
+      "tool_calling": "SSE Chat Completions fragmented calls and matching results verified",
+      "parallel_tool_execution": "NOT_IMPLEMENTED",
+      "structured_output": "NOT_IMPLEMENTED",
+      "reasoning": "thinking parsed on Ollama ; no effort/variant contract; real capability unknown",
+      "context_limits": "configured_estimate_only",
+      "usage_metrics": "provider counters when available; unknown on interruption",
+      "real_model_validation": "NOT_TESTABLE"
+    },
+    {
+      "provider": "chatgpt",
+      "text": "simulated_transport_verified",
+      "streaming": "simulated_transport_verified",
+      "tool_calling": "Responses tool cycle with local HTTP fixture verified",
+      "parallel_tool_execution": "NOT_IMPLEMENTED",
+      "structured_output": "NOT_IMPLEMENTED",
+      "reasoning": "thinking parsed on Ollama ; no effort/variant contract; real capability unknown",
+      "context_limits": "configured_estimate_only",
+      "usage_metrics": "provider counters when available; unknown on interruption",
+      "real_model_validation": "NOT_TESTABLE"
+    },
+    {
+      "provider": "openai-api",
+      "text": "simulated_transport_verified",
+      "streaming": "simulated_transport_verified",
+      "tool_calling": "Shared Responses implementation; independent API credential/catalogue tests, no full tool scenario under API identity",
+      "parallel_tool_execution": "NOT_IMPLEMENTED",
+      "structured_output": "NOT_IMPLEMENTED",
+      "reasoning": "thinking parsed on Ollama ; no effort/variant contract; real capability unknown",
+      "context_limits": "configured_estimate_only",
+      "usage_metrics": "provider counters when available; unknown on interruption",
+      "real_model_validation": "NOT_TESTABLE"
+    }
+  ]
+}

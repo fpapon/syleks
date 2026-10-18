@@ -1,0 +1,1373 @@
+{
+  "source": "Surefire XML after clean verify",
+  "suite": {
+    "tests": 246,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "classes": [
+    {
+      "class_name": "fr.openobject.ai.syleks.ai.AgentToolsTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "webSearchEncodesQueryAndExtractsResultTitlesAndUrls",
+          "outcome": "passed"
+        },
+        {
+          "method": "searchesListsAndFiltersDeniedFileContents",
+          "outcome": "passed"
+        },
+        {
+          "method": "denialOccursBeforeReadingOrMutating",
+          "outcome": "passed"
+        },
+        {
+          "method": "fetchesHtmlAndChecksRedirectDestinationBeforeRequest",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsEscapesSymlinksBinaryFilesAndMalformedArguments",
+          "outcome": "passed"
+        },
+        {
+          "method": "writesReadsAndEditsExactMatches",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsHttpFailuresBinaryResponsesAndOversizedBodies",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.ai.LocalCommandRunnerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "timesOutAndTerminatesTheCommandTree",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancelsTheProcessWhenItsWorkerIsInterrupted",
+          "outcome": "passed"
+        },
+        {
+          "method": "capturesBothStreamsExitStatusAndWorkingDirectory",
+          "outcome": "passed"
+        },
+        {
+          "method": "closesStandardInputAndCapsOutputWithoutBlocking",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.ai.OllamaChunkTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "rejectsMalformedChunksAsIoErrors",
+          "outcome": "passed"
+        },
+        {
+          "method": "defaultsMissingAndNullFields",
+          "outcome": "passed"
+        },
+        {
+          "method": "streamsAndDetectsCompletion",
+          "outcome": "passed"
+        },
+        {
+          "method": "decodesEscapedUnicodeAndIgnoresExtraFields",
+          "outcome": "passed"
+        },
+        {
+          "method": "refusesUnsupportedTools",
+          "outcome": "passed"
+        },
+        {
+          "method": "serializesPayloadWithEscapingAndOnlyConversationRoles",
+          "outcome": "passed"
+        },
+        {
+          "method": "preservesServerErrors",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.AgentConfigTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "rejectsInvalidGlobalAndAgentRoundLimits",
+          "outcome": "passed"
+        },
+        {
+          "method": "allowsOverridingBuiltinPromptsAndSelectingADefaultPrimaryAgent",
+          "outcome": "passed"
+        },
+        {
+          "method": "invokesASubagentWithAnIsolatedTaskAndReturnsToThePrimary",
+          "outcome": "passed"
+        },
+        {
+          "method": "supportsPlainMarkdownAllModeAndMultilineDescriptions",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancelsASubagentAndRestoresThePrimarySelection",
+          "outcome": "passed"
+        },
+        {
+          "method": "overlaysJsonThenGlobalThenProjectWhilePreservingUnspecifiedSettings",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsMalformedOrUnsupportedFrontmatterWithTheFilePath",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsInvalidMarkdownRoundLimitsWithTheSourcePath",
+          "outcome": "passed"
+        },
+        {
+          "method": "readsFrontmatterAndAppendsMarkdownToTheSharedPrompt",
+          "outcome": "passed"
+        },
+        {
+          "method": "inheritsRoundLimitsAndOverlaysAgentDefinitions",
+          "outcome": "passed"
+        },
+        {
+          "method": "preservesBuiltinAgentsWithoutCreatingDirectories",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsInvalidNamesAndSubagentDefaults",
+          "outcome": "passed"
+        },
+        {
+          "method": "supportsUnlimitedRoundsWithGlobalAndAgentOverrides",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.AppConfigTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "environmentOverridesFileSettings",
+          "outcome": "passed"
+        },
+        {
+          "method": "reportsAFileThatCannotBeRead",
+          "outcome": "passed"
+        },
+        {
+          "method": "supportsEnvironmentSettingsWithoutAFile",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsBlankNullAndNonStringSettings",
+          "outcome": "passed"
+        },
+        {
+          "method": "readsOllamaSettingsAndNormalizesTrailingSlashes",
+          "outcome": "passed"
+        },
+        {
+          "method": "supportsPartialAndEmptySettings",
+          "outcome": "passed"
+        },
+        {
+          "method": "usesDefaultsWithoutCreatingAFile",
+          "outcome": "passed"
+        },
+        {
+          "method": "reportsInvalidJsonAndNonObjectRootsWithFilePath",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.CommandToolTest",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "acceptsAFinalAnswerOnTheLastPermittedRound",
+          "outcome": "passed"
+        },
+        {
+          "method": "enforcesGlobalAndPerAgentRoundLimitsIncludingSubagents",
+          "outcome": "passed"
+        },
+        {
+          "method": "alwaysApprovesFutureCommandsButPreservesExplicitDenials",
+          "outcome": "passed"
+        },
+        {
+          "method": "fileToolsRequireApprovalAndReturnNativeToolResults",
+          "outcome": "passed"
+        },
+        {
+          "method": "reassemblesOpenAiToolFragmentsAndUsesMatchingToolCallIds",
+          "outcome": "passed"
+        },
+        {
+          "method": "requiresSeparateApprovalsForCommandsInTheSameResponse",
+          "outcome": "passed"
+        },
+        {
+          "method": "deniesCommandsAndReportsTheDenialToTheModel",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancelsAnExecutingCommandAndDoesNotRequestAnotherModelTurn",
+          "outcome": "passed"
+        },
+        {
+          "method": "stopsARepeatingToolLoopAfterTwelveModelRounds",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsInvalidToolArgumentsBeforeStartingAnyProcess",
+          "outcome": "passed"
+        },
+        {
+          "method": "continuesUnlimitedRoundsUntilTheModelAnswersAcrossChatProtocols",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancelsAnUnapprovedCommandWithoutStartingIt",
+          "outcome": "passed"
+        },
+        {
+          "method": "remembersFileToolApprovalOnlyForThatAgentAndOperationInThatSession",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancelledFileApprovalDoesNotWrite",
+          "outcome": "passed"
+        },
+        {
+          "method": "streamsOllamaToolsAndFeedsCommandOutputBackToTheModel",
+          "outcome": "passed"
+        },
+        {
+          "method": "summarizesReadActivityWhileKeepingSourceInModelContext",
+          "outcome": "passed"
+        },
+        {
+          "method": "usesTheExecutingSubagentsPolicyAndRestoresThePrimaryAgent",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.ConfigInitWizardTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "acceptsUnlimitedRoundsInAllRoundLimitFields",
+          "outcome": "passed"
+        },
+        {
+          "method": "retriesInvalidAnswersAndAllowsAnUnauthenticatedProvider",
+          "outcome": "passed"
+        },
+        {
+          "method": "generatesTheExampleShapeWithValidatedAnswersAndEffectivePermissions",
+          "outcome": "passed"
+        },
+        {
+          "method": "acceptsCustomNamesAndEscapesJsonValues",
+          "outcome": "passed"
+        },
+        {
+          "method": "treatsEofAsCancellationRatherThanImplicitDefaults",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.ConfigInitializerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "createsPrivateFilesAndDirectoriesOnPosixFilesystems",
+          "outcome": "passed"
+        },
+        {
+          "method": "preservesCustomizationsAndFillsInMissingFilesOnRerun",
+          "outcome": "passed"
+        },
+        {
+          "method": "generatesSchemaValidConfigurationAndLoadableDefaultAgents",
+          "outcome": "passed"
+        },
+        {
+          "method": "reportsConflictingDestinationInsteadOfTreatingItAsAnExistingConfig",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.ConfigSchemaTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "rejectsInvalidProviderOptionsModelsAndLimits",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsMalformedSettingsAndUnknownFields",
+          "outcome": "passed"
+        },
+        {
+          "method": "validatesExamplesAndSupportedConfigurationVariants",
+          "outcome": "passed"
+        },
+        {
+          "method": "validatesProviderProxySettings",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.ConfigurationUpdateTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "rejectsConcurrentChangesAndKeepsTheNewerFile",
+          "outcome": "passed"
+        },
+        {
+          "method": "loadsExistingValuesAndAtomicallyUpdatesWithoutDroppingOtherSettings",
+          "outcome": "passed"
+        },
+        {
+          "method": "canRepairInvalidJsonOnlyAfterExplicitSaveAndCanClearAnExistingApiKey",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.PermissionConfigTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "exposesStructuredRequestsAndIgnoresStalePanelConfirmations",
+          "outcome": "passed"
+        },
+        {
+          "method": "requiresASingleUseApprovalForEachChatAndLocksAgentSelection",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsInvalidPermissionValuesAndMalformedMarkdown",
+          "outcome": "passed"
+        },
+        {
+          "method": "matchesLiteralRegexCharactersAndHonorsTheLastMatchingRule",
+          "outcome": "passed"
+        },
+        {
+          "method": "mergesGlobalJsonAndAgentJsonAndMarkdownRules",
+          "outcome": "passed"
+        },
+        {
+          "method": "checksBothCallerDelegationAndCalleeChatPermissions",
+          "outcome": "passed"
+        },
+        {
+          "method": "blocksDeniedChatBeforeChangingHistoryOrCallingTheClient",
+          "outcome": "passed"
+        },
+        {
+          "method": "guardsExportsAndNeverOverwritesAnExistingFile",
+          "outcome": "passed"
+        },
+        {
+          "method": "retainsPendingExportApprovalWhenGenerationCompletes",
+          "outcome": "passed"
+        },
+        {
+          "method": "preservesExistingActionsAsksForCommandsAndDeniesUnavailableToolsByDefault",
+          "outcome": "passed"
+        },
+        {
+          "method": "clearsAndCancelsPendingApprovalsWithoutExecutingThem",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.ProviderCliTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "fusionBootstrapsProviderCommandsWithoutATerminalAndPersistsExplicitSelections",
+          "outcome": "passed"
+        },
+        {
+          "method": "cliLoginUsesTheSameOAuthAndNeverPrintsTokensOrIdentityHintUrls",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.app.ProviderConfigTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "streamsOllamaWithoutProviderAuthentication",
+          "outcome": "passed"
+        },
+        {
+          "method": "switchesBetweenProvidersWithIndependentConnectionsAndAgentModels",
+          "outcome": "passed"
+        },
+        {
+          "method": "streamsOpenAiEventsAndSendsAuthenticationAndSelectedAgentOptions",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsIncompleteStreamsProviderErrorsAndToolCalls",
+          "outcome": "passed"
+        },
+        {
+          "method": "reportsHttpErrorsWithoutEchoingApiKey",
+          "outcome": "passed"
+        },
+        {
+          "method": "validatesProviderReferencesAndConfigurationTypes",
+          "outcome": "passed"
+        },
+        {
+          "method": "resolvesProviderModelNamesLimitsAndAgentTemperatures",
+          "outcome": "passed"
+        },
+        {
+          "method": "excludesVisualDemoFromModelHistoryAndKeepsTheActiveAgentDuringGeneration",
+          "outcome": "passed"
+        },
+        {
+          "method": "routesEachProviderThroughItsOwnProxyAndPreservesDirectRequests",
+          "outcome": "passed"
+        },
+        {
+          "method": "acceptsOptionalLabelsAuthenticationLimitsAndTemperatures",
+          "outcome": "passed"
+        },
+        {
+          "method": "switchesAgentsAndRejectsUnknownModelsWithoutChangingSelection",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsInvalidProxySettingsWithoutIncludingTheirValues",
+          "outcome": "passed"
+        },
+        {
+          "method": "preservesOllamaConfigurationAndTemperatureOptions",
+          "outcome": "passed"
+        },
+        {
+          "method": "routesOllamaChatAndModelDiscoveryThroughItsProxy",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.auth.BrowserLauncherTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "selectsPlatformOpenersWithTheEntireAuthorizationUriAsOneArgument",
+          "outcome": "passed"
+        },
+        {
+          "method": "passesTheUrlLiterallyWithoutExecutingShellMetacharacters",
+          "outcome": "passed"
+        },
+        {
+          "method": "interruptedLaunchPreservesCancellation",
+          "outcome": "passed"
+        },
+        {
+          "method": "unavailableOrFailingOpenersAllowManualAuthorization",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.auth.CredentialStoreTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "honorsEarliestRefreshAndRetainsCredentialsOnTemporaryFailuresButClearsRevokedTokens",
+          "outcome": "passed"
+        },
+        {
+          "method": "coordinatesRotationAcrossSeparateJvmProcesses",
+          "outcome": "passed"
+        },
+        {
+          "method": "refusesCredentialSymlinksAndDynamicIds",
+          "outcome": "passed"
+        },
+        {
+          "method": "revokesTheRenewableSessionBeforeClearingOnlyThatAccountsTokens",
+          "outcome": "passed"
+        },
+        {
+          "method": "prefersVaultSecretsAndAtomicallyReplacesReferencesWithoutWritingTokensToDisk",
+          "outcome": "passed"
+        },
+        {
+          "method": "serializesConcurrentRefreshAndCommitsTheRotatedSetAtomically",
+          "outcome": "passed"
+        },
+        {
+          "method": "apiKeyLogoutOnlyClearsTheSelectedAccountAndKeepsRegistrationMetadata",
+          "outcome": "passed"
+        },
+        {
+          "method": "persistsWithPrivatePermissionsAtomicReplacementAndStableHostAcrossRestarts",
+          "outcome": "passed"
+        },
+        {
+          "method": "uncertainRefreshNeverReusesAPossiblyRotatedTokenAndReauthorizationRecovers",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.auth.OAuthTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "timeoutAndCancellationCloseTheLoopbackListener",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsInvalidStateDuplicateParametersWrongPathAndMethodWithoutConsumingAttempt",
+          "outcome": "passed"
+        },
+        {
+          "method": "refusesConsentFailureMissingClientAndUnexpectedReturningClient",
+          "outcome": "passed"
+        },
+        {
+          "method": "retainsIdentityWithoutPlanPermissionAndSupportsIndependentRegistrationsWithTheSameEmail",
+          "outcome": "passed"
+        },
+        {
+          "method": "retainsAValidatedIdentityEvenWhenNoInferenceTokensWereGranted",
+          "outcome": "passed"
+        },
+        {
+          "method": "pkceMatchesTheRfc7636Vector",
+          "outcome": "passed"
+        },
+        {
+          "method": "validatesNonceSignatureIssuerAudienceExpiryAndSubjectBeforeSaving",
+          "outcome": "passed"
+        },
+        {
+          "method": "expiredAuthorizationCodeRestartsWithFreshPkceAndTheIssuedClient",
+          "outcome": "passed"
+        },
+        {
+          "method": "dynamicallyRegistersValidatesAndReusesAnIssuedClientWithTheExactRedirect",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.auth.UsagePreferencesTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "persistsVisibilityPreservesProviderSelectionAndValidatesThresholds",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.provider.ProviderServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "discoversProvidersPersistsSelectionsAndKeepsSeparateAccounts",
+          "outcome": "passed"
+        },
+        {
+          "method": "projectPolicyBlocksCloudRequestsAndModelDiscoveryWithoutBreakingLocalSelection",
+          "outcome": "passed"
+        },
+        {
+          "method": "persistsProviderAccountHistoryPartialFailuresAndResumesWithTheOriginalAccount",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.provider.ResponsesProviderTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "listsOnlyVisibleAccountModelsAndAdaptsTheRequestWithBearerAndHistory",
+          "outcome": "passed"
+        },
+        {
+          "method": "reportsAdmissionAndStructuredErrorsWithRequestIdsWithoutFallingBack",
+          "outcome": "passed"
+        },
+        {
+          "method": "collectsTerminalUsageForSuccessIncompleteAndFailureWithoutCountingSubsetsTwice",
+          "outcome": "passed"
+        },
+        {
+          "method": "executesExistingFunctionToolsOnlyAfterCompletedAndReplaysTheirResults",
+          "outcome": "passed"
+        },
+        {
+          "method": "deniesInferenceWhenPlanScopeIsAbsent",
+          "outcome": "passed"
+        },
+        {
+          "method": "nonJsonAdmissionFailuresRetainHttpStatusAndRequestId",
+          "outcome": "passed"
+        },
+        {
+          "method": "routesBuiltInModelDiscoveryAndResponsesThroughConfiguredProxies",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancellationInterruptsABlockedResponseReadAndRetainsTheReceivedDeltas",
+          "outcome": "passed"
+        },
+        {
+          "method": "malformedStoredTokensCannotLeakThroughHttpHeaderValidationErrors",
+          "outcome": "passed"
+        },
+        {
+          "method": "apiKeysUseIndependentCredentialsAndTheStandardModelCatalog",
+          "outcome": "passed"
+        },
+        {
+          "method": "requiresTerminalSuccessAndKeepsPartialTextOnQuotaFailureIncompleteOrTruncatedStreams",
+          "outcome": "passed"
+        },
+        {
+          "method": "continuesUnlimitedToolRoundsUntilTheModelAnswers",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.session.CliSessionTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "routesLegacyAndNewArgumentsAndRejectsAmbiguousOptions",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancelsInitializationOnEofBeforeCreatingFiles",
+          "outcome": "passed"
+        },
+        {
+          "method": "recoversAfterActualProcessHaltAndReleasesItsSessionLock",
+          "outcome": "passed"
+        },
+        {
+          "method": "reopensAcrossTwoJvmsAndRunsRealFusionCliListExportDeleteAndHelp",
+          "outcome": "passed"
+        },
+        {
+          "method": "coordinatesSessionLocksBetweenRealProcessesAndReleasesAfterKill",
+          "outcome": "passed"
+        },
+        {
+          "method": "initializesConfigurationThroughFusionWithoutOpeningTheSessionDatabase",
+          "outcome": "passed"
+        },
+        {
+          "method": "asksForSettingsAndWritesTheAnswersWithoutEchoingTheApiKey",
+          "outcome": "passed"
+        },
+        {
+          "method": "writesDifferentSessionsFromConcurrentProcessesWithoutCorruption",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.session.ContextServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "includesProjectInstructionsAndAllowsExplicitModelReplacement",
+          "outcome": "passed"
+        },
+        {
+          "method": "reconstructsInstructionsOrderedTurnsAndNativeToolAssociationsWithoutVisualOrReasoningParts",
+          "outcome": "passed"
+        },
+        {
+          "method": "excludesOrphanedToolCallsAfterACrash",
+          "outcome": "passed"
+        },
+        {
+          "method": "keepsWholeRecentTurnsAndReportsOmissionsWithoutDeletingHistory",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.session.ParityAuditTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "characterizesCompoundShellCommandBypassingAnExplicitCommandDeny",
+          "outcome": "passed"
+        },
+        {
+          "method": "buildReadsEditsAndRunsAJavaTestThroughNativeToolRounds",
+          "outcome": "passed"
+        },
+        {
+          "method": "characterizesPersistedBuildPromptSurvivingSwitchToPlan",
+          "outcome": "passed"
+        },
+        {
+          "method": "characterizesManualSubagentIsolationWithoutAChildSessionAndRestoresHistory",
+          "outcome": "passed"
+        },
+        {
+          "method": "interruptedToolIsNotReplayedAfterReopeningTheDatabase",
+          "outcome": "passed"
+        },
+        {
+          "method": "planExplicitDenyBlocksAnUnadvertisedWriteAtExecution",
+          "outcome": "passed"
+        },
+        {
+          "method": "characterizesMissingStructuredTaskTool",
+          "outcome": "passed"
+        },
+        {
+          "method": "confinesDedicatedToolsAgainstTraversalSymlinksAndFictionalSecretRead",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.session.PersistentStreamingTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "buffersDeltasWithoutTokenWritesAndFlushesPeriodicallyAndAtCompletion",
+          "outcome": "passed"
+        },
+        {
+          "method": "interruptionFlushesAndPreventsConcurrentGenerationInAnotherInstance",
+          "outcome": "passed"
+        },
+        {
+          "method": "persistsToolCallsResultsAndExecutionStatusAndRestoresTheirNativeProtocol",
+          "outcome": "passed"
+        },
+        {
+          "method": "failedStreamNeverConvertsTextFragmentsIntoExactTokenCounts",
+          "outcome": "passed"
+        },
+        {
+          "method": "recordsFinalUsagePerHttpRoundAndRestoresItWithTheSession",
+          "outcome": "passed"
+        },
+        {
+          "method": "resumesAcrossCompleteServiceReinitializationAndActuallySendsPriorContextToProvider",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancellationBeforeFinalResponsePersistsAnInterruptedUnknownInvocation",
+          "outcome": "passed"
+        },
+        {
+          "method": "savesPartialResponseOnNetworkErrorAndRetainsItAfterRestart",
+          "outcome": "passed"
+        },
+        {
+          "method": "cancellationAndShutdownFlushPendingTextBeforeReleasingTheSession",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.session.ProjectServiceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "identifiesGitRootSymlinksAndSeparateWorktreesWithoutUsingRemoteAsIdentity",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.session.SqlitePersistenceTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "resolvesDataLocationsAndProtectsAgainstRepositoryStorageAndTraversal",
+          "outcome": "passed"
+        },
+        {
+          "method": "recoversAbandonedGenerationButDoesNotInterruptAnotherLiveInstance",
+          "outcome": "passed"
+        },
+        {
+          "method": "failedMigrationRollsBackAllSchemaChangesAndPreservesExistingTables",
+          "outcome": "passed"
+        },
+        {
+          "method": "upgradesVersionOneWithoutLosingSessionsOrMessages",
+          "outcome": "passed"
+        },
+        {
+          "method": "persistsOrderedMessagesAndCascadesDeletesIncludingPartsAndTools",
+          "outcome": "passed"
+        },
+        {
+          "method": "rejectsFutureSchemaWithoutChangingExistingData",
+          "outcome": "passed"
+        },
+        {
+          "method": "forksFullHistoryWithoutChangingParentAndPreservesChildrenOnParentDelete",
+          "outcome": "passed"
+        },
+        {
+          "method": "rollsBackMultipleEntitiesWhenAnOperationFails",
+          "outcome": "passed"
+        },
+        {
+          "method": "resumesTheMostRecentlyOpenedSessionAndPersistsRenaming",
+          "outcome": "passed"
+        },
+        {
+          "method": "isolatesProjectsAndRejectsCrossProjectAccess",
+          "outcome": "passed"
+        },
+        {
+          "method": "upgradesVersionTwoWithoutChangingExistingConversations",
+          "outcome": "passed"
+        },
+        {
+          "method": "initializesMigratesAndReopensWithConfiguredPragmas",
+          "outcome": "passed"
+        },
+        {
+          "method": "serializesConcurrentWritersAcrossConnections",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.CanvasTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "keepsCaretVisibleWhenMovingBackThroughMultilineInput",
+          "outcome": "passed"
+        },
+        {
+          "method": "animatesOnlyTheFooterDuringGenerationAndLoopsIndefinitely",
+          "outcome": "passed"
+        },
+        {
+          "method": "keepsMultilineCodeColorsWhenWrappingAndSupportsLongFences",
+          "outcome": "passed"
+        },
+        {
+          "method": "truncatesWideCharactersWithoutSplittingSurrogatePairs",
+          "outcome": "passed"
+        },
+        {
+          "method": "usesAgentColorAndStopsProgressWhileIdleOrAwaitingApproval",
+          "outcome": "passed"
+        },
+        {
+          "method": "keepsControlsInsideNarrowAndSmallTerminals",
+          "outcome": "passed"
+        },
+        {
+          "method": "wrapsCodeBlocks",
+          "outcome": "passed"
+        },
+        {
+          "method": "displaysConfiguredProviderModelAndActiveAgent",
+          "outcome": "passed"
+        },
+        {
+          "method": "handlesWideGlyphsAndClipping",
+          "outcome": "passed"
+        },
+        {
+          "method": "hidesReadContentsAndStylesMarkdownInlineAndFencedCode",
+          "outcome": "passed"
+        },
+        {
+          "method": "showsApprovalControlsAndWaitingStatusEvenWhileGenerationIsRunning",
+          "outcome": "passed"
+        },
+        {
+          "method": "scrollsToEarlierMessagesWithoutLosingTheComposer",
+          "outcome": "passed"
+        },
+        {
+          "method": "stylesUserMessagesBulletsAndCodeCardsWithoutRawFences",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.ChatConfigurationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "cancellingTheModalDoesNotWriteConfigurationOrLoseTheDraft",
+          "outcome": "passed"
+        },
+        {
+          "method": "configCommandSavesInsideChatOffersRestartAndPreservesDraftAndConversation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.ChatHelpTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "closingHelpDoesNotCancelGeneration",
+          "outcome": "passed"
+        },
+        {
+          "method": "opensHelpWithoutAddingChatMessagesAndPreservesTheDraftFromTheShortcut",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.ChatRestartTerminalTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "processesInputAfterRestartWithFreshServicesOnTheSameTerminal",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.ConfigurationModalTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "navigatesEditsValidatesAndRequiresSeparateSaveAndRestartChoices",
+          "outcome": "passed"
+        },
+        {
+          "method": "failedSaveKeepsTheFormForRetryWithoutRequestingARestart",
+          "outcome": "passed"
+        },
+        {
+          "method": "masksExistingSecretsClipsSafelyAndOffersLaterOrCancellation",
+          "outcome": "passed"
+        },
+        {
+          "method": "bracketedPasteCannotSaveRestartOrInjectNewlines",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.EditorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "editsUnicodeWithoutSplittingSurrogates",
+          "outcome": "passed"
+        },
+        {
+          "method": "multilinePasteDoesNotTriggerSubmission",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.HelpModalTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "clampsScrollingWhenResizingAndHandlesTinyTerminals",
+          "outcome": "passed"
+        },
+        {
+          "method": "groupsCommandsInABorderedPopupAndKeepsTheBackground",
+          "outcome": "passed"
+        },
+        {
+          "method": "scrollsThroughEveryCommandWithoutClippingDescriptionsOnNarrowTerminals",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.PermissionPromptTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "nonToolRequestsOfferOnlyOnceAndReject",
+          "outcome": "passed"
+        },
+        {
+          "method": "rendersSelectedOptionScopeAndExpandedDetailsWithoutACursor",
+          "outcome": "passed"
+        },
+        {
+          "method": "cyclesOptionsAndResetsForEachRequest",
+          "outcome": "passed"
+        },
+        {
+          "method": "scrollsLongDetailsAndSupportsNarrowTerminals",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.ProviderModalTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "cancellingAuthenticationDoesNotSaveCredentialsOrLoseConversation",
+          "outcome": "passed"
+        },
+        {
+          "method": "modalSupportsKeyboardFilteringResizingAndNeverPaintsApiKeys",
+          "outcome": "passed"
+        },
+        {
+          "method": "connectStartsOAuthReportsConnectedSelectsModelAndLogoutPreservesConversation",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.SessionDeletionTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "deletesFromThePopupWithTheDeleteKeyAndKeepsItOpen",
+          "outcome": "passed"
+        },
+        {
+          "method": "deletesOtherSessionsWithoutChangingTheChatAndClearsTheDeletedCurrentSession",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.SessionPickerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "rendersActiveSelectionStatusAndMetadataAcrossTerminalSizes",
+          "outcome": "passed"
+        },
+        {
+          "method": "forgetsDeletedDraftsWithoutLosingOtherSessionsDrafts",
+          "outcome": "passed"
+        },
+        {
+          "method": "confirmsTheSelectedSessionAndCancelsWithoutChangingTheFilter",
+          "outcome": "passed"
+        },
+        {
+          "method": "navigatesFiltersSelectsAndClosesWithoutChangingOriginalList",
+          "outcome": "passed"
+        },
+        {
+          "method": "preservesDraftsBySessionAndResetsViewportOnEverySwitch",
+          "outcome": "passed"
+        },
+        {
+          "method": "showsDeletionErrorsWithoutRemovingTheSession",
+          "outcome": "passed"
+        },
+        {
+          "method": "removesRowsWhilePreservingFilterAndClampingSelectionIncludingTheLastSession",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.SyntaxHighlighterTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "preservesMarkdownAndAsciidocSourceButRendersInlineMarkup",
+          "outcome": "passed"
+        },
+        {
+          "method": "usesPlainTextForUnknownLanguagesAndPreservesDiffColors",
+          "outcome": "passed"
+        },
+        {
+          "method": "colorsKeywordsStringsNumbersAndCommentsWithoutChangingSource",
+          "outcome": "passed"
+        },
+        {
+          "method": "supportsLanguageAliasesAndFileNames",
+          "outcome": "passed"
+        },
+        {
+          "method": "colorsXmlTagsAttributesAndMultilineComments",
+          "outcome": "passed"
+        },
+        {
+          "method": "preservesMultilineCommentAndStringStateWithinOneBlock",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.TerminalPainterTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "leavesAnUnchangedFrameAndCursorUntouched",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.tui.TokenUsageSidebarTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "usageModalScrollsIndependentlyAndFitsTinyTerminals",
+          "outcome": "passed"
+        },
+        {
+          "method": "respectsVisibilityAndLayoutConstraintsForAllModes",
+          "outcome": "passed"
+        },
+        {
+          "method": "alignsNumbersColorsContextBarAndDisplaysUnavailableMetrics",
+          "outcome": "passed"
+        },
+        {
+          "method": "reflowKeepsTheVisibleMessageWhenSidebarChangesWidth",
+          "outcome": "passed"
+        },
+        {
+          "method": "formatsCountersWithoutChangingRawValues",
+          "outcome": "passed"
+        },
+        {
+          "method": "rendersBesideEditorAndRetainsCaretAndUnicodeAcrossResizes",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.usage.TokenUsageRepositoryTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "upsertsIdempotentlyPersistsAcrossRestartAndDoesNotCopyForkConsumption",
+          "outcome": "passed"
+        },
+        {
+          "method": "concurrentConnectionsDoNotDuplicateAnInvocationOrRecoverActiveOtherProcess",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.usage.TokenUsageTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "parsesReportedOllamaAndDoesNotAddCachedSubsetTwice",
+          "outcome": "passed"
+        },
+        {
+          "method": "parsesResponseDetailsAndPreservesZeroVersusUnknown",
+          "outcome": "passed"
+        },
+        {
+          "method": "aggregatesUnknownsEstimatesRetriesAndDeduplicatesLargeCounters",
+          "outcome": "passed"
+        },
+        {
+          "method": "contextUsesLastInputInsteadOfCumulativeConsumptionAndInvalidatesDifferentModel",
+          "outcome": "passed"
+        },
+        {
+          "method": "groupsMultipleProvidersAndModelsWithinOneSession",
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "class_name": "fr.openobject.ai.syleks.usage.UsageInvocationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testcases": [
+        {
+          "method": "measuresProviderSpeedOnlyWithPositiveGenerationDurationAndKeepsTimingsSeparate",
+          "outcome": "passed"
+        },
+        {
+          "method": "publishesOnlyStartAndTerminalWithoutCountingFragmentsAsTokens",
+          "outcome": "passed"
+        },
+        {
+          "method": "interruptionKeepsKnownUsageAndDoesNotPretendARequestCompleted",
+          "outcome": "passed"
+        }
+      ]
+    }
+  ]
+}

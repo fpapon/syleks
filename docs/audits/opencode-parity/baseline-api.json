@@ -1,0 +1,19 @@
+{
+  "release": {
+    "tag_name": "v1.19.3",
+    "published_at": "2026-10-16T12:31:52Z",
+    "target_commitish": "60c9be092129745688bb3c3a752affc6cbd66ede",
+    "html_url": "https://github.com/anomalyco/opencode/releases/tag/v1.19.3",
+    "prerelease": false,
+    "draft": false,
+    "immutable": true
+  },
+  "tag": {
+    "ref": "refs/tags/v1.19.3",
+    "object": {
+      "sha": "e3c4eb242585dcd77be1a867391b7c25fd47ce52",
+      "type": "commit",
+      "url": "https://api.github.com/repos/anomalyco/opencode/git/commits/e3c4eb242585dcd77be1a867391b7c25fd47ce52"
+    }
+  }
+}

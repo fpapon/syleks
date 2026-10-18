@@ -1,0 +1,28 @@
+[
+  {
+    "args": [
+      "--help"
+    ],
+    "exit_code": 0,
+    "stdout": "Syleks \u2014 persistent local AI sessions\nUsage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]\n       syleks config init [--defaults]\n       syleks session list\n       syleks session delete <id>\n       syleks session export <id>\n       syleks auth login|logout chatgpt [account-id]\n       syleks auth login openai-api\n       syleks auth status|accounts\n       syleks auth use <account-id>\n       syleks provider list|use <provider-id>\n       syleks model list|use <model-id>\nNo option: open the TUI and offer this project's sessions.\n-c: resume the latest session; create one if this project has none.\nconfig init: open the configuration TUI to create/update provider and model settings.\nIn chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.\nRedirected input uses line prompts; --defaults and redirected setup preserve existing files.\n--defaults: skip questions and use the bundled provider/model settings without an API key.\nExports are JSON on stdout and may contain confidential content. Redirect explicitly.\nSession IDs are restricted to the current project. Use --help for this message.\n\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "session",
+      "list"
+    ],
+    "exit_code": 0,
+    "stdout": "ID\tTITLE\tUPDATED_AT\tMODEL\tMESSAGES\tSTATUS\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "mcp",
+      "list"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "Syleks: Unknown arguments. Use --help for usage.\n"
+  }
+]

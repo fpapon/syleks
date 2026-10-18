@@ -1,0 +1,54 @@
+[INFO] --- compiler:3.16.0:compile (default-compile) @ syleks ---
+[INFO] Compiling 93 source files with javac [debug release 25] to target/classes
+[INFO] --- compiler:3.16.0:testCompile (default-testCompile) @ syleks ---
+[INFO] Compiling 48 source files with javac [debug release 25] to target/test-classes
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.040 s -- in fr.openobject.ai.syleks.session.PersistentStreamingTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.979 s -- in fr.openobject.ai.syleks.session.SqlitePersistenceTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.443 s -- in fr.openobject.ai.syleks.session.ParityAuditTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.068 s -- in fr.openobject.ai.syleks.session.ProjectServiceTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.485 s -- in fr.openobject.ai.syleks.session.CliSessionTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.225 s -- in fr.openobject.ai.syleks.session.ContextServiceTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.034 s -- in fr.openobject.ai.syleks.ai.OllamaChunkTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.099 s -- in fr.openobject.ai.syleks.ai.AgentToolsTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.118 s -- in fr.openobject.ai.syleks.ai.LocalCommandRunnerTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in fr.openobject.ai.syleks.app.ConfigurationUpdateTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.193 s -- in fr.openobject.ai.syleks.app.ConfigInitWizardTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.028 s -- in fr.openobject.ai.syleks.app.ConfigInitializerTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.405 s -- in fr.openobject.ai.syleks.app.CommandToolTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.139 s -- in fr.openobject.ai.syleks.app.AgentConfigTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.468 s -- in fr.openobject.ai.syleks.app.ProviderCliTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in fr.openobject.ai.syleks.app.ConfigSchemaTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.061 s -- in fr.openobject.ai.syleks.app.PermissionConfigTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in fr.openobject.ai.syleks.app.AppConfigTest
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.076 s -- in fr.openobject.ai.syleks.app.ProviderConfigTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.014 s -- in fr.openobject.ai.syleks.auth.UsagePreferencesTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in fr.openobject.ai.syleks.auth.BrowserLauncherTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.126 s -- in fr.openobject.ai.syleks.auth.CredentialStoreTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.923 s -- in fr.openobject.ai.syleks.auth.OAuthTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.155 s -- in fr.openobject.ai.syleks.provider.ResponsesProviderTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.630 s -- in fr.openobject.ai.syleks.provider.ProviderServiceTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.258 s -- in fr.openobject.ai.syleks.usage.TokenUsageRepositoryTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in fr.openobject.ai.syleks.usage.TokenUsageTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in fr.openobject.ai.syleks.usage.UsageInvocationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in fr.openobject.ai.syleks.tui.EditorTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.028 s -- in fr.openobject.ai.syleks.tui.CanvasTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.211 s -- in fr.openobject.ai.syleks.tui.ChatConfigurationTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in fr.openobject.ai.syleks.tui.SessionPickerTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in fr.openobject.ai.syleks.tui.SyntaxHighlighterTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.362 s -- in fr.openobject.ai.syleks.tui.SessionDeletionTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.034 s -- in fr.openobject.ai.syleks.tui.TokenUsageSidebarTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.089 s -- in fr.openobject.ai.syleks.tui.ChatRestartTerminalTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.054 s -- in fr.openobject.ai.syleks.tui.ChatHelpTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in fr.openobject.ai.syleks.tui.PermissionPromptTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in fr.openobject.ai.syleks.tui.ConfigurationModalTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in fr.openobject.ai.syleks.tui.HelpModalTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.264 s -- in fr.openobject.ai.syleks.tui.ProviderModalTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in fr.openobject.ai.syleks.tui.TerminalPainterTest
+[INFO] Tests run: 246, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Building jar: /home/fpa/planets/tatooine/openobject/syleks/target/syleks-0.1.0-SNAPSHOT.jar
+[INFO] --- shade:3.6.2:shade (default) @ syleks ---
+[INFO] --- spotless:3.10.4:check (check-formatting) @ syleks ---
+[INFO] Spotless.Java is keeping 141 files clean - 0 needs changes to be clean, 141 were already clean, 0 were skipped because caching determined they were already clean
+[INFO] BUILD SUCCESS
+[INFO] Total time:  29.838 s
+[INFO] Finished at: 2026-10-18T20:37:51+02:00

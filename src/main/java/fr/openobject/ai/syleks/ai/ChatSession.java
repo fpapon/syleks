@@ -951,6 +951,9 @@ public class ChatSession {
             case "open" -> service.open(argument);
             case "resume" -> service.resume(model);
             case "rename" -> service.rename(argument);
+            case "delete" -> {
+                if (!service.delete(argument)) return;
+            }
             case "fork" -> {
                 if (!argument.isBlank()) service.open(argument);
                 service.fork();
@@ -966,8 +969,8 @@ public class ChatSession {
             toolGrants.clear();
             pendingPermission = null;
             responsePrefix = "";
-            model = service.current().model();
-            if (providers != null) {
+            if (service.current() != null) model = service.current().model();
+            if (providers != null && service.current() != null) {
                 try {
                     providers.restore(
                             service.current().provider(), model, service.current().accountId());
@@ -977,7 +980,9 @@ public class ChatSession {
             }
             updateMetadata();
             status =
-                    switch (service.current().status()) {
+                    switch (service.current() == null
+                            ? fr.openobject.ai.syleks.session.model.SessionStatus.IDLE
+                            : service.current().status()) {
                         case INTERRUPTED -> "Interrupted";
                         case ACTIVE -> "In use";
                         default -> "Ready";
