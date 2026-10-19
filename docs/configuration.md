@@ -37,6 +37,7 @@ After saving, choose **Restart chat** to apply the settings, or **Later** to con
     plan.md
     architect.md
     reviewer.md
+    explore.md
 ```
 
 The configuration directory uses `HOME`, falling back to Java's `user.home`. `XDG_CONFIG_HOME` does not relocate it. New configuration directories/files get private permissions where supported. API keys entered in the form are stored in plaintext in `agent-config.json`; keep it private.
@@ -112,7 +113,7 @@ Set `options.proxy` independently on each provider to route its API calls throug
 
 The proxy URL requires the `http` scheme, a hostname and an explicit port from `1` to `65535`. An optional trailing slash is allowed; credentials, other paths, query parameters and fragments are rejected. HTTPS API requests use the proxy's CONNECT tunnel. Proxy authentication is not supported. Omit `proxy` to keep the Java HTTP client's default proxy behavior. Built-in entries (`ollama`, `chatgpt`, `openai-api`) accept only `options.proxy`; their endpoints and authentication remain configured through the existing settings. Proxy settings cover chat and model discovery, and do not change OAuth login or token refresh traffic. Restart after editing the file.
 
-`$schema` enables validation/completion in compatible editors using the schema beside the configuration. The repository also contains a [complete provider example](../examples/agent-config.json) and [schema](../agent-config.schema.json). Startup separately validates references and supported settings. Restart after hand edits.
+`$schema` enables validation/completion in compatible editors using the schema beside the configuration. The repository also contains a [full configuration example](../examples/agent-config.json) and [schema](../agent-config.schema.json). Startup separately validates references and supported settings. Restart after hand edits.
 
 ## Ollama configuration and environment variables
 
@@ -158,3 +159,86 @@ The optional `subagents` object adds finite child execution ceilings: `max_depth
 ## MCP servers
 
 Configure stdio or Streamable HTTP servers in `mcp`. Project definitions require an exact workspace entry in the global `mcp_trusted_projects` list. MCP credentials and permissions are independent of model providers. See [MCP servers](mcp.md) for configuration, OAuth and limits.
+
+## Complete configuration reference
+
+Use the [example catalog](../examples/README.md) to choose a full reference, a single-server configuration, or an Ollama configuration. Each is a complete JSON document; `permissions.json` is a merge fragment. The examples show supported combinations, rather than settings that every installation needs. Setup's bundled defaults differ from these examples.
+
+Only the global `~/.config/syleks/agent-config.json` configures providers, agents, global permissions and child limits. A project `.syleks/agent-config.json` supplies **only MCP definitions**, and only for an explicitly trusted launch workspace. For project agent customization, use `.syleks/agents/NAME.md`; for instructions, use `AGENTS.md`.
+
+### Top-level keys
+
+| Key | Type / default when omitted | Purpose |
+| --- | --- | --- |
+| `$schema` | String, optional | Editor schema path/URI; generated setup uses a schema beside the configuration |
+| `model` | String, optional | Default `provider/model`; overrides `ollama_model`; built-in providers are also valid prefixes |
+| `provider` | Object, empty | Named compatible servers and built-in proxy overrides |
+| `ollama_url` | String, `http://127.0.0.1:11434` | Ollama endpoint before `/api/chat`; overridden by `OLLAMA_URL` |
+| `ollama_model` | Model ID, `qwen3:8b` | Ollama fallback when `model` is absent; overridden by `OLLAMA_MODEL` |
+| `default_agent` | Agent name, `build` | Enabled `primary` or `all` agent to select on startup/restart |
+| `max_rounds` | Integer, `12` | `-1` or 1–1000 rounds per turn; agents may override |
+| `permission` | Decision or object | Overlay on built-in permissions; not a replacement unless using a blanket decision |
+| `agent` | Object, built-ins retained | Agent definitions/overrides keyed by filename-compatible name |
+| `subagents` | Object, finite defaults | Shared depth, parallelism, task, round and deadline limits; [ranges](subagents.md#limits-and-cancellation) |
+| `mcp` | Object, empty | At most 16 named stdio/HTTP servers; [server options](#mcp-server-fields) |
+| `mcp_trusted_projects` | Array, empty | Up to 128 exact absolute launch workspace paths allowed to supply project MCP overrides |
+
+There are no `providers`, `tools`, `system_prompt`, `instructions` or `agents` top-level settings. Use singular `provider` / `agent`, `permission`, `AGENT_SYSTEM_PROMPT`, and instruction files. Unknown settings are rejected by the schema; use it for editor checks. Startup also checks semantic constraints that JSON Schema cannot resolve, including agent/model references and incompatible MCP authentication options.
+
+### Provider and model fields
+
+| Path under `provider.ID` | Values and behavior |
+| --- | --- |
+| `name` | Optional nonblank display label; defaults to the provider ID |
+| `npm` | Optional `@ai-sdk/openai-compatible`; protocol selector only |
+| `options.baseURL` | Required for custom providers; HTTP(S) API base without credentials, query or fragment |
+| `options.apiKey` | Optional nonblank literal Bearer token; omit it for unauthenticated servers |
+| `options.proxy` | Optional `http://HOST:PORT`; no credentials; port 1–65535 |
+| `models.MODEL.name` | Optional display label; defaults to the raw model ID |
+| `models.MODEL.limit.context` | Optional positive integer up to 2147483647 |
+| `models.MODEL.limit.output` | Optional positive integer up to 2147483647; cannot exceed context when both are present |
+
+Custom providers require `options.baseURL`. Their `models` catalog is optional, but a selected custom model must be declared. Model IDs can include `/` (for example `remote/team/reasoner` selects provider `remote`, model `team/reasoner`). Provider IDs use letters, digits, `.`, `_` or `-`; model IDs additionally allow `:` and `/`. The schema gives exact length and character restrictions.
+
+Reserved entries `ollama`, `chatgpt` and `openai-api` accept only `options.proxy`. They do not accept custom URLs, API keys, names or model catalogs. Configure Ollama using its legacy keys/environment; configure built-in cloud authentication through [account commands](authentication.md). Provider JSON values are literal: `${NAME}`, `{env:NAME}`, `~` and relative file includes are not expanded by Syleks.
+
+### JSON agent fields
+
+Every [Markdown frontmatter field](agents.md#create-a-custom-agent) is also valid under `agent.NAME`: `description`, `mode`, `model`, `temperature`, `max_rounds`, `disable`, `hidden`, and `permission`. JSON additionally accepts `prompt`, a nonblank string containing the instructions. Markdown uses its body for the prompt and does not accept a `prompt:` frontmatter field.
+
+New agents default to their name as description, mode `all`, enabled and visible, no model/temperature/round override, and an empty prompt if JSON omits it. Existing agents retain omitted settings. Markdown requires a nonblank body unless `disable: true`. JSON string prompts can contain `\n` for line breaks. The [full JSON example](../examples/agent-config.json) and [complete Markdown definitions](../examples/README.md#install-agent-and-subagent-definitions) cover primary, subagent, all, hidden and disabled agents.
+
+`permission` may be `"deny"` / `"ask"` / `"allow"`, an object mapping operation names to decisions, or operation names to ordered target maps. The full reference enumerates every native operation and demonstrates `custom_greeting` and MCP rules. Custom permission entries do not install executable tools; [Java extensions](tools.md#java-extensions) must already be registered. `*` addresses all operations; broad rules must precede narrower exceptions. See [permission targets and precedence](tools-and-permissions.md#write-targeted-rules).
+
+### MCP server fields
+
+Fields live at `mcp.SERVER`. IDs start with a lowercase letter and contain up to 16 lowercase letters/digits or single interior underscores.
+
+| Field | Type / default | Applies to |
+| --- | --- | --- |
+| `type` | Required `stdio` or `http` | Both |
+| `enabled` | Boolean, `true` | Both; `false` prevents launch/connection |
+| `timeout_seconds` | Integer 1–300, `30` | Both |
+| `resources` / `prompts` | Booleans, `false` | Both; opt in to separate resource/prompt tools |
+| `command` | Required nonempty string array, at most 128 arguments | stdio; executable and literal arguments, no implicit shell |
+| `environment` | String map, at most 64 entries | stdio; added to the small inherited environment |
+| `url` | Required HTTP(S) endpoint | HTTP; no credentials, query or fragment |
+| `headers` | String map, at most 64 entries | HTTP; literal custom headers; transport-managed headers are forbidden |
+| `bearer_token_env` | Environment variable name | HTTP; reads the token from the environment, no simultaneous Authorization header |
+| `oauth` | Boolean, `false` | HTTP; cannot combine with bearer token or Authorization header |
+| `client_id` | Optional public OAuth client ID | HTTP with `oauth: true`; omit to use dynamic registration |
+| `scope` | Optional nonblank scope string | HTTP with `oauth: true` |
+
+`command`/`environment` cannot be used on HTTP servers; `url`/`headers`/`bearer_token_env` cannot be used on stdio servers. OAuth is HTTP-only. Disabled definitions are still validated. See [MCP](mcp.md) for header restrictions, environment inheritance, credential handling and protocol limits.
+
+### Files that are separate from agent-config.json
+
+| File | Settings |
+| --- | --- |
+| Provider selection `config.json` | Active provider/model/account references; sidebar and context color preferences |
+| `.syleks/project.json` | Project cloud policy, for example `{"allow_cloud": false}` |
+| Global/project `AGENTS.md` | Shared instructions loaded separately from agent definitions |
+| Global/project `agents/NAME.md` | Agent metadata and prompt overrides |
+| Global/project `skills/NAME/SKILL.md` | On-demand skill reference documents |
+
+Provider preferences and credentials honor an absolute `XDG_CONFIG_HOME`; legacy agent configuration and MCP credentials remain under `~/.config/syleks`. See [Storage and privacy](storage-and-privacy.md) for exact paths. Additional environment switches are `SYLEKS_ALLOW_CLOUD=false` ([cloud policy](providers.md#sessions-and-confidentiality)), `SYLEKS_CREDENTIAL_BACKEND=auto|secret-service|file` and `SYLEKS_AUTH_TIMEOUT_SECONDS` ([authentication](authentication.md)).

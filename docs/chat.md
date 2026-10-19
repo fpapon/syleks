@@ -57,3 +57,7 @@ Use `/demo` to preview code cards, tool activity, and a Java diff. The preview u
 This exports the displayed conversation as Markdown and asks for approval if your `save` policy requires it. Relative paths start in the launch directory. Existing files are never overwritten. Read activity remains a short summary in this export.
 
 For a complete structured export, use [session JSON export](sessions.md). Both formats can contain confidential information.
+
+## Try a specialist workflow
+
+With the [example configuration and agent definitions](../examples/README.md) installed, select `/agent build`, then send `@explore Find the configuration loader and explain its inputs, with file references`. A child runs with its explicit task and returns an answer. Use `/children` to open its history and `/parent` to return. `/permissions reviewer` shows another specialist's policy before invocation. Hidden agents such as the example Triage require their explicit name.

@@ -1,0 +1,198 @@
+{
+  "$schema": "../agent-config.schema.json",
+  "model": "local/qwen3:8b",
+  "provider": {
+    "local": {
+      "name": "Local server",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:8000/v1"
+      },
+      "models": {
+        "qwen3:8b": {
+          "name": "Qwen 3 8B",
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
+        }
+      }
+    }
+  },
+  "default_agent": "build",
+  "max_rounds": 20,
+  "permission": {
+    "*": "deny",
+    "chat": "allow",
+    "read": "allow",
+    "list": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "edit": "deny",
+    "write": "deny",
+    "apply_patch": "deny",
+    "bash": "deny",
+    "task": {
+      "*": "deny",
+      "explore": "allow",
+      "reviewer": "ask",
+      "triage": "ask"
+    },
+    "save": "ask",
+    "webfetch": {
+      "*": "deny",
+      "https://docs.example.com/*": "ask"
+    },
+    "websearch": "ask",
+    "skill": "deny",
+    "todoread": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "mcp_*": "deny",
+    "mcp_docs__t_search": "allow",
+    "custom_greeting": "deny"
+  },
+  "agent": {
+    "build": {
+      "description": "Implement and validate focused Java changes",
+      "mode": "primary",
+      "model": "local/qwen3:8b",
+      "temperature": 0.1,
+      "max_rounds": 30,
+      "disable": false,
+      "hidden": false,
+      "prompt": "Inspect relevant code, implement the requested change, and validate it. Report evidence and remaining limitations.",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "reviewer": "ask",
+          "triage": "ask"
+        },
+        "save": "ask",
+        "edit": "ask",
+        "write": "ask",
+        "apply_patch": "ask",
+        "bash": "ask",
+        "skill": "ask"
+      }
+    },
+    "plan": {
+      "description": "Inspect code and plan implementation",
+      "mode": "primary",
+      "temperature": 0.2,
+      "max_rounds": 10,
+      "prompt": "Inspect relevant code and propose a concrete implementation plan with validation steps.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "explore": {
+      "description": "Explore repository code without modifying files",
+      "mode": "subagent",
+      "temperature": 0.1,
+      "max_rounds": 12,
+      "prompt": "Find the requested code using read and search tools. Return evidence with file paths.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "reviewer": {
+      "description": "Review code for correctness and missing regression tests",
+      "mode": "subagent",
+      "temperature": 0.1,
+      "max_rounds": 10,
+      "prompt": "Review the supplied task and relevant source. Report actionable findings with file paths and suggested tests.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "triage": {
+      "description": "Classify an issue and identify the next investigation",
+      "mode": "all",
+      "temperature": 0.1,
+      "max_rounds": 6,
+      "hidden": true,
+      "prompt": "Inspect the reported issue, cite supporting code, distinguish observations from hypotheses, and propose the next investigation.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    }
+  },
+  "subagents": {
+    "max_depth": 3,
+    "max_parallel": 4,
+    "max_tasks": 32,
+    "max_rounds": 16,
+    "max_session_rounds": 128,
+    "timeout_seconds": 120
+  }
+}

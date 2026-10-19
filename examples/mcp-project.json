@@ -1,0 +1,20 @@
+{
+  "$schema": "../agent-config.schema.json",
+  "mcp": {
+    "local": {
+      "type": "stdio",
+      "enabled": false,
+      "command": [
+        "/absolute/path/to/mcp-server",
+        "--workspace",
+        "/absolute/path/to/project"
+      ],
+      "environment": {
+        "SERVER_MODE": "readonly"
+      },
+      "timeout_seconds": 30,
+      "resources": true,
+      "prompts": true
+    }
+  }
+}

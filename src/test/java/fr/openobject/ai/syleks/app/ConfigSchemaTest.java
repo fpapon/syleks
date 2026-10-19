@@ -49,9 +49,11 @@ class ConfigSchemaTest {
 
     @Test
     void validatesExamplesAndSupportedConfigurationVariants() throws Exception {
-        for (var file : List.of("examples/agent-config.json", "examples/permissions.json")) {
-            var errors = schema.validate(json.readTree(Files.readString(Path.of(file))));
-            assertTrue(errors.isEmpty(), () -> file + ": " + errors);
+        try (var files = Files.list(Path.of("examples"))) {
+            for (var file : files.filter(path -> path.toString().endsWith(".json")).toList()) {
+                var errors = schema.validate(json.readTree(Files.readString(file)));
+                assertTrue(errors.isEmpty(), () -> file + ": " + errors);
+            }
         }
         for (var content :
                 List.of(

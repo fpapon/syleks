@@ -74,3 +74,20 @@ See [Storage and privacy](storage-and-privacy.md) before restoring, moving, or m
 - If a forced stop leaves your shell in an unusual terminal mode, run `reset` in that shell.
 
 For a visual check without invoking tools, use `/demo`. Its content is simulated. When reporting a problem, include your Syleks build, Java version, terminal, the command you ran, and a redacted error message. Avoid sharing API keys, confidential prompts, raw session exports, or private tool output.
+
+## Configuration example and agent-definition problems
+
+| Symptom | What to check |
+| --- | --- |
+| Copied example still uses an old policy or model | Global/project Markdown overrides JSON. Check the same-named files in every loaded directory, then `/restart`. |
+| Editor cannot find the schema after copying | Change the example's `$schema` to `./agent-config.schema.json` when using the setup-created local schema. |
+| Example proxy fails | Remove `options.proxy` unless you have configured the placeholder proxy for a real service. |
+| Provider receives `${KEY}` as its key | JSON values are literal; use a real private `apiKey` or the built-in credential flow. MCP alone supports `bearer_token_env`. |
+| Project JSON provider/agent settings have no effect | Only trusted project MCP settings load from `.syleks/agent-config.json`. Use global JSON and project `.syleks/agents/NAME.md`. |
+| Hidden agent is missing from the list | Use its explicit name. Disabled agents cannot run at all. |
+| Frontmatter fails to parse | Use supported scalar fields and nested permission maps; quote `"*"` keys, use actual booleans, and put the prompt in the body. Full YAML is unsupported. |
+| Child has read permission but cannot inspect files | Every ancestor must also permit read/search. `grep` additionally checks `read`. |
+| Unlimited agent still hits a child limit | Shared child round/deadline/depth limits and durable root quotas still apply. Start a new root for a fresh durable budget. |
+| MCP example does not connect | Example entries are disabled. Configure a real endpoint/executable and credentials, then enable deliberately and restart. |
+
+Compare your installation with the [example catalog](../examples/README.md), [full field reference](configuration.md#complete-configuration-reference), and [complete Markdown definitions](agents.md#create-a-custom-agent).

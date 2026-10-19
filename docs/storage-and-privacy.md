@@ -8,8 +8,15 @@
 | --- | --- |
 | Configuration and API keys | `~/.config/syleks/agent-config.json` |
 | Global agent definitions | `~/.config/syleks/agents/` |
-| Launch-directory agent definitions | `.syleks/agents/` |
-| Shared project instructions | `AGENTS.md` at the project root |
+| Project agent definitions | `.syleks/agents/` from Git root down to launch directory |
+| Local JSON schema | `~/.config/syleks/agent-config.schema.json` |
+| Global instructions | `~/.config/syleks/AGENTS.md` |
+| Skill references | `~/.config/syleks/skills/NAME/SKILL.md` or launch workspace `.syleks/skills/NAME/SKILL.md` |
+| Trusted project MCP overrides | Launch workspace `.syleks/agent-config.json` |
+| Project cloud policy | `.syleks/project.json` in the project ancestry |
+| MCP OAuth credentials | `~/.config/syleks/mcp-auth/` |
+| Provider preferences and credentials | `$XDG_CONFIG_HOME/syleks/config.json` and `auth/`, otherwise `~/.config/syleks/` |
+| Shared project instructions | `AGENTS.md` from Git root down to launch directory |
 | Saved sessions for all projects | `~/.local/share/syleks/syleks.db` |
 
 The session database is independent of your current repository. Its data-directory priority is:
@@ -65,3 +72,9 @@ SQLite uses write-ahead logging, foreign-key checks, and a five-second busy time
 Deleting a session removes its associated records in the active database. It does not erase previous backups or guarantee secure erasure from disk. Forked sessions remain independent copies. See [Sessions](sessions.md) for export and deletion commands.
 
 Schema 6 adds indexed summary boundaries and a write-ahead native file-change journal. Recovering a pending file mutation only compares snapshots with current files; it never repeats an effect. Session deletion removes these records. JSON archives include snapshots and child usage, so protect them as carefully as the source files. Imported snapshots remain inactive. See [Sessions](sessions.md) for summary and undo limits.
+
+## Copying and sharing configuration
+
+The [configuration examples](../examples/README.md) contain placeholders, never working credentials. When adapting them, keep private backups of existing configuration and reconcile Markdown overrides rather than overwriting customized files. Custom provider `options.apiKey`, MCP literal `headers` and stdio `environment` can contain plaintext secrets. MCP `bearer_token_env` names a variable rather than storing its value in JSON.
+
+Agent prompts, global/project `AGENTS.md`, delegated task prompts and approved tool results can reach the selected model provider and persistent history. A specialist model override may select a different server. Inspect every configured provider and agent before using private project data. Setting `enabled: false` prevents an MCP connection, but its definition must still be valid.

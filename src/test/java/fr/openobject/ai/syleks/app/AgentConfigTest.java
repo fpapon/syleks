@@ -50,6 +50,54 @@ class AgentConfigTest {
     }
 
     @Test
+    void loadsDocumentedConfigurationsAndCompleteMarkdownDefinitions() throws IOException {
+        for (var example :
+                List.of(
+                        "agent-config.json",
+                        "agent-config-local.json",
+                        "agent-config-ollama.json")) {
+            write(
+                    home.resolve(".config/syleks/agent-config.json"),
+                    Files.readString(Path.of("examples", example)));
+            var configured = config();
+            assertEquals("build", configured.defaultAgent());
+            assertEquals(AgentDefinition.Mode.SUBAGENT, configured.agent("reviewer").mode());
+            assertEquals(30, configured.maxRounds("build"));
+            assertEquals(
+                    PermissionPolicy.Decision.ASK,
+                    configured.permissions("build").evaluate("edit", "/workspace/Example.java"));
+            assertEquals(
+                    PermissionPolicy.Decision.DENY,
+                    configured.permissions("reviewer").evaluate("edit", "/workspace/Example.java"));
+        }
+        write(
+                home.resolve(".config/syleks/agent-config.json"),
+                Files.readString(Path.of("examples/agent-config.json")));
+        try (var definitions = Files.list(Path.of("examples/agents"))) {
+            for (var definition :
+                    definitions.filter(path -> path.toString().endsWith(".md")).toList()) {
+                write(
+                        project.resolve(".syleks/agents").resolve(definition.getFileName()),
+                        Files.readString(definition));
+            }
+        }
+        var configured = config();
+        assertEquals("remote/team/reasoner", configured.agent("architect").model());
+        assertTrue(configured.agent("triage").hidden());
+        assertEquals(AgentDefinition.Mode.ALL, configured.agent("triage").mode());
+        assertFalse(configured.primaryAgents().contains("triage"));
+        assertThrows(IllegalArgumentException.class, () -> configured.agent("retired"));
+        assertTrue(configured.systemPrompt("reviewer").contains("For each finding"));
+        assertEquals(
+                PermissionPolicy.Decision.ALLOW,
+                configured.permissions("build").evaluate("task", "explore"));
+        assertEquals(
+                PermissionPolicy.Decision.DENY,
+                configured.permissions("explore").evaluate("bash", "mvn test"));
+        assertTrue(configured.mcpServers().values().stream().noneMatch(server -> server.enabled()));
+    }
+
+    @Test
     void preservesBuiltinAgentsWithoutCreatingDirectories() {
         var config = config();
         assertEquals(List.of("build", "plan"), config.primaryAgents());

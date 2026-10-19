@@ -156,3 +156,9 @@ Patterns are case-sensitive: `*` matches any text and `?` one character. They ar
 The **last matching rule wins**. Put broad rules first and narrower exceptions afterward. Rules combine in this order: defaults → global permissions → agent JSON → global agent Markdown → project-root agent Markdown → agent Markdown down to the launch directory. Agent rules can grant an action denied globally, so inspect them too. The example protects dedicated reads of those paths; it does not prevent an allowed shell command from reading them.
 
 `"permission": "deny"` denies every operation at that level; an operation key `"*"` also addresses all operations. Application loading of configuration, agent definitions, and shared project instructions is separate from model tool permissions.
+
+## Complete policies to adapt
+
+The [full JSON reference](../examples/agent-config.json) lists all native operations plus MCP and custom-tool examples. The [Build definition](../examples/agents/build.md) permits inspection and asks before edits, patches and commands; [Plan](../examples/agents/plan.md), [Explore](../examples/agents/explore.md) and [Reviewer](../examples/agents/reviewer.md) deny those effects. These policies are examples and differ from setup defaults. See the [installation guide](../examples/README.md) to reconcile existing Markdown overrides.
+
+For an approval-gated patch, permit `apply_patch` **and** `edit` for updates, or `write` for additions/deletions. For a delegated read/search task, the parent and child must both permit the necessary operations. A custom permission name only authorizes an already registered Java tool; it does not create one.

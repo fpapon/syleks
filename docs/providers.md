@@ -63,30 +63,8 @@ Extend by implementing/registering `LlmProvider`, with documented authorization 
 
 See [Authentication](authentication.md), OpenAI's [models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference) and [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
 
-## Implementation file inventory
+## Provider configuration examples
 
-Paths below are relative to the repository root.
+The [single-server example](../examples/agent-config-local.json) declares an OpenAI-compatible endpoint and model catalog. The [full reference](../examples/agent-config.json) adds a second provider, a model ID containing `/`, per-provider proxies and per-agent model selection. The [Ollama example](../examples/agent-config-ollama.json) uses the built-in adapter without a custom provider entry. See [installation](../examples/README.md) and [provider fields](configuration.md#provider-and-model-fields).
 
-| Change | Directory | Files |
-| --- | --- | --- |
-| Created | `docs` | `authentication.md`, `providers.md` |
-| Created | `src/main/java/fr/openobject/ai/syleks/ai` | `ToolSchemas.java` |
-| Created | `src/main/java/fr/openobject/ai/syleks/app` | `ProviderCommands.java` |
-| Created | `src/main/java/fr/openobject/ai/syleks/auth` | `AuthenticationService.java`, `BrowserLauncher.java`, `ChatGptOAuthService.java`, `CredentialStore.java`, `CredentialVault.java`, `Credentials.java`, `IdTokenValidator.java`, `OAuthHttp.java`, `OpenAiOAuthEndpoints.java`, `ProviderAccount.java`, `SecretServiceVault.java`, `TokenRefreshService.java` |
-| Created | `src/main/java/fr/openobject/ai/syleks/provider` | `ChatEvent.java`, `ChatEventListener.java`, `ChatGptLlmProvider.java`, `ChatRequest.java`, `LlmModel.java`, `LlmProvider.java`, `OllamaLlmProvider.java`, `OpenAiApiLlmProvider.java`, `ProviderCapabilities.java`, `ProviderConfiguration.java`, `ProviderException.java`, `ProviderRegistry.java`, `ProviderService.java`, `ResponsesLlmProvider.java` |
-| Created | `src/main/java/fr/openobject/ai/syleks/tui` | `ProviderModal.java` |
-| Created | `src/main/resources/db/migrations` | `V002__provider_accounts.sql` |
-| Created | `src/test/java/fr/openobject/ai/syleks/app` | `ProviderCliTest.java` |
-| Created | `src/test/java/fr/openobject/ai/syleks/auth` | `AuthFixture.java`, `AuthProcess.java`, `CredentialStoreTest.java`, `OAuthTest.java` |
-| Created | `src/test/java/fr/openobject/ai/syleks/provider` | `ProviderFixture.java`, `ProviderServiceTest.java`, `ResponsesProviderTest.java` |
-| Created | `src/test/java/fr/openobject/ai/syleks/tui` | `ProviderModalTest.java` |
-| Modified | `.` | `.gitignore`, `README.md`, `pom.xml` |
-| Modified | `docs` | `README.md`, `commands.md` |
-| Modified | `src/main/java/fr/openobject/ai/syleks/ai` | `ChatSession.java`, `OllamaClient.java` |
-| Modified | `src/main/java/fr/openobject/ai/syleks/app` | `AppConfig.java`, `Main.java` |
-| Modified | `src/main/java/fr/openobject/ai/syleks/session` | `AgentService.java`, `SessionService.java` |
-| Modified | `src/main/java/fr/openobject/ai/syleks/session/model` | `Session.java` |
-| Modified | `src/main/java/fr/openobject/ai/syleks/session/repository` | `SessionRepository.java` |
-| Modified | `src/main/java/fr/openobject/ai/syleks/session/storage` | `SqliteDatabase.java`, `SqliteRepositories.java` |
-| Modified | `src/main/java/fr/openobject/ai/syleks/tui` | `ChatRenderer.java`, `TerminalApp.java` |
-| Modified | `src/test/java/fr/openobject/ai/syleks/session` | `SqlitePersistenceTest.java` |
+Reserved `provider.ollama`, `provider.chatgpt` and `provider.openai-api` entries only configure `options.proxy`; use the existing account/login flow for cloud credentials. `options.apiKey` on a custom provider is a literal value in `agent-config.json`; it does not read `OPENAI_API_KEY` automatically. An agent's model override can move its requests to another configured provider, including when that agent runs as a child.

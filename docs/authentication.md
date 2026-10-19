@@ -113,3 +113,9 @@ Real OAuth/subscription inference has **not** been performed in this development
 6. With `allow_cloud: false`, verify cloud use fails while loopback Ollama works.
 
 Success depends on actual account authorization/eligibility. JVM packaging does not validate native-image builds, a macOS desktop/browser or a live system keyring.
+
+## Credentials in configuration examples
+
+The [full example](../examples/agent-config.json) separates three mechanisms: a literal `options.apiKey` for a custom compatible server, proxy-only settings for built-in authenticated providers, and disabled MCP bearer/OAuth servers. Replace or remove placeholder values; `${VARIABLE}` inside a provider key is sent literally. Built-in cloud accounts are managed with the login commands above, not agent frontmatter.
+
+MCP authentication is separate: `bearer_token_env` reads an explicitly named environment variable, while `oauth: true` uses `syleks mcp auth SERVER`. See [MCP authentication](mcp.md#oauth) and [configuration locations](configuration.md#files-that-are-separate-from-agent-configjson). Agent prompts and shared `AGENTS.md` instructions should contain no credentials.

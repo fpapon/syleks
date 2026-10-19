@@ -1,9 +1,14 @@
 {
   "$schema": "../agent-config.schema.json",
   "model": "local/qwen3:8b",
+  "ollama_url": "http://127.0.0.1:11434",
+  "ollama_model": "qwen3:8b",
+  "default_agent": "build",
+  "max_rounds": 20,
   "provider": {
     "local": {
       "name": "Local server",
+      "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "http://127.0.0.1:8000/v1"
       },
@@ -22,7 +27,8 @@
       "npm": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "https://models.example.com/v1",
-        "apiKey": "replace-with-your-api-key"
+        "apiKey": "replace-with-your-api-key",
+        "proxy": "http://proxy.example.com:8080"
       },
       "models": {
         "qwen3:8b": {
@@ -33,19 +39,280 @@
           }
         },
         "team/reasoner": {
-          "name": "Reasoning model"
+          "name": "Team reasoner"
         }
+      }
+    },
+    "ollama": {
+      "options": {
+        "proxy": "http://proxy.example.com:8080"
+      }
+    },
+    "chatgpt": {
+      "options": {
+        "proxy": "http://proxy.example.com:8080"
+      }
+    },
+    "openai-api": {
+      "options": {
+        "proxy": "http://proxy.example.com:8080"
       }
     }
   },
+  "permission": {
+    "*": "deny",
+    "chat": "allow",
+    "read": "allow",
+    "list": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "edit": "deny",
+    "write": "deny",
+    "apply_patch": "deny",
+    "bash": "deny",
+    "task": {
+      "*": "deny",
+      "explore": "allow",
+      "reviewer": "ask",
+      "triage": "ask"
+    },
+    "save": "ask",
+    "webfetch": {
+      "*": "deny",
+      "https://docs.example.com/*": "ask"
+    },
+    "websearch": "ask",
+    "skill": "deny",
+    "todoread": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "mcp_*": "ask",
+    "mcp_docs__t_search": "allow",
+    "custom_greeting": "ask"
+  },
+  "subagents": {
+    "max_depth": 3,
+    "max_parallel": 4,
+    "max_tasks": 32,
+    "max_rounds": 16,
+    "max_session_rounds": 128,
+    "timeout_seconds": 120
+  },
   "agent": {
     "build": {
+      "description": "Implement and validate focused Java changes",
+      "mode": "primary",
       "model": "local/qwen3:8b",
-      "temperature": 0.1
+      "temperature": 0.1,
+      "max_rounds": 30,
+      "disable": false,
+      "hidden": false,
+      "prompt": "Inspect relevant code, implement the requested change, and validate it. Report evidence and remaining limitations.",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "reviewer": "ask",
+          "triage": "ask"
+        },
+        "save": "ask",
+        "edit": "ask",
+        "write": "ask",
+        "apply_patch": "ask",
+        "bash": "ask",
+        "skill": "ask"
+      }
     },
     "plan": {
+      "description": "Inspect code and plan implementation",
+      "mode": "primary",
+      "temperature": 0.2,
+      "max_rounds": 10,
+      "prompt": "Inspect relevant code and propose a concrete implementation plan with validation steps.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "architect": {
+      "description": "Analyze design and implementation tradeoffs",
+      "mode": "primary",
       "model": "remote/team/reasoner",
-      "temperature": 0.2
+      "temperature": 0.2,
+      "max_rounds": 12,
+      "prompt": "Analyze requirements and source code. Explain tradeoffs, affected components, and a practical implementation plan.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "reviewer": "ask"
+        },
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "explore": {
+      "description": "Explore repository code without modifying files",
+      "mode": "subagent",
+      "temperature": 0.1,
+      "max_rounds": 12,
+      "prompt": "Find the requested code using read and search tools. Return evidence with file paths.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "reviewer": {
+      "description": "Review code for correctness and missing regression tests",
+      "mode": "subagent",
+      "temperature": 0.1,
+      "max_rounds": 10,
+      "prompt": "Review the supplied task and relevant source. Report actionable findings with file paths and suggested tests.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "triage": {
+      "description": "Classify an issue and identify the next investigation",
+      "mode": "all",
+      "temperature": 0.1,
+      "max_rounds": 6,
+      "hidden": true,
+      "prompt": "Inspect the reported issue, cite supporting code, distinguish observations from hypotheses, and propose the next investigation.",
+      "permission": {
+        "chat": "allow",
+        "read": "allow",
+        "list": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "apply_patch": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "save": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "skill": "deny",
+        "todoread": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "mcp_*": "deny"
+      }
+    },
+    "retired": {
+      "description": "Disabled legacy specialist",
+      "mode": "subagent",
+      "disable": true,
+      "hidden": true,
+      "prompt": "This specialist is retired.",
+      "permission": "deny"
+    }
+  },
+  "mcp_trusted_projects": [],
+  "mcp": {
+    "local": {
+      "type": "stdio",
+      "enabled": false,
+      "command": [
+        "/absolute/path/to/mcp-server",
+        "--workspace",
+        "/absolute/path/to/project"
+      ],
+      "environment": {
+        "SERVER_MODE": "readonly"
+      },
+      "timeout_seconds": 30,
+      "resources": true,
+      "prompts": true
+    },
+    "docs": {
+      "type": "http",
+      "enabled": false,
+      "url": "https://mcp.example.com/mcp",
+      "headers": {
+        "X-Team": "example"
+      },
+      "bearer_token_env": "DOCS_MCP_TOKEN",
+      "timeout_seconds": 30,
+      "resources": true,
+      "prompts": true,
+      "oauth": false
+    },
+    "oauth_docs": {
+      "type": "http",
+      "enabled": false,
+      "url": "https://oauth-mcp.example.com/mcp",
+      "oauth": true,
+      "client_id": "replace-with-public-client-id",
+      "scope": "read",
+      "timeout_seconds": 30,
+      "resources": false,
+      "prompts": false
     }
   }
 }

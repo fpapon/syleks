@@ -82,7 +82,23 @@ disable: true
 
 Set `disable: false` in a later definition to re-enable it. Use actual booleans: `"true"`, `yes`, numbers and null are rejected. If every primary agent is hidden, Tab leaves the current selection unchanged. The default agent must exist, be enabled and have mode `primary` or `all`; a hidden default is permitted.
 
-Copyable examples are in [architect.md](../examples/agents/architect.md) and [reviewer.md](../examples/agents/reviewer.md).
+Complete, copyable definitions are in the [example catalog](../examples/README.md#install-agent-and-subagent-definitions): [Build](../examples/agents/build.md), [Plan](../examples/agents/plan.md), [Architect](../examples/agents/architect.md), [Explore](../examples/agents/explore.md), [Reviewer](../examples/agents/reviewer.md), [Triage](../examples/agents/triage.md) and [Retired](../examples/agents/retired.md). Both primary and subagent definitions belong in `agents/`; mode controls how they run.
+
+These examples include explicit model selection, temperature, round limits, flags, tool policy and a full prompt. Install the matching [JSON configuration](../examples/agent-config.json), or change/omit their `model` fields to match your server. For Ollama, use a bare model ID such as `qwen3:8b`. Copy only definitions you want and review existing overrides first.
+
+For a working local workflow, install Build, Explore and Reviewer, restart, then use:
+
+```text
+/agent build
+/permissions build
+/permissions reviewer
+@explore Find where configuration is loaded. Include file paths and relevant symbols.
+@reviewer Review src/main/java/fr/openobject/ai/syleks/app/AppConfig.java for validation bugs. Return findings without changing files.
+```
+
+Build's example permits native reads/searches and asks before edits, patches and commands. It allows Explore delegation and asks before Reviewer. The specialists deny mutation, commands and nested delegation. Plan's example denies delegation as well. To support nested delegation, both the delegating child and every ancestor must permit `task` and the necessary descendant tools; set finite shared limits too.
+
+You can use a literal description with `description: |` or a folded description with `description: >`, followed by indented text. Permission keys containing wildcards must be quoted (`"*": deny`). Do not use YAML anchors, lists, inline JSON objects, arbitrary nested metadata, or multiline prompt scalars in frontmatter. Put the full prompt after the closing `---`.
 
 ## Model and startup selection
 

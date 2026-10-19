@@ -174,3 +174,9 @@ If a session is busy, finish or cancel work in the other terminal, then retry. A
 ## Navigating large session lists
 
 The picker filters titles, full or partial session IDs, and model names without regard to case. Matching lists are reused until you change the filter or session list. Arrows cycle through matches; PgUp/PgDn move one visible page and stop at the edges; Home/End jump to the first/last match. The footer shows your position and match count. Navigation stays disabled while confirming deletion.
+
+## Configuration changes and specialist examples
+
+The [example workflow](../examples/README.md) installs configuration and Markdown independently from saved histories. `/restart` applies edited configuration/agent definitions and the configured default agent/model while retaining this conversation; ordinary resume uses the session's saved model. Project-instruction snapshots remain attached to existing histories: use `/new` for changed project `AGENTS.md` instructions.
+
+Explore/Reviewer tasks create children under the current root. Use `/children` to inspect their history and `/parent` to return. Changing limits or deleting a child does not refund the root's durable task/round counters; start a new root when you need a fresh delegation budget. See [Subagents](subagents.md).

@@ -93,7 +93,7 @@ class ProviderConfigTest {
         assertEquals(8192, local.outputLimit());
         assertEquals(16384, remote.outputLimit());
         assertEquals("local/qwen3:8b", config.agentModel("build", config.defaultModel()));
-        assertEquals("remote/team/reasoner", config.agentModel("plan", config.defaultModel()));
+        assertEquals("remote/team/reasoner", config.agentModel("architect", config.defaultModel()));
         assertEquals("team/reasoner", config.resolveModel("remote/team/reasoner").model());
 
         var captured = new AtomicReference<CapturedRequest>();
@@ -114,7 +114,7 @@ class ProviderConfigTest {
         }
 
         var session = new ChatSession(client, config);
-        session.agent("plan");
+        session.agent("architect");
         assertEquals("remote/team/reasoner", session.snapshot().model());
         assertEquals("Remote server", session.snapshot().providerName());
         session.model("local/qwen3:8b");

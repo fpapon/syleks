@@ -99,3 +99,14 @@ bin/syleks model use <provider/model-or-model-id>
 TUI: `/connect` opens login choices, `/providers` selects a provider, `/models` filters/selects account models, `/accounts` manages individual registrations, `/logout [account-id]` signs out. Existing `/model provider/model` still works. Cloud use and API billing require explicit choices; see [Providers](providers.md) and [Authentication](authentication.md).
 
 See [MCP servers](mcp.md) for server configuration, project trust, authentication and permissions.
+
+## Configuration example workflow
+
+```sh
+syleks config init --defaults
+# Review and merge a configuration from examples/ into ~/.config/syleks/agent-config.json.
+# Copy chosen example Markdown definitions into the global or project agents/ directory.
+syleks --new
+```
+
+Then use `/restart` after edits, `/agents` to inspect definitions, `/permissions NAME` to inspect policy, and `/agent NAME` or `@NAME TASK` to use them. Exact paths, schema adjustments and model dependencies are in the [example installation guide](../examples/README.md); the [configuration reference](configuration.md#complete-configuration-reference) lists every supported field.

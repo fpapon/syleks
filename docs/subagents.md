@@ -114,3 +114,20 @@ Child histories show their task status and diagnostics. They are available for i
 The root's `/usage` includes its own requests and descendants' requests. A child includes its own subtree. Each request is stored once under its executing session; tree totals aggregate those records without copying them. A root fork copies history but does not copy usage or the child execution tree. Deleting histories removes their stored usage; consumed execution quotas remain charged to the surviving root.
 
 Task answers returned to the parent are capped at 32,000 UTF-8 bytes for the aggregate JSON, with per-child summaries capped at 16,000 code points. Truncation is explicit and preserves correlation fields and valid JSON; the complete received answer remains in the child history. A process crash marks abandoned tasks interrupted when their leases are recovered. Pending effects are never replayed automatically.
+
+## Complete specialist definitions and a delegated workflow
+
+Install [explore.md](../examples/agents/explore.md) and [reviewer.md](../examples/agents/reviewer.md) in the same global/project `agents/` directory as primary definitions. Pair them with [build.md](../examples/agents/build.md) and the [full configuration](../examples/agent-config.json) or [single-server variant](../examples/agent-config-local.json). See the [installation instructions](../examples/README.md) before copying: Markdown overrides JSON, including model choice and permissions.
+
+A useful task contains the objective, scope, required context and expected result:
+
+```text
+/agent build
+@explore Inspect src/main/java/fr/openobject/ai/syleks/app and the matching tests. Explain configuration precedence, with file and symbol references. Do not modify files.
+@reviewer Review src/main/java/fr/openobject/ai/syleks/app/AppConfig.java and its tests for missing validation. Prioritize actionable bugs and propose regression tests. Do not change files or execute commands.
+/children
+```
+
+Open a result in the picker, inspect its tools and answer, then use `/parent` to return. For another investigation, submit a fresh task from the parent. Manual tasks do not share previous sibling results unless you include them explicitly. Model-initiated delegation can include relevant parent results in the prompt.
+
+To request a batch in natural language, ask Build: “Use Explore to inspect configuration loading and Reviewer to check its validation in parallel. Give each the relevant source paths, then summarize their findings.” The model must emit the structured `tasks` form above; prose alone does not start children or guarantee a batch. Reviewer approval may be required. An ancestor denial, exhausted durable budget, cycle or expired deadline blocks work even if the specialist's own configuration allows it.

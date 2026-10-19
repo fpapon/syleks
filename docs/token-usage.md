@@ -80,3 +80,9 @@ The existing 70 ms terminal loop reads cached snapshots and uses differential ro
 Providers can omit all or part of usage, especially on disconnect/cancellation. Syleks cannot recover unreported exact counts and does not manufacture them. Counts already available are persisted at terminal handling; a hard crash between provider completion and the final database write can leave an interrupted/unknown invocation. No historical usage can be reconstructed for conversations created before this migration. There is no project-wide `/usage project` view, new tokenizer, live next-prompt tokenization or billing integration.
 
 Automated tests exercise simulated provider streams, terminal cell buffers, SQLite migration/reopen/idempotency/cascade/fork/concurrency, and interrupted request recovery without a live model server. Real provider access, model availability and visual behavior on a user's terminal require a separate live check.
+
+## Configure budgets from examples
+
+The [full configuration](../examples/agent-config.json) shows per-model `limit.context` / `limit.output`, global/per-agent `max_rounds`, and shared `subagents` execution ceilings. These fields belong in `agent-config.json`; sidebar visibility and color thresholds belong in the separate provider-selection `config.json` above. See the [complete field reference](configuration.md#complete-configuration-reference).
+
+The example Reviewer has a 10-round agent limit under the common 16-round child ceiling, so it can use at most 10 rounds. A child configured with `max_rounds: -1` is still capped by shared child limits and the root's remaining durable round budget. Root `/usage` includes descendants, including when a specialist selects another provider. Execution ceilings do not reserve a fixed number of tokens or guarantee a cost cap.

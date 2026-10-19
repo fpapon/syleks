@@ -104,188 +104,35 @@ The repository `.sdkmanrc` selects Zulu Java 25 for JVM development. The native 
 
 ## Configuration
 
-Generate a starter configuration and default agent Markdown files:
+Run `bin/syleks config init` to create or edit settings in a terminal form; use `/config` or Ctrl+G inside chat. Review and save, then choose **Restart chat** or run `/restart` later. For unattended creation of missing files, use `bin/syleks config init --defaults`. The bundled server/model are deployment examples: replace them with your own.
 
-```sh
-bin/syleks config init
-# Or: java -jar target/syleks-0.1.0-SNAPSHOT.jar config init
-```
+Global settings live in `~/.config/syleks/agent-config.json`. The [configuration guide](docs/configuration.md) documents every supported field, defaults, environment overrides, provider/model selection, permissions, child budgets and MCP options. The [JSON schema](agent-config.schema.json) supports editor validation; startup also validates references and runtime constraints.
 
-In an interactive terminal this opens a dark ANSI configuration form using the same renderer as chat. It works for both **new and existing** configuration files. Inside a chat, use **`/config`** (or `/config init`, `/config edit`) or **Ctrl+G** to open the same form. Ctrl+G keeps the current chat draft intact.
+| Example | Contents |
+| --- | --- |
+| [Full agent-config.json](examples/agent-config.json) | Multiple providers/models, proxies, every agent option, all native permissions, child limits and disabled MCP stdio/HTTP/OAuth examples |
+| [One compatible server](examples/agent-config-local.json) | A local endpoint with Build/Plan and read-only specialists |
+| [Ollama](examples/agent-config-ollama.json) | Ollama model/URL with tools and bounded delegation |
+| [Example catalog and installation](examples/README.md) | Copying, schema paths, placeholders, Markdown overrides and usage |
 
-The form edits provider ID/name, OpenAI-compatible base URL, optional API key, model ID/name, context/output token limits, global round limit, and Plan/Build temperatures and round limits. Existing values are prefilled; API keys are masked. Type to replace a selected value, use left/right to edit it, Enter/Tab to advance, and Shift+Tab/up to return. Backspace clears a selected value, including an existing API key. Esc cancels before saving.
-
-After the last field, review the settings and choose **Save**, **Back** or **Cancel**. Saving creates or atomically updates `~/.config/syleks/agent-config.json`, and fills in any missing schema and default agent Markdown files. Other providers, models, custom agent definitions and existing permissions are preserved when updating. A configuration changed by another process since the form opened is rejected instead of overwritten. Malformed existing JSON can be repaired using the form, with an explicit warning before saving.
-
-After saving, the form offers **Restart chat** or **Later**. Restart rebuilds the Fusion container, loads the new configuration and configured default model, and reopens the current persistent session with its history and unsent drafts. It never sends a chat request automatically. Later keeps the current running settings; `/restart` applies the saved configuration when ready. Configuration changes are available while chat is idle; finish or cancel generation and resolve pending permissions before opening setup.
-
-New configurations use `model: provider/model`, `provider` with `npm: @ai-sdk/openai-compatible`, model `limit.context`/`limit.output`, global `max_rounds`, and per-agent temperature, round limits and permissions. The starter policy allows chat/read, asks for saves and reviewer delegation, and denies other delegation, edit and bash globally. Plan denies task/save/edit and asks for bash. Build allows task/read, asks for save/bash, and denies edit. Per-agent rules override global rules. Existing policies are retained when editing; generated agent files never replace customized files.
-
-For unattended initialization, skip the form explicitly:
-
-```sh
-bin/syleks config init --defaults
-```
-
-`--defaults` creates only missing files and preserves existing ones. Its bundled settings use provider `local` (`Local`), base URL `http://192.168.52.32:8000/v1`, model `qwen3.8-27b` (`Qwen3.8 27B UD-Q4_K_M`), context/output limits `196608`/`32768`, global round limit `20`, and Plan/Build round limits `30` with temperatures `0.2`/`0.1`. No API key is written by `--defaults`; adjust the provider address and model to your server before chatting.
-
-Redirected stdin retains the line-based setup for scripts creating a new configuration; EOF cancels it without creating files. Existing files are preserved in this mode. Use an interactive terminal or `/config` to update an existing file.
-
-The command uses the same home directory as the configuration loader (`HOME`, falling back to Java's `user.home`). Setup itself requires neither a running model server nor a sessions database. New files have private permissions on POSIX filesystems; entered API keys are stored in the configuration file. It also creates a local `agent-config.schema.json`, plus missing `agents/build.md`, `agents/plan.md`, `agents/architect.md`, and `agents/reviewer.md` files.
-
-If upgrading from Fusion Agent, move `$HOME/.config/fusion-agent` to `$HOME/.config/syleks` and any project `.fusion-agent` directory to `.syleks`. Configuration filenames and contents stay the same.
-
-Create `$HOME/.config/syleks/agent-config.json` using this supported subset of [OpenCode provider configuration](https://docs.opencode.ai/docs/providers/). Define several providers as separate entries under the singular `provider` key. Each provider has its own base URL, optional API key, and model catalog. See [examples/agent-config.json](examples/agent-config.json):
-
-```json
-{
-  "$schema": "../agent-config.schema.json",
-  "model": "local/qwen3:8b",
-  "provider": {
-    "local": {
-      "name": "Local server",
-      "options": {
-        "baseURL": "http://127.0.0.1:8000/v1"
-      },
-      "models": {
-        "qwen3:8b": {
-          "name": "Qwen 3 8B",
-          "limit": {
-            "context": 32768,
-            "output": 8192
-          }
-        }
-      }
-    },
-    "remote": {
-      "name": "Remote server",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "https://models.example.com/v1",
-        "apiKey": "replace-with-your-api-key"
-      },
-      "models": {
-        "qwen3:8b": {
-          "name": "Remote Qwen 3 8B",
-          "limit": {
-            "context": 65536,
-            "output": 16384
-          }
-        },
-        "team/reasoner": {
-          "name": "Reasoning model"
-        }
-      }
-    }
-  },
-  "agent": {
-    "build": {
-      "model": "local/qwen3:8b",
-      "temperature": 0.1
-    },
-    "plan": {
-      "model": "remote/team/reasoner",
-      "temperature": 0.2
-    }
-  }
-}
-```
-
-The same model ID can exist under different providers. Select one with `/model local/qwen3:8b` or `/model remote/qwen3:8b`. An agent's `model` setting selects its provider when that agent becomes active; in this example `/agent plan` uses `remote/team/reasoner`.
-
-[agent-config.schema.json](agent-config.schema.json) is a JSON Schema Draft 2020-12 schema for the complete configuration, including providers, agents, permissions, round limits, and legacy Ollama settings. JSON Schema-aware editors can use the `$schema` property for validation and completion. The example's relative path works inside this repository; after copying it to your home configuration directory, change `$schema` to the schema's absolute file URI, for example `file:///absolute/path/to/syleks/agent-config.schema.json`. You can also supply the schema and configuration file to any validator supporting Draft 2020-12.
-
-The schema rejects unknown fields and invalid types, identifiers, URLs, permissions, temperatures, and numeric limits. It does not load other files or resolve configured names. Startup validation additionally checks provider/model references, the default agent (including Markdown definitions), and that output limits do not exceed context limits. The application reads `$schema` as editor metadata; it does not run a JSON Schema validator at startup. `mvn -Dtest=ConfigSchemaTest test` validates the checked-in examples and schema regression cases.
-
-- `model` selects `provider-id/model-id`. The provider and model must be declared under `provider`; only the raw model ID is sent to the server.
-- `options.baseURL` receives `/chat/completions`; `options.apiKey`, when provided, is sent as a Bearer token.
-- `name` fields supply display labels. `npm` identifies the supported OpenAI-compatible protocol; this Java app does not install or execute npm packages. Other SDK protocols are unsupported.
-- The active agent starts as `build`, or the primary agent named by `default_agent`. Use `/agent NAME` to select an agent. Omitted temperatures use the server default; configured values must be 0–2.
-- `limit.output` is sent as `max_tokens`. `limit.context` sets the context budget; Syleks estimates size conservatively and selects recent complete turns that fit, reserving room for output and tools. Omitted older context is reported without deleting saved history. Use `/compact` for an explicitly requested generated summary; the full transcript remains in SQLite. Limits may be omitted; see [Configuration](docs/configuration.md).
-- Restart after editing the file. Unreadable files, invalid JSON, or invalid settings stop startup with an error.
-
-Existing Ollama settings remain supported:
-
-```json
-{
-  "ollama_url": "http://127.0.0.1:11434",
-  "ollama_model": "qwen3:8b"
-}
-```
-
-A missing file uses these Ollama defaults. `OLLAMA_MODEL` overrides the selected model; a bare model ID selects Ollama. `OLLAMA_URL` overrides the legacy Ollama URL and does not change provider base URLs. `AGENT_SYSTEM_PROMPT` remains an environment variable. Configured build/plan temperatures also apply to Ollama through its `options.temperature` field.
-
-To connect to your **on-premise Ollama** server:
-
-```bash
-export OLLAMA_URL=http://YOUR-PRIVATE-OLLAMA-SERVER:11434
-export OLLAMA_MODEL=qwen3:8b   # replace with the exact name from `ollama list`
-java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar chat
-```
-
-The app appends `/api/chat` to `OLLAMA_URL`. No SaaS API or telemetry is configured. **Prefer HTTPS with auth or a private VPN** for connections to a separate server: plain HTTP on a network is not confidential.
-
-### Agent round limits
-
-Set `max_rounds` in `$HOME/.config/syleks/agent-config.json` to limit model/tool rounds per user turn or subagent invocation:
-
-```json
-{
-  "max_rounds": 20,
-  "agent": {
-    "build": { "max_rounds": 30 },
-    "plan": { "max_rounds": 5 },
-    "reviewer": { "mode": "subagent", "max_rounds": 10 }
-  }
-}
-```
-
-Merge these settings into your existing configuration, then restart. Values must be `-1` for unlimited rounds or integers from 1 to 1000; the default is 12. For example, set `"max_rounds": -1` globally or on an individual agent to disable its round limit. Agents without an override inherit the global value. Agent Markdown frontmatter also accepts `max_rounds: -1`; global and project Markdown definitions override JSON using the usual agent precedence.
-
-A round is one model response, including execution of any tools requested in that response. Multiple tool calls in one response count as one round; permission approvals do not count as rounds. An answer without tool calls finishes the turn immediately, including on the last permitted round. If that last response requests tools, their results are recorded and generation stops with the configured limit in the status; send a new message to continue. The counter resets for each new user turn or subagent invocation. This setting does not limit elapsed time or total conversation length.
+The full example contains optional proxy and remote-provider placeholders. Remove or replace them before use. MCP examples are disabled until configured. JSON values are literal strings; provider API keys do not support environment interpolation.
 
 ## Markdown agents and subagents
 
-Declare agents in UTF-8 Markdown files. The filename becomes the agent name (`reviewer.md` → `reviewer`). Files are loaded at startup from:
+Primary agents, delegated specialists, hidden agents and disabled definitions use UTF-8 Markdown in `~/.config/syleks/agents/` or project `.syleks/agents/`. The filename defines the name; frontmatter defines metadata and permissions; the body supplies the prompt.
 
-1. `$HOME/.config/syleks/agents/*.md` for global definitions.
-2. `.syleks/agents/*.md` in the launch directory for project definitions.
+Complete examples include [Build](examples/agents/build.md), [Plan](examples/agents/plan.md), [Architect](examples/agents/architect.md), [Explore](examples/agents/explore.md), [Reviewer](examples/agents/reviewer.md), [Triage](examples/agents/triage.md) and [Retired](examples/agents/retired.md). Their model selections require matching JSON providers, or editing/removing the `model` line. Both agent types go in the same `agents/` directory.
 
-Precedence is built-in defaults → JSON `agent` settings → global Markdown → project Markdown. Later definitions override supplied fields and replace the prompt body; unspecified fields retain earlier values. Restart after editing definitions.
+Precedence is built-ins → JSON → global Markdown → project Markdown from Git root to launch directory. Later supplied fields and prompt bodies override earlier definitions. Existing Markdown can therefore override freshly edited JSON. Restart to apply changes; inspect `/agents` and `/permissions NAME`.
 
-For example, create `reviewer.md`:
-
-```markdown
----
-description: Review Java code for bugs and missing tests
-mode: subagent
-temperature: 0.1
----
-You are a focused Java 25 code reviewer.
-Review the code supplied with your task. Explain each finding and suggest a concrete fix.
-Ask for missing source code; never claim to have read files or executed tests.
+```text
+/agent build
+@explore Find the entry point and configuration loader; return file references.
+@reviewer Review src/main/java/fr/openobject/ai/syleks/app/AppConfig.java for validation bugs.
+/children
 ```
 
-Supported frontmatter fields:
-
-| Field | Behavior |
-| --- | --- |
-| `description` | Explains the agent in `/agents`; defaults to its name. |
-| `mode` | `primary`, `subagent`, or `all`. New agents default to `all`; built-in Build/Plan remain primary. |
-| `model` | Optional configured `provider/model` or Ollama model ID. |
-| `temperature` | Optional number from 0 to 2. |
-| `permission` | Agent permission overrides; see below. |
-
-The Markdown body supplies the agent prompt, appended to the shared system prompt. Frontmatter supports flat plain/quoted string fields, numeric temperatures and round limits, comments, and literal/folded multiline descriptions (`|`/`>`). Nested maps are supported for `permission` rules only. Other nested YAML, tool declarations, aliases, and executable tags are unsupported and produce a configuration error. Agent names may contain letters, digits, hyphens, and underscores (maximum 64 characters).
-
-- `/agents` lists every definition and its mode.
-- `/agent architect` selects a primary agent. Tab cycles through primary and `all` agents.
-- `@reviewer Review this pasted code: …` or `/subagent reviewer Review this pasted code: …` invokes a subagent.
-- A subagent receives its own prompt and the supplied task, with no parent transcript. Its labeled answer is added to the main conversation for subsequent follow-up. The selected primary agent is restored after completion or cancellation. Calls run one at a time; model-initiated delegation and recursive subagents are not implemented.
-- A declared agent model overrides the global model. Without one, primary agents use the global model and subagents inherit the current primary model. `/model` overrides the active primary model until another agent is selected.
-- To start with a custom primary agent, add `"default_agent": "architect"` to `agent-config.json`.
-
-Ready-to-copy definitions are in [examples/agents/architect.md](examples/agents/architect.md) and [examples/agents/reviewer.md](examples/agents/reviewer.md). These agents use the configured chat endpoint and can use shell, file, search, and web tools when their permissions allow them.
+Children run in persisted sessions with explicit task context, bounded parallelism/depth/rounds/deadlines, and permissions capped by every ancestor. See [Agents and project instructions](docs/agents.md) for the full format and inheritance rules, and [Subagents](docs/subagents.md) for tasks, batches, context, budgets and navigation.
 
 ## Permissions
 
@@ -327,7 +174,7 @@ Review the supplied code and explain your findings.
 
 - Actions are `allow`, `ask`, or `deny`. A scalar such as `"permission": "deny"` applies to every operation. `"*"` can also be used as an operation key.
 - Effective rules combine defaults → global `permission` → agent JSON → global agent Markdown → project agent Markdown. The last matching rule wins, including target patterns. Agent overrides can explicitly grant an action denied globally.
-- Target patterns support `*` (any text) and `?` (one character), with case-sensitive matching. Targets are model IDs for `chat`, agent names for `task`, normalized absolute paths for `save`, and the exact shell command for `bash`. List broad patterns before narrower exceptions; declaration order matters.
+- Target patterns support `*` (any text) and `?` (one character), with case-sensitive matching. Targets are model IDs for `chat`, agent names for `task`, normalized absolute paths for `save`, and normalized literal commands/redirections for granular `bash` rules. List broad patterns before narrower exceptions; declaration order matters.
 - `ask` pauses the action until approval or rejection. `/approve` is shorthand for `/approve once`. Once permits only the pending action. For agent tools, always remembers approval for that agent and tool across targets and turns while the current session stays open; it only relaxes `ask`, so explicit `deny` rules still apply. It does not change the configuration file or grant access to other agents/tools. Restart and session actions (including new/open/resume/fork/rename) clear remembered approvals. Chat, delegation, and Markdown exports support once only. `/permissions [AGENT]` also lists remembered tool approvals. Esc/Ctrl+C cancel pending work. Session/agent/model changes are blocked while an approval is pending. See [Tools and approvals](docs/tools-and-permissions.md) for panel controls.
 - Subagent calls check the caller's `task` permission for the target agent and the callee's `chat` permission for its model. An explicit manual invocation does not bypass either check.
 - `/permissions` shows the selected primary agent's effective policy; `/permissions reviewer` inspects another agent.
@@ -356,7 +203,7 @@ Enable tools globally in `$HOME/.config/syleks/agent-config.json`, or use the sa
 }
 ```
 
-Merge these entries into your existing configuration and restart. Both Ollama and OpenAI-compatible connections advertise permitted tools; execution always checks the actual acting agent's policy, including subagents. The model/server must support structured function calls.
+Merge these entries into your existing configuration and restart. All provider adapters advertise permitted tools; execution checks the acting agent and all ancestors for child calls. The model/server must support structured function calls.
 
 | Tool | Arguments | Behavior |
 | --- | --- | --- |
@@ -389,11 +236,11 @@ Configure the global policy, or the `permission` block of an individual agent:
 }
 ```
 
-For `ask`, the TUI shows the exact command, working directory, and timeout. `/approve once` executes that command once; `/approve always` approves this and future `bash` requests for the same agent during this app session, except commands matched by deny rules. `/deny` returns a refusal to the model. `allow` runs matching commands without prompting, while `deny` blocks them. Subagent commands use the executing subagent's policy, and permission changes require a restart.
+For `ask`, the TUI shows the exact command, working directory, and timeout. `/approve once` executes that command once; `/approve always` approves this and future `bash` requests for the same agent during this app session, except commands matched by deny rules. `/deny` returns a refusal to the model. `allow` runs matching commands without prompting, while `deny` blocks them. Subagent commands are checked against the child's policy and every ancestor's policy. Permission changes require a restart.
 
-The tool accepts `command` and optional `timeout_seconds` (default 60, range 1–300). Commands run through `/bin/bash -c` in the launch directory with inherited environment variables and closed stdin. Combined stdout/stderr, exit code, timeout state, and truncation state are returned to the model and shown in the conversation. Captured output is limited to 32,000 characters. Esc/Ctrl+C cancels the running command and model turn; command processes and their descendants are terminated during cleanup. Tool/model conversations stop after the configured `max_rounds` limit (default 12). This is intended for foreground, non-interactive commands, rather than persistent background services.
+The tool accepts `command` and optional `timeout_seconds` (default 60, range 1–300). Commands run through `/bin/bash --noprofile --norc -c` in the launch directory with inherited environment variables and closed stdin. Combined stdout/stderr, exit code, timeout state, and truncation state are returned to the model and shown in the conversation. Captured output is limited to 32,000 characters. Esc/Ctrl+C cancels the running command and model turn; command processes and their descendants are terminated during cleanup. Tool/model conversations stop after the configured `max_rounds` limit (default 12). This is intended for foreground, non-interactive commands, rather than persistent background services.
 
-Shell execution uses your normal OS permissions and is not a filesystem sandbox. An allowed shell command can read/write files or access the network regardless of separate `read`/`edit`/web declarations. Command patterns match the full command string; they do not parse shell syntax, so a broad allow pattern also covers matching pipelines and compound commands. Use `ask` to review those commands before execution. Command output is sent back to your configured model endpoint.
+Shell execution uses your normal OS permissions and is not a filesystem sandbox. An allowed shell command can read/write files or access the network regardless of separate `read`/`edit`/web declarations. Granular command policies analyze every literal command and redirection before execution; any denial blocks the entire script. Unsupported shell syntax is refused under granular policies. A uniform `bash: ask` policy permits full shell syntax after approval. See [shell rules](docs/tools-and-permissions.md#shell-and-web-access) for the supported subset and examples. Command output is sent back to your configured model endpoint.
 
 ## Markdown and source highlighting
 
