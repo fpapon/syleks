@@ -87,15 +87,25 @@ final class PatchTool {
                     && !Arrays.equals(change.before(), files.bytes(change.path())))
                 throw new IOException(
                         "File changed during patch commit; earlier files may have been applied");
-            if (change.after() == null) Files.delete(change.path());
-            else
-                Files.writeString(
-                        change.path(),
-                        change.after(),
-                        StandardCharsets.UTF_8,
-                        change.before() == null
-                                ? StandardOpenOption.CREATE_NEW
-                                : StandardOpenOption.TRUNCATE_EXISTING);
+            context.mutations()
+                    .commit(
+                            change.path(),
+                            change.before(),
+                            change.after() == null
+                                    ? null
+                                    : change.after().getBytes(StandardCharsets.UTF_8),
+                            () -> {
+                                files.path(change.path().toString());
+                                if (change.after() == null) Files.delete(change.path());
+                                else
+                                    Files.writeString(
+                                            change.path(),
+                                            change.after(),
+                                            StandardCharsets.UTF_8,
+                                            change.before() == null
+                                                    ? StandardOpenOption.CREATE_NEW
+                                                    : StandardOpenOption.TRUNCATE_EXISTING);
+                            });
         }
         return "Applied patch to " + changes.size() + " file(s)";
     }

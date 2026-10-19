@@ -1,11 +1,13 @@
 package fr.openobject.ai.syleks.session;
 
 import fr.openobject.ai.syleks.session.model.MessageStatus;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Separate JVM probe: no process-local service or JDBC state can survive between invocations. */
 public final class SessionProcess {
     public static void main(String[] args) throws Exception {
+        Path fixtureRoot = Path.of(args[0]);
         try (var f = new SessionFixture(Path.of(args[0]))) {
             if (args[1].equals("fusion-tools")) {
                 try (var registry =
@@ -136,6 +138,39 @@ public final class SessionProcess {
                     generation.finish(MessageStatus.COMPLETE);
                 }
                 System.out.println(f.agent.current().id());
+            } else if (args[1].equals("phase7-crash")) {
+                var g = f.agent.begin("qwen3:8b", "build", "effect boundary", false);
+                String id = f.agent.current().id();
+                var call =
+                        new fr.openobject.ai.syleks.ai.ToolCall(
+                                "crash-write",
+                                "write",
+                                java.util.Map.of("path", "effect", "content", "1"));
+                g.round("", "", java.util.List.of(call));
+                g.startTool(call);
+                System.out.println(id);
+                System.out.flush();
+                if (args[2].equals("before")) Runtime.getRuntime().halt(0);
+                Path file = fixtureRoot.resolve("project/effect");
+                var mutation = f.sessions.fileChanges().recording(id, call.id());
+                mutation.commit(
+                        file,
+                        null,
+                        "1".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        () -> {
+                            Files.writeString(
+                                    file, "1", java.nio.file.StandardOpenOption.CREATE_NEW);
+                            Files.writeString(
+                                    fixtureRoot.resolve("effects.log"),
+                                    "effect\n",
+                                    java.nio.file.StandardOpenOption.CREATE,
+                                    java.nio.file.StandardOpenOption.APPEND);
+                            if (args[2].equals("during")) Runtime.getRuntime().halt(0);
+                        });
+                if (args[2].equals("received")) Runtime.getRuntime().halt(0);
+                g.toolResult(
+                        call, fr.openobject.ai.syleks.ai.ToolResult.success("effect committed"));
+                Runtime.getRuntime().halt(0);
             } else if (args[1].equals("task-crash")) {
                 var parent = f.agent.begin("qwen3:8b", "build", "delegate before crash", false);
                 var task =

@@ -52,6 +52,10 @@ public class ConversationService {
                 });
     }
 
+    public java.util.Optional<SummaryRepository.Summary> summary(String session) {
+        return new SummaryRepository(database).find(session);
+    }
+
     public List<Message> messages(String session) {
         return messages.listMessages(session);
     }

@@ -102,6 +102,10 @@ public class AgentService implements AutoCloseable {
         return g == null ? null : g.messageId();
     }
 
+    public List<Message> messageList() {
+        return current == null ? List.of() : conversation.messages(current.id());
+    }
+
     public List<ChatMessage> history() {
         return current == null ? List.of() : conversation.history(current.id());
     }
@@ -156,6 +160,52 @@ public class AgentService implements AutoCloseable {
         current = sessions.fork(current.id());
         reloadUsage();
         return current;
+    }
+
+    public Session forkAt(String message) {
+        ensureIdle();
+        if (current == null) throw new IllegalStateException("No active session");
+        current = sessions.fork(current.id(), message);
+        reloadUsage();
+        return current;
+    }
+
+    public Session importArchive(String content) {
+        ensureIdle();
+        current = sessions.importArchive(content);
+        reloadUsage();
+        return current;
+    }
+
+    public void compact(String actor, String model, ContextCompactor.Summarizer provider)
+            throws Exception {
+        ensureIdle();
+        if (current == null) throw new IllegalStateException("No active session");
+        current =
+                sessions.compact(
+                        current.id(),
+                        actor,
+                        config.contextWindow(model),
+                        config.responseTokens(model),
+                        context,
+                        provider);
+        reloadUsage();
+    }
+
+    public OllamaClient.Observer summaryObserver() {
+        if (current == null) throw new IllegalStateException("No active session");
+        String id = current.id();
+        return new OllamaClient.Observer() {
+            public void round(String content, String reasoning, List<ToolCall> calls) {}
+
+            public void toolResult(ToolCall call, String result) {}
+
+            public void nextRound() {}
+
+            public void usage(LlmUsageEvent event) {
+                if (tokenUsage != null) tokenUsage.accept(event.forSession(id));
+            }
+        };
     }
 
     public void rename(String title) {
@@ -465,6 +515,28 @@ public class AgentService implements AutoCloseable {
                                                     + "`"
                                             : outcome.content());
                             conversation.part(message.id(), PartType.TOOL_RESULT, payload);
+                            var changes = sessions.fileChanges().list(session.id());
+                            String group =
+                                    changes.stream()
+                                            .filter(c -> c.call().equals(call.id()))
+                                            .map(FileChangeJournal.Change::group)
+                                            .reduce((a, b) -> b)
+                                            .orElse(null);
+                            if (group != null)
+                                for (var change : changes)
+                                    if (change.group().equals(group))
+                                        conversation.part(
+                                                message.id(),
+                                                PartType.DIFF,
+                                                Map.of(
+                                                        "path",
+                                                        change.path(),
+                                                        "changeId",
+                                                        change.id(),
+                                                        "groupId",
+                                                        group,
+                                                        "state",
+                                                        change.state()));
                         }
                         if (t != null)
                             executions.saveExecution(

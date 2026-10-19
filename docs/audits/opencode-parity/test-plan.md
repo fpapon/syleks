@@ -57,7 +57,7 @@ Les tests TUI existants couvrent modals/pickers/permissions et plusieurs parcour
 | E2E-007 | PASS_VERIFIED | Phase 6 : handshake stdio, découverte, appels, schémas, résultats, timeout/annulation et cleanup sur processus simulé ; voir [MCP](mcp.md) |
 | E2E-008 | PASS_VERIFIED | Phase 6 : Streamable HTTP JSON/SSE, session/version, auth, pagination, refresh du catalogue et DELETE sur serveur loopback ; voir [MCP](mcp.md) |
 | E2E-009 | PASS_VERIFIED | Phase 6 : permissions communes, refus sans effet, boucle LLM, historique SQLite et restauration ; voir [MCP](mcp.md) |
-| E2E-010 | PARTIAL | Vrai halt JVM existant + frontière tool interrompu ajoutée ; pas de crash après effet externe avant commit du résultat |
+| E2E-010 | PASS_VERIFIED | Phase 7 : quatre vrais halt JVM avant appel, pendant effet, résultat reçu avant commit, puis après commit ; compteur externe inchangé après reprise, journal observé sans replay. Voir [sessions et contexte](sessions-and-context.md). |
 | E2E-011 | PARTIAL | Tours tools NDJSON, Chat Completions et Responses testés séparément ; le scénario complet read/edit/test n’est pas paramétré sur tous les providers |
 | E2E-012 | PARTIAL | File tools et sessions refusent autre projet ; shell autorisé garde accès hôte, pas de sandbox générale de projet |
 

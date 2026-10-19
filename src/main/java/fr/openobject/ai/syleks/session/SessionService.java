@@ -40,6 +40,20 @@ public class SessionService {
         this.tasks = new TaskRepository(database, json);
     }
 
+    public FileChangeJournal fileChanges() {
+        return FileChangeJournal.at(database, projects.workspace());
+    }
+
+    public SummaryRepository summaries() {
+        return new SummaryRepository(database);
+    }
+
+    public void assertWritable(String id) {
+        load(id);
+        if (tasks.find(id).isPresent())
+            throw new IllegalStateException("Subagent histories are read-only; use /parent");
+    }
+
     public TodoRepository todos() {
         return new TodoRepository(database);
     }
@@ -77,6 +91,7 @@ public class SessionService {
 
     public void recoverOwned(String id) {
         sessions.recoverSession(id);
+        fileChanges().recover(id);
         new TokenUsageRepository(database).recover(id);
         tasks.find(id)
                 .ifPresent(
@@ -159,6 +174,11 @@ public class SessionService {
     }
 
     public Session fork(String id) {
+        return fork(id, null);
+    }
+
+    /** Inclusive message boundary; refuse boundaries splitting a call/result pair. */
+    public Session fork(String id, String throughMessage) {
         if (tasks.find(id).isPresent())
             throw new IllegalStateException(
                     "Subagent histories are read-only; return to /parent to start another task");
@@ -167,17 +187,67 @@ public class SessionService {
             return database.transaction(
                     () -> {
                         var source = load(id);
+                        var all = messages.listMessages(id);
+                        int through =
+                                throughMessage == null
+                                        ? Integer.MAX_VALUE
+                                        : all.stream()
+                                                .filter(m -> m.id().equals(throughMessage))
+                                                .findFirst()
+                                                .orElseThrow(
+                                                        () ->
+                                                                new IllegalArgumentException(
+                                                                        "Message does not belong to this session"))
+                                                .position();
+                        var selected = all.stream().filter(m -> m.position() <= through).toList();
+                        var selectedIds =
+                                selected.stream()
+                                        .map(Message::id)
+                                        .collect(java.util.stream.Collectors.toSet());
+                        var selectedCalls = new HashSet<String>();
+                        for (var message : selected)
+                            for (var part : parts.listParts(message.id()))
+                                if (part.type() == PartType.TOOL_CALL) {
+                                    Map<?, ?> call = json.fromString(Map.class, part.payloadJson());
+                                    selectedCalls.add(String.valueOf(call.get("callId")));
+                                }
+                        for (var message : all)
+                            if (!selectedIds.contains(message.id()))
+                                for (var part : parts.listParts(message.id()))
+                                    if (part.type() == PartType.TOOL_RESULT) {
+                                        Map<?, ?> result =
+                                                json.fromString(Map.class, part.payloadJson());
+                                        if (selectedIds.contains(result.get("callMessageId"))
+                                                || !result.containsKey("callMessageId")
+                                                        && selectedCalls.contains(
+                                                                String.valueOf(
+                                                                        result.get("callId"))))
+                                            throw new IllegalArgumentException(
+                                                    "Fork boundary splits a tool call/result pair; choose a later message");
+                                    }
+                        var summary =
+                                summaries().find(id).filter(v -> v.throughPosition() <= through);
                         var copy =
                                 sessions.createSession(
                                         source.projectId(),
                                         source.id(),
-                                        source.title() + " (fork)",
+                                        source.title()
+                                                        .substring(
+                                                                0,
+                                                                Math.min(
+                                                                        233,
+                                                                        source.title().length()))
+                                                + " (fork)",
                                         source.provider(),
                                         source.model(),
-                                        source.summary());
+                                        summary.isPresent()
+                                                ? summary.get().content()
+                                                : throughMessage == null ? source.summary() : null);
+                        summary.ifPresent(
+                                v -> summaries().save(copy.id(), v.throughPosition(), v.content()));
                         var ids = new HashMap<String, String>();
                         sessions.account(copy.id(), source.accountId());
-                        for (var message : messages.listMessages(id)) {
+                        for (var message : selected) {
                             var target =
                                     messages.addMessage(
                                             copy.id(),
@@ -201,26 +271,27 @@ public class SessionService {
                             }
                         }
                         for (var tool : tools.listExecutions(id))
-                            tools.saveExecution(
-                                    new ToolExecution(
-                                            UUID.randomUUID().toString(),
-                                            copy.id(),
-                                            ids.get(tool.messageId()),
-                                            tool.toolCallId(),
-                                            tool.name(),
-                                            tool.parametersJson(),
-                                            tool.status(),
-                                            tool.authorization(),
-                                            tool.result(),
-                                            tool.startedAt(),
-                                            tool.endedAt(),
-                                            tool.error()));
+                            if (selectedIds.contains(tool.messageId()))
+                                tools.saveExecution(
+                                        new ToolExecution(
+                                                UUID.randomUUID().toString(),
+                                                copy.id(),
+                                                ids.get(tool.messageId()),
+                                                tool.toolCallId(),
+                                                tool.name(),
+                                                tool.parametersJson(),
+                                                tool.status(),
+                                                tool.authorization(),
+                                                tool.result(),
+                                                tool.startedAt(),
+                                                tool.endedAt(),
+                                                tool.error()));
                         return load(copy.id());
                     });
         }
     }
 
-    public String export(String id) {
+    String exportOne(String id) {
         load(id);
         return database.transaction(
                 () -> {
@@ -318,6 +389,93 @@ public class SessionService {
                                     "toolExecutions",
                                     executions));
                 });
+    }
+
+    public String export(String id) {
+        return archive().export(id);
+    }
+
+    public Session importArchive(String content) {
+        return archive().importArchive(content);
+    }
+
+    private SessionArchive archive() {
+        return new SessionArchive(this, projects, sessions, messages, parts, tools, database, json);
+    }
+
+    public Session compact(
+            String id,
+            String actor,
+            int window,
+            int output,
+            ContextService context,
+            ContextCompactor.Summarizer provider)
+            throws Exception {
+        assertWritable(id);
+        try (var lease = acquire(id)) {
+            recoverOwned(id);
+            var session = load(id);
+            var history = messages.listMessages(id);
+            int lastUser =
+                    history.stream()
+                            .filter(m -> m.role().equals("user"))
+                            .mapToInt(Message::position)
+                            .max()
+                            .orElse(-1);
+            int through = lastUser - 1;
+            if (through < 0
+                    || summaries().find(id).map(v -> v.throughPosition() >= through).orElse(false))
+                throw new IllegalStateException(
+                        "No older complete turns to summarize; keep the latest turn for continuation");
+            var input = context.summarySource(session, actor, through).messages();
+            String summary = ContextCompactor.summarize(input, window, output, provider);
+            if (Thread.currentThread().isInterrupted())
+                throw new InterruptedException("Compaction cancelled");
+            summaries().save(id, through, summary);
+            return load(id);
+        }
+    }
+
+    public String restoreFiles(
+            String id, boolean redo, fr.openobject.ai.syleks.ai.AgentTools.Gate gate)
+            throws Exception {
+        assertWritable(id);
+        try (var lease = acquire(id)) {
+            recoverOwned(id);
+            list();
+            return fileChanges().restore(id, redo, gate);
+        }
+    }
+
+    public String messageList(String id) {
+        load(id);
+        var text = new StringBuilder();
+        for (var m : messages.listMessages(id))
+            text.append(m.id())
+                    .append("\t")
+                    .append(m.role())
+                    .append("\t")
+                    .append(m.status())
+                    .append("\n");
+        return text.toString();
+    }
+
+    public String diff(String id) {
+        load(id);
+        return fileChanges().diff(id);
+    }
+
+    public String changes(String id) {
+        load(id);
+        var text = new StringBuilder();
+        for (var c : fileChanges().listTree(id))
+            text.append(c.group())
+                    .append("\t")
+                    .append(c.state())
+                    .append("\t")
+                    .append(c.path())
+                    .append("\n");
+        return text.isEmpty() ? "No recorded native file changes" : text.toString();
     }
 
     public Project project() {

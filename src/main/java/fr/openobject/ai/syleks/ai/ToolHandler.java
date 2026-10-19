@@ -4,6 +4,25 @@ package fr.openobject.ai.syleks.ai;
 public interface ToolHandler {
     String execute(ToolCall call) throws Exception;
 
+    default boolean toolsEnabled() {
+        return true;
+    }
+
+    ToolHandler NONE =
+            new ToolHandler() {
+                public boolean toolsEnabled() {
+                    return false;
+                }
+
+                public int roundLimit(int configured) {
+                    return 1;
+                }
+
+                public String execute(ToolCall call) {
+                    throw new IllegalStateException("Tools are disabled for summary generation");
+                }
+            };
+
     default int roundLimit(int configured) {
         return configured;
     }

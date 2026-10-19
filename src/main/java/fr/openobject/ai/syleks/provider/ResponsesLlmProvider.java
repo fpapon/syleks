@@ -110,7 +110,9 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     }
 
     public Map<String, Object> payload(ChatRequest request) throws IOException {
-        return payload(request, tools().forAgent(request.agent()));
+        return payload(
+                request,
+                request.tools().toolsEnabled() ? tools().forAgent(request.agent()) : List.of());
     }
 
     private Map<String, Object> payload(ChatRequest request, List<Map<String, Object>> schemas)
@@ -188,7 +190,10 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                     request.messages(),
                     config.maxRounds(request.agent()),
                     messages -> {
-                        var schemas = tools().forAgent(request.agent());
+                        var schemas =
+                                request.tools().toolsEnabled()
+                                        ? tools().forAgent(request.agent())
+                                        : List.<Map<String, Object>>of();
                         var bounded =
                                 fr.openobject.ai.syleks.session.ContextService.limit(
                                         messages,

@@ -41,6 +41,7 @@ public class OllamaClient {
     }
 
     private final ThreadLocal<Observer> observer = new ThreadLocal<>();
+    private final ThreadLocal<Boolean> toolsEnabled = ThreadLocal.withInitial(() -> true);
     private final ThreadLocal<Boolean> persistentRequest = ThreadLocal.withInitial(() -> false);
     private final AppConfig config;
     private final HttpClient http;
@@ -89,7 +90,8 @@ public class OllamaClient {
         } else if (temperature != null) {
             request.put("options", Map.of("temperature", temperature));
         }
-        var definitions = tools().forAgent(agent);
+        var definitions =
+                toolsEnabled.get() ? tools().forAgent(agent) : List.<Map<String, Object>>of();
         if (!definitions.isEmpty()) request.put("tools", definitions);
         if (persistentRequest.get()) {
             int window = config.contextWindow(model);
@@ -112,6 +114,9 @@ public class OllamaClient {
                 request.put("options", options);
             }
         }
+        @SuppressWarnings("unchecked")
+        var wireMessages = (List<Map<String, Object>>) request.get("messages");
+        request.put("messages", fr.openobject.ai.syleks.session.ContextService.wire(wireMessages));
         return json.toString(request);
     }
 
@@ -172,11 +177,13 @@ public class OllamaClient {
             Observer observer)
             throws Exception {
         persistentRequest.set(true);
+        toolsEnabled.set(tools.toolsEnabled());
         this.observer.set(observer);
         try {
             streamConversation(model, agent, history, receive, tools, observer);
         } finally {
             persistentRequest.remove();
+            toolsEnabled.remove();
             this.observer.remove();
         }
     }

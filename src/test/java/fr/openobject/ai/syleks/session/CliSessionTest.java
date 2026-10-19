@@ -189,6 +189,42 @@ class CliSessionTest {
                         .contains("cancelled"));
     }
 
+    @Test
+    void exposesImportPrefixForkMessageIdsAndFileHistoryCommandsThroughRealCli() throws Exception {
+        String id = probe("create").strip();
+        var exported = cli("session", "export", id);
+        assertEquals(0, exported.code(), exported.output());
+        Path archive = root.resolve("archive.json");
+        Files.writeString(archive, exported.stdout());
+        var imported = cli("session", "import", archive.toString());
+        assertEquals(0, imported.code(), imported.output());
+        String copy = imported.stdout().strip();
+        assertDoesNotThrow(() -> UUID.fromString(copy));
+        assertNotEquals(id, copy);
+        var messageList = cli("session", "messages", id);
+        assertEquals(0, messageList.code());
+        String message =
+                messageList
+                        .output()
+                        .lines()
+                        .filter(line -> line.contains("\tuser\t"))
+                        .findFirst()
+                        .orElseThrow()
+                        .split("\t")[0];
+        var fork = cli("session", "fork", id, message);
+        assertEquals(0, fork.code(), fork.output());
+        String forkId = fork.stdout().strip();
+        assertDoesNotThrow(() -> UUID.fromString(forkId));
+        var prefix = cli("session", "export", forkId);
+        assertFalse(prefix.output().contains("persisted answer"));
+        assertEquals(0, cli("session", "changes", id).code());
+        assertEquals(0, cli("session", "diff", id).code());
+        assertEquals(1, cli("session", "undo", id).code());
+        Files.writeString(archive, "{\"schemaVersion\":99}");
+        assertEquals(2, cli("session", "import", archive.toString()).code());
+        assertTrue(cli("--help").output().contains("message-id"));
+    }
+
     private String probe(String... args) throws Exception {
         var all = new ArrayList<String>();
         all.add(root.toString());
@@ -211,14 +247,15 @@ class CliSessionTest {
     private Result cli(String... args) throws Exception {
         var process = start("fr.openobject.ai.syleks.app.Main", args);
         assertTrue(process.waitFor(12, TimeUnit.SECONDS));
-        return new Result(
-                process.exitValue(),
+        String stdout =
                 new String(
-                                process.getInputStream().readAllBytes(),
-                                java.nio.charset.StandardCharsets.UTF_8)
-                        + new String(
-                                process.getErrorStream().readAllBytes(),
-                                java.nio.charset.StandardCharsets.UTF_8));
+                        process.getInputStream().readAllBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8);
+        String stderr =
+                new String(
+                        process.getErrorStream().readAllBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8);
+        return new Result(process.exitValue(), stdout + stderr, stdout);
     }
 
     private Process start(String main, String... args) throws Exception {
@@ -241,5 +278,5 @@ class CliSessionTest {
         return builder.start();
     }
 
-    private record Result(int code, String output) {}
+    private record Result(int code, String output, String stdout) {}
 }

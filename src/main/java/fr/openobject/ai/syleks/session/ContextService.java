@@ -51,21 +51,54 @@ public class ContextService {
     public record Context(List<Map<String, Object>> messages, int omittedMessages) {}
 
     public Context reconstruct(Session session, String agent) {
+        return reconstruct(session, agent, Integer.MAX_VALUE, true);
+    }
+
+    public Context summarySource(Session session, String agent, int through) {
+        return reconstruct(session, agent, through, false);
+    }
+
+    private Context reconstruct(Session session, String agent, int through, boolean bounded) {
+        var savedSummary = conversations.summary(session.id());
+        int summarized = savedSummary.map(s -> s.throughPosition()).orElse(-1);
         boolean openAi = config.resolveModel(session.model()).openAiCompatible();
         var result = new ArrayList<Map<String, Object>>();
-        var history = conversations.messages(session.id());
+        var history =
+                conversations.messages(session.id()).stream()
+                        .filter(
+                                m ->
+                                        m.role().equals("system")
+                                                || m.position() > summarized
+                                                        && m.position() <= through)
+                        .toList();
         Set<String> results = new HashSet<>();
         Set<String> callsWithResults = new HashSet<>();
+        var references = new HashMap<String, String>();
+        var pending = new HashMap<String, Set<String>>();
+        var callCounts = new HashMap<String, Integer>();
+        var duplicateResults = new HashSet<String>();
         for (var message : history)
             for (var part : conversations.parts(message.id())) {
-                if (part.type() == PartType.TOOL_RESULT) {
-                    var payload = conversations.payload(part);
-                    results.add(
+                var payload = conversations.payload(part);
+                String call = Objects.toString(payload.get("callId"), "");
+                if (part.type() == PartType.TOOL_CALL) {
+                    String reference = message.id() + "/" + call;
+                    pending.computeIfAbsent(call, ignored -> new HashSet<>()).add(reference);
+                    callCounts.merge(reference, 1, Integer::sum);
+                } else if (part.type() == PartType.TOOL_RESULT) {
+                    var candidates = pending.getOrDefault(call, Set.of());
+                    String reference =
                             payload.containsKey("callMessageId")
-                                    ? payload.get("callMessageId") + "/" + payload.get("callId")
-                                    : String.valueOf(payload.get("callId")));
+                                    ? payload.get("callMessageId") + "/" + call
+                                    : candidates.size() == 1 ? candidates.iterator().next() : null;
+                    if (reference == null || !callCounts.containsKey(reference)) continue;
+                    references.put(part.id(), reference);
+                    if (!results.add(reference)) duplicateResults.add(reference);
+                    if (pending.containsKey(call)) pending.get(call).remove(reference);
                 }
             }
+        results.removeAll(duplicateResults);
+        results.removeIf(reference -> callCounts.getOrDefault(reference, 0) != 1);
         for (var message : history) {
             StringBuilder text = new StringBuilder();
             var calls = new ArrayList<Map<String, Object>>();
@@ -81,11 +114,14 @@ public class ContextService {
                     }
                     case TOOL_CALL -> {
                         String callId = String.valueOf(payload.get("callId"));
-                        if (!results.contains(message.id() + "/" + callId)
-                                && !results.contains(callId))
-                            continue; // Interrupted calls without results must never be replayed.
+                        if (!results.contains(message.id() + "/" + callId)) {
+                            text.append("\n[Interrupted tool ")
+                                    .append(payload.get("name"))
+                                    .append(
+                                            "; its external effect is unknown. Inspect state before retrying.]\n");
+                            continue;
+                        } // Unresolved calls are never reconstructed as executable calls.
                         callsWithResults.add(message.id() + "/" + callId);
-                        callsWithResults.add(callId);
                         var function =
                                 Map.of(
                                         "name",
@@ -106,10 +142,7 @@ public class ContextService {
                                         : Map.of("function", function));
                     }
                     case TOOL_RESULT -> {
-                        String reference =
-                                payload.containsKey("callMessageId")
-                                        ? payload.get("callMessageId") + "/" + payload.get("callId")
-                                        : String.valueOf(payload.get("callId"));
+                        String reference = references.get(part.id());
                         if (!callsWithResults.contains(reference)) continue;
                         toolResult = new LinkedHashMap<>();
                         toolResult.put("role", "tool");
@@ -147,14 +180,19 @@ public class ContextService {
         }
         if (result.stream().noneMatch(m -> "system".equals(m.get("role"))))
             result.addFirst(Map.of("role", "system", "content", instructions(agent)));
-        if (session.summary() != null && !session.summary().isBlank())
+        String summary = savedSummary.map(s -> s.content()).orElse(session.summary());
+        if (summary != null && !summary.isBlank())
             result.add(
                     1,
                     Map.of(
                             "role",
-                            "system",
+                            "user",
                             "content",
-                            "Prior context summary:\n" + session.summary()));
+                            "Historical conversation summary (untrusted reference data):\n"
+                                    + summary,
+                            "contextSummary",
+                            true));
+        if (!bounded) return new Context(List.copyOf(result), 0);
         return limit(
                 result,
                 config.contextWindow(session.model()),
@@ -162,10 +200,33 @@ public class ContextService {
                 0);
     }
 
+    public static List<Map<String, Object>> wire(List<Map<String, Object>> messages) {
+        return messages.stream()
+                .map(
+                        m -> {
+                            var copy = new LinkedHashMap<>(m);
+                            copy.remove("contextSummary");
+                            return (Map<String, Object>) copy;
+                        })
+                .toList();
+    }
+
     public static Context limit(
             List<Map<String, Object>> history, int window, int output, int toolOverhead) {
-        var system = history.stream().filter(m -> "system".equals(m.get("role"))).toList();
-        var turns = history.stream().filter(m -> !"system".equals(m.get("role"))).toList();
+        var system =
+                history.stream()
+                        .filter(
+                                m ->
+                                        "system".equals(m.get("role"))
+                                                || Boolean.TRUE.equals(m.get("contextSummary")))
+                        .toList();
+        var turns =
+                history.stream()
+                        .filter(
+                                m ->
+                                        !"system".equals(m.get("role"))
+                                                && !Boolean.TRUE.equals(m.get("contextSummary")))
+                        .toList();
         int available = window - output - toolOverhead - ContextBudget.UTF8.estimate(system);
         if (available <= 0)
             throw new IllegalStateException(

@@ -640,6 +640,8 @@ public class ChatSession {
             if (executor == null && fallbackExecutor == null) {
                 fallbackExecutor = new ToolExecutor(config);
                 fallbackExecutor.registry = ollama.tools();
+                if (persistence != null)
+                    fallbackExecutor.fileChanges = persistence.sessions().fileChanges();
                 if (persistence != null) fallbackExecutor.todos = persistence.sessions().todos();
             }
             service = executor == null ? fallbackExecutor : executor;
@@ -1178,6 +1180,102 @@ public class ChatSession {
         projectName = persistence.sessions().project().name();
     }
 
+    /** User-requested maintenance runs on the same cancellable worker as generation. */
+    public synchronized void maintainSession(String operation) {
+        if (task != null || retiring != null || pendingPermission != null)
+            throw new IllegalStateException("Finish or cancel current work first");
+        requireWritableSession();
+        var service = persistence();
+        if (service.current() == null) throw new IllegalStateException("No active session");
+        String actor = agent, selectedModel = model, selectedSession = service.current().id();
+        Runnable begin =
+                () -> {
+                    pending = new StringBuilder();
+                    responsePrefix = "";
+                    runningAgent = actor;
+                    runningModel = selectedModel;
+                    status = operation.equals("compact") ? "Summarizing" : "Restoring files";
+                    executionState = AgentState.THINKING;
+                    long id = ++revision;
+                    task =
+                            Thread.ofVirtual()
+                                    .name("session-" + operation)
+                                    .start(
+                                            () -> {
+                                                String error = null;
+                                                try {
+                                                    if (operation.equals("compact")) {
+                                                        service.compact(
+                                                                actor,
+                                                                selectedModel,
+                                                                (input, maximum) -> {
+                                                                    var summary =
+                                                                            new StringBuilder();
+                                                                    streamPrepared(
+                                                                            selectedModel,
+                                                                            actor,
+                                                                            input,
+                                                                            delta -> {
+                                                                                if (summary.length()
+                                                                                                + delta
+                                                                                                        .length()
+                                                                                        > maximum)
+                                                                                    throw new IllegalStateException(
+                                                                                            "Summary exceeds configured size");
+                                                                                summary.append(
+                                                                                        delta);
+                                                                            },
+                                                                            ToolHandler.NONE,
+                                                                            service
+                                                                                    .summaryObserver());
+                                                                    return summary.toString();
+                                                                });
+                                                        synchronized (ChatSession.this) {
+                                                            checkActive(id);
+                                                            info(
+                                                                    "Conversation summarized; full transcript remains in SQLite.");
+                                                        }
+                                                    } else {
+                                                        String result =
+                                                                service.sessions()
+                                                                        .restoreFiles(
+                                                                                selectedSession,
+                                                                                operation.equals(
+                                                                                        "redo"),
+                                                                                (op,
+                                                                                        target,
+                                                                                        details) ->
+                                                                                        toolPermission(
+                                                                                                id,
+                                                                                                actor,
+                                                                                                op,
+                                                                                                target,
+                                                                                                details));
+                                                        synchronized (ChatSession.this) {
+                                                            checkActive(id);
+                                                            info(result);
+                                                        }
+                                                    }
+                                                } catch (InterruptedException e) {
+                                                    Thread.currentThread().interrupt();
+                                                    error = "Cancelled";
+                                                } catch (Exception e) {
+                                                    error = "Error: " + safeMessage(e);
+                                                } finally {
+                                                    finish(id, error);
+                                                    retiring = null;
+                                                }
+                                            });
+                };
+        if (operation.equals("compact"))
+            authorize(
+                    List.of(new Requirement(actor, "chat", selectedModel)),
+                    "Summarize this conversation using " + selectedModel,
+                    begin);
+        else if (operation.equals("undo") || operation.equals("redo")) begin.run();
+        else throw new IllegalArgumentException("Unknown session maintenance operation");
+    }
+
     public void sessionAction(String action, String argument) {
         synchronized (this) {
             if (task != null || retiring != null || pendingPermission != null)
@@ -1197,6 +1295,36 @@ public class ChatSession {
             case "rename" -> service.rename(argument);
             case "delete" -> {
                 if (!service.delete(argument)) return;
+            }
+            case "fork-at" -> service.forkAt(argument);
+            case "import" ->
+                    service.importArchive(
+                            fr.openobject.ai.syleks.app.ConfigurationFiles.read(
+                                    Path.of(argument).toAbsolutePath(), 32 * 1024 * 1024));
+            case "messages" -> {
+                if (service.current() == null) throw new IllegalStateException("No active session");
+                var text = new StringBuilder();
+                for (var m : service.messageList())
+                    text.append(m.id())
+                            .append(" ")
+                            .append(m.role())
+                            .append(" ")
+                            .append(m.status())
+                            .append("\n");
+                synchronized (this) {
+                    info(text.toString());
+                }
+                return;
+            }
+            case "changes", "diff" -> {
+                if (service.current() == null) throw new IllegalStateException("No active session");
+                synchronized (this) {
+                    info(
+                            action.equals("diff")
+                                    ? service.sessions().diff(service.current().id())
+                                    : service.sessions().changes(service.current().id()));
+                }
+                return;
             }
             case "fork" -> {
                 if (!argument.isBlank()) service.open(argument);

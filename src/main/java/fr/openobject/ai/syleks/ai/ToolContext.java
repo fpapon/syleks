@@ -9,7 +9,17 @@ public record ToolContext(
         String sessionId,
         String actor,
         AgentTools.Gate permissions,
-        Questioner questions) {
+        Questioner questions,
+        FileMutation mutations) {
+    public ToolContext(
+            Path workspace,
+            String sessionId,
+            String actor,
+            AgentTools.Gate permissions,
+            Questioner questions) {
+        this(workspace, sessionId, actor, permissions, questions, FileMutation.DIRECT);
+    }
+
     @FunctionalInterface
     public interface Questioner {
         String ask(String question, List<String> options) throws Exception;

@@ -26,7 +26,7 @@ New data/configuration files use private permissions where the filesystem suppor
 
 ## What is saved or sent
 
-Sessions save messages, structured response parts, partial output, model metadata, and tool execution records. There is no mode without persistence in this version. Unsent drafts are kept only in memory.
+Sessions save messages, structured response parts, partial output, model metadata, tool execution records, generated summaries and native before/after file snapshots. File snapshots can include previous contents that never appeared in a model request. There is no mode without persistence in this version. Unsent drafts are kept only in memory.
 
 SQLite schema 4 adds subagent task correlations and durable execution budgets. Child sessions retain their parent/root relation, agent ancestry, status, rounds and diagnostics. Usage remains stored once under the session that made each request. Opening an existing supported database applies the migration transactionally; a newer database schema is refused. Subagents receive configured shared instructions and their explicit task, with their own provider account resolved independently; the parent's conversation and credentials are not automatically copied into their context.
 
@@ -48,7 +48,7 @@ Do not copy only `syleks.db` while another instance is writing: committed change
 
 To move storage, close all instances, copy the entire data directory, and set `SYLEKS_DATA_DIR` to the new local location before relaunching. Project identity is based on canonical paths; moving a project to another path may make its old sessions belong to the old project location.
 
-Restore while all instances are closed, using a private data directory and a compatible Syleks version. There is no JSON session import command; a JSON export is a portable record rather than a database restore mechanism.
+Restore while all instances are closed, using a private data directory and a compatible Syleks version. Versioned JSON records can be imported with `session import PATH` into the same canonical project. They create independent IDs and do not import provider credentials or file-restore authority. A complete data-directory backup remains the way to retain the original identities and active undo history.
 
 ## Updates and database versions
 
@@ -63,3 +63,5 @@ SQLite uses write-ahead logging, foreign-key checks, and a five-second busy time
 `/save PATH` creates a readable Markdown export without overwriting existing files. `syleks session export ID` writes a fuller JSON record to standard output; it can contain prompts, internal reasoning, file content, tool arguments/results, and secrets in those contents. Both exports are plaintext. Choose private destinations and avoid committing them.
 
 Deleting a session removes its associated records in the active database. It does not erase previous backups or guarantee secure erasure from disk. Forked sessions remain independent copies. See [Sessions](sessions.md) for export and deletion commands.
+
+Schema 6 adds indexed summary boundaries and a write-ahead native file-change journal. Recovering a pending file mutation only compares snapshots with current files; it never repeats an effect. Session deletion removes these records. JSON archives include snapshots and child usage, so protect them as carefully as the source files. Imported snapshots remain inactive. See [Sessions](sessions.md) for summary and undo limits.

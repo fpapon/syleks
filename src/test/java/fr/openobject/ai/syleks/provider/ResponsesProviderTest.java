@@ -31,6 +31,39 @@ class ResponsesProviderTest {
     }
 
     @Test
+    void summaryRequestsOmitToolsAndKeepSavedSummaryAsUserReferenceData() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var provider = new ChatGptLlmProvider(f.auth, f.json, f.config, f.base.resolve("v1/"));
+            var payload =
+                    provider.payload(
+                            new ChatRequest(
+                                    "test-model",
+                                    "build",
+                                    "unused-account",
+                                    List.of(
+                                            Map.of(
+                                                    "role",
+                                                    "system",
+                                                    "content",
+                                                    "Summarize archived data"),
+                                            Map.of(
+                                                    "role",
+                                                    "user",
+                                                    "content",
+                                                    "saved summary",
+                                                    "contextSummary",
+                                                    true)),
+                                    fr.openobject.ai.syleks.ai.ToolHandler.NONE,
+                                    null));
+            assertFalse(payload.containsKey("tools"));
+            assertFalse(payload.toString().contains("contextSummary"));
+            assertEquals("Summarize archived data\n", payload.get("instructions"));
+            assertTrue(payload.get("input").toString().contains("role=user"));
+            assertTrue(payload.get("input").toString().contains("saved summary"));
+        }
+    }
+
+    @Test
     void routesBuiltInModelDiscoveryAndResponsesThroughConfiguredProxies() throws Exception {
         try (var f = new AuthFixture(root)) {
             var chatgpt = f.login(null);

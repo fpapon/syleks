@@ -128,6 +128,10 @@ public class AgentTools {
     }
 
     public String execute(ToolCall call, Gate gate) throws Exception {
+        return execute(call, gate, FileMutation.DIRECT);
+    }
+
+    public String execute(ToolCall call, Gate gate, FileMutation mutations) throws Exception {
         if (!NAMES.contains(call.name()))
             throw new IllegalArgumentException("Unsupported tool " + call.name());
         var a = call.arguments();
@@ -154,7 +158,7 @@ public class AgentTools {
                 out.append("[Total lines: ").append(lines.size()).append(']');
                 yield bounded(out.toString());
             }
-            case "write", "edit" -> mutate(call, gate);
+            case "write", "edit" -> mutate(call, gate, mutations);
             case "list", "glob", "grep" -> search(call, gate);
             case "webfetch" -> fetch(uri(string(a, "url")), gate, "webfetch");
             case "websearch" -> {
@@ -174,7 +178,7 @@ public class AgentTools {
         };
     }
 
-    private String mutate(ToolCall call, Gate gate) throws Exception {
+    private String mutate(ToolCall call, Gate gate, FileMutation mutations) throws Exception {
         var a = call.arguments();
         var path = path(string(a, "path"));
         var edit = call.name().equals("edit");
@@ -225,15 +229,20 @@ public class AgentTools {
         // Recheck confinement immediately before committing; existing contents must still match our
         // snapshot.
         path(path.toString());
-        if (before == null) {
-            Files.writeString(path, content, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
-        } else {
-            if (!java.util.Arrays.equals(before, bytes(path)))
-                throw new IOException("File changed during edit; retry");
-            // Preserve permissions and other file attributes rather than replacing the inode.
-            Files.writeString(
-                    path, content, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
-        }
+        byte[] after = content.getBytes(StandardCharsets.UTF_8);
+        mutations.commit(
+                path,
+                before,
+                after,
+                () -> {
+                    path(path.toString());
+                    if (before == null) Files.write(path, after, StandardOpenOption.CREATE_NEW);
+                    else {
+                        if (!java.util.Arrays.equals(before, bytes(path)))
+                            throw new IOException("File changed during edit; retry");
+                        Files.write(path, after, StandardOpenOption.TRUNCATE_EXISTING);
+                    }
+                });
         return "Updated "
                 + path
                 + " ("

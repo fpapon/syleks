@@ -22,7 +22,7 @@ class SqlitePersistenceTest {
                         for (var item :
                                 Map.of(
                                                 "user_version",
-                                                "5",
+                                                "6",
                                                 "journal_mode",
                                                 "wal",
                                                 "foreign_keys",

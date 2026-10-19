@@ -32,7 +32,7 @@ bin/syleks session list
 bin/syleks --continue
 ```
 
-The default database is `~/.local/share/syleks/syleks.db`; `XDG_DATA_HOME` and `SYLEKS_DATA_DIR` override it. Sessions retain messages, streamed fragments and structured tool history. `/new`, `/resume`, `/rename TITLE` and `/fork` manage conversations without deleting previous history. Explicit JSON export and deletion are available through `session export ID` and `session delete ID`.
+The default database is `~/.local/share/syleks/syleks.db`; `XDG_DATA_HOME` and `SYLEKS_DATA_DIR` override it. Sessions retain messages, streamed fragments and structured tool history. `/new`, `/resume`, `/rename TITLE` and `/fork` manage conversations without deleting previous history. Use `/compact` for generated context summaries, `/fork MESSAGE-ID` for prefix forks, and `/changes`, `/diff`, `/undo`, `/redo` for native file history. Validated JSON export/import and deletion are available through `session export ID`, `session import PATH` and `session delete ID`.
 
 See [Sessions](docs/sessions.md) for resume, forks, context budgets, concurrency, and recovery, and [Storage and privacy](docs/storage-and-privacy.md) for database locations, migrations, and backups. JSON exports may include confidential prompts, reasoning and tool results. `/clear` now starts a new persistent session.
 
@@ -201,7 +201,7 @@ The schema rejects unknown fields and invalid types, identifiers, URLs, permissi
 - `options.baseURL` receives `/chat/completions`; `options.apiKey`, when provided, is sent as a Bearer token.
 - `name` fields supply display labels. `npm` identifies the supported OpenAI-compatible protocol; this Java app does not install or execute npm packages. Other SDK protocols are unsupported.
 - The active agent starts as `build`, or the primary agent named by `default_agent`. Use `/agent NAME` to select an agent. Omitted temperatures use the server default; configured values must be 0–2.
-- `limit.output` is sent as `max_tokens`. `limit.context` sets the context budget; Syleks estimates size conservatively and selects recent complete turns that fit, reserving room for output and tools. Omitted older context is reported without deleting saved history. Automatic summary generation is not implemented. Limits may be omitted; see [Configuration](docs/configuration.md).
+- `limit.output` is sent as `max_tokens`. `limit.context` sets the context budget; Syleks estimates size conservatively and selects recent complete turns that fit, reserving room for output and tools. Omitted older context is reported without deleting saved history. Use `/compact` for an explicitly requested generated summary; the full transcript remains in SQLite. Limits may be omitted; see [Configuration](docs/configuration.md).
 - Restart after editing the file. Unreadable files, invalid JSON, or invalid settings stop startup with an error.
 
 Existing Ollama settings remain supported:

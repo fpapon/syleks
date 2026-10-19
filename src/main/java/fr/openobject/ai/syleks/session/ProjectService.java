@@ -9,9 +9,15 @@ import java.util.concurrent.TimeUnit;
 
 @DefaultScoped
 public class ProjectService {
+    public java.nio.file.Path workspace() {
+        return workspace;
+    }
+
     private final Project project;
+    private final Path workspace;
 
     public ProjectService(AppConfig config, ProjectRepository projects) {
+        this.workspace = config.workspace();
         this.project = identify(config.workspace(), projects);
     }
 

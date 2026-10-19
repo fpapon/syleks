@@ -59,6 +59,9 @@ public final class Main {
                                syleks session list
                                syleks session delete <id>
                                syleks session export <id>
+                               syleks session import <file>
+                               syleks session fork <id> [message-id]
+                               syleks session messages|changes|diff|undo|redo <id>
                                syleks auth login|logout chatgpt [account-id]
                                syleks auth login openai-api
                                syleks auth status|accounts
@@ -162,8 +165,19 @@ public final class Main {
                 require(
                         operation.equals("list")
                                 ? args.length == 2
-                                : (operation.equals("delete") || operation.equals("export"))
-                                        && args.length == 3);
+                                : operation.equals("fork")
+                                        ? args.length == 3 || args.length == 4
+                                        : java.util.Set.of(
+                                                                "delete",
+                                                                "export",
+                                                                "import",
+                                                                "messages",
+                                                                "changes",
+                                                                "diff",
+                                                                "undo",
+                                                                "redo")
+                                                        .contains(operation)
+                                                && args.length == 3);
                 try (var container = ConfiguringContainer.of().start();
                         var instance = container.lookup(SessionService.class)) {
                     var service = instance.instance();
@@ -189,6 +203,27 @@ public final class Main {
                             out.println("Deleted session " + args[2]);
                         }
                         case "export" -> out.println(service.export(args[2]));
+                        case "import" ->
+                                out.println(
+                                        service.importArchive(
+                                                        ConfigurationFiles.read(
+                                                                java.nio.file.Path.of(args[2])
+                                                                        .toAbsolutePath(),
+                                                                32 * 1024 * 1024))
+                                                .id());
+                        case "fork" ->
+                                out.println(
+                                        service.fork(args[2], args.length == 4 ? args[3] : null)
+                                                .id());
+                        case "messages" -> out.print(service.messageList(args[2]));
+                        case "changes" -> out.print(safeOutput(service.changes(args[2])));
+                        case "diff" -> out.print(safeOutput(service.diff(args[2])));
+                        case "undo", "redo" ->
+                                out.println(
+                                        service.restoreFiles(
+                                                args[2],
+                                                operation.equals("redo"),
+                                                (op, target, details) -> true));
                         default -> throw new IllegalArgumentException("Unknown session command");
                     }
                 }
@@ -236,6 +271,10 @@ public final class Main {
                             ? new Options("new", "")
                             : new Options("open", restart.sessionId());
         }
+    }
+
+    private static String safeOutput(String value) {
+        return value.replaceAll("[\\p{Cc}&&[^\n\t]]", " ");
     }
 
     private static String safe(String value) {

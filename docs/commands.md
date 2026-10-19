@@ -18,6 +18,11 @@ Run these from the project whose sessions you want to access. `ID` means a full 
 | `syleks config init --defaults` | Create missing starter files without prompting or overwriting |
 | `syleks session list` | List this project's sessions with IDs, titles, update times, models, message counts, and statuses |
 | `syleks session export ID` | Write the full session as JSON to standard output |
+| `syleks session import PATH` | Validate and import an archive into this project, returning a new UUID |
+| `syleks session fork ID [MESSAGE-ID]` | Create a whole-session or inclusive-prefix fork |
+| `syleks session messages ID` | List message UUIDs, roles and statuses |
+| `syleks session changes ID` / `diff ID` | Inspect recorded native file changes |
+| `syleks session undo ID` / `redo ID` | Restore recorded file contents after checking divergence |
 | `syleks session delete ID` | Permanently delete a session, without a confirmation prompt |
 | `syleks mcp list` | Connect and report configured MCP server status |
 | `syleks mcp tools` | List MCP tools available to the default agent |
@@ -45,7 +50,12 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | `/sessions` | Open the searchable session picker |
 | `/resume` | Open the latest session |
 | `/rename TITLE` | Change the current session's title |
-| `/fork` | Copy this whole conversation into a new independent session |
+| `/fork [MESSAGE-ID]` | Fork the whole conversation or an inclusive message prefix |
+| `/messages` | Show message UUIDs for selecting a fork boundary |
+| `/compact` | Generate a summary for future requests, keeping the full transcript |
+| `/import PATH` | Import a validated session archive and open its root |
+| `/changes`, `/diff` | Inspect native file snapshots |
+| `/undo`, `/redo` | Restore recorded file contents through the active agent's write policy |
 | `/model MODEL` | Select a configured `provider/model` or a bare Ollama model ID |
 | `/agents` | List agents and their modes |
 | `/agent` | List agents |

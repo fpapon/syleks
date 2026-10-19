@@ -20,7 +20,16 @@ final class HelpModal {
                     new Entry("/children · /parent", "Browse child tasks or return to the parent."),
                     new Entry("/resume", "Open the latest session."),
                     new Entry("/rename TITLE", "Rename this session."),
-                    new Entry("/fork", "Copy this conversation into a new session."),
+                    new Entry(
+                            "/fork [message-id]",
+                            "Copy this conversation, optionally through a selected message."),
+                    new Entry("/messages", "Show message IDs for a fork boundary."),
+                    new Entry("/compact", "Generate and save a summary; keep the full transcript."),
+                    new Entry("/import PATH", "Import a validated JSON session archive."),
+                    new Entry("/changes, /diff", "Inspect recorded native file changes."),
+                    new Entry(
+                            "/undo, /redo",
+                            "Restore recorded files after checking for external edits."),
                     new Entry("Models & accounts", ""),
                     new Entry("/connect", "Connect a provider or account."),
                     new Entry("/providers [ID]", "Choose a provider."),

@@ -73,7 +73,9 @@ syleks --fork ID
 
 A fork copies the **entire conversation** at that moment into a new session, including its model and structured tool history. It records its parent and can then evolve independently. Sending messages in the fork does not change the original. Forking itself does not call the model or rerun tools.
 
-Forking at a selected message is not available. Deleting the parent does not delete its forks.
+To fork a prefix, use `/messages` to find a message UUID, then `/fork MESSAGE-ID`. The selected message is included. In the shell, `syleks session messages ID` lists boundaries and `syleks session fork ID MESSAGE-ID` prints the new session UUID without opening chat. `syleks session fork ID` copies the full conversation.
+
+A boundary that splits a tool call from its result is refused; choose a message after all results for that call. Tool references are remapped into the fork. A summary is copied only when all messages it summarizes are inside the selected prefix. Usage, todos, file-restore authority and child sessions are not copied. Deleting the parent does not delete its forks.
 
 ## Subagent sessions
 
@@ -97,9 +99,36 @@ If a provider was removed, the history remains readable; Syleks asks you to sele
 
 The selected agent's current system prompt and startup-loaded global instructions are combined with the conversation's saved project instructions. The project snapshot includes `AGENTS.md` from the Git root down to the original launch directory. Changing Build → Plan → Build therefore changes the effective prompt and permissions without replacing the conversation. `/restart` reloads agents and global instructions. To apply changed project instructions or another launch scope, start `/new`. Valid tool-call/result pairs are retained in request order. Internal reasoning and visual-only parts are not automatically sent back as model messages.
 
-A model cannot accept unlimited history. Syleks estimates size, reserves output space, and includes the most recent complete turns that fit. A notice identifies omitted older context. **The complete saved conversation remains intact**, but the model may no longer see its older details. There is no automatic summary or compaction into a generated summary.
+A model cannot accept unlimited history. Syleks estimates size, reserves output space, and includes the most recent complete turns that fit. A notice identifies omitted older context. **The complete saved conversation remains intact**, but the model may no longer see its older details. Use `/compact` to generate a durable summary before continuing. Compaction makes additional model requests only when explicitly requested.
 
 If the latest turn or instructions alone exceed the budget, increase the supported context limit, select a suitable model, or start a new session with a shorter message. See [Configuration](configuration.md).
+
+## Generate a context summary
+
+Run `/compact` while the session is idle. It uses the selected provider/model/account with the current agent's `chat` permission. The summary request has no tool declarations or executor authority. The summarizer receives archived conversation data and the previous summary, rather than the active agent's instructions. Reported consumption belongs to this session and appears in `/usage`.
+
+The latest user turn and its results stay verbatim. Earlier turns become a bounded, model-generated summary for subsequent requests. The saved summary records its inclusive message position, so covered history is replaced rather than sent twice. The model receives it as user reference data, outside system instructions. System/project instructions and the pinned summary share the normal context budget, including the output reserve and tool schemas. `/compact` does not delete or rewrite raw messages, reasoning, tool results or usage.
+
+Esc/Ctrl+C cancels compaction. Empty, oversized, failed or interrupted summaries leave the prior summary unchanged and release the session lease. Another process cannot generate in that session while compaction runs. If there are no older turns to summarize, Syleks reports that instead of contacting the model. Repeated compaction includes the previous summary plus newly archived turns.
+
+Summary input is bounded to 16 MiB and split into at most 64 budgeted requests. Each resulting summary is at most 16,000 UTF-8 bytes and may be smaller for the model's context window. A failure before the final commit preserves the prior summary; any requests already made remain counted. There is no automatic paid-model compaction when history is omitted. Summaries can omit details; the complete transcript stays available locally.
+
+## Inspect and restore native file changes
+
+`/changes` lists recorded changes and `/diff` shows a bounded textual before/after view. `/undo` restores the latest recorded native mutation batch, and `/redo` reapplies the earliest undone batch. These commands also include delegated descendants' file effects. The shell equivalents are:
+
+```sh
+syleks session changes ID
+syleks session diff ID
+syleks session undo ID
+syleks session redo ID
+```
+
+Native `write`, `edit` and `apply_patch` store bounded before/after snapshots in SQLite before touching each file. Patch files share a batch. Each file is limited to 1 MB. Creating or deleting a file can be undone. A new edit branches away from redo history. Forks do not acquire authority to undo their parent's edits; imported snapshots are historical data only.
+
+Before restoration, Syleks checks all expected file contents and all required approvals. A file changed externally, moved outside the current workspace or replaced by a symlink is refused. No file in a batch is restored when this initial check fails. In chat, restoration uses the active agent's `write` permission and existing ASK panel; explicit DENY still wins. A shell `session undo` or `redo` is a direct user operation. A workspace lock coordinates journaled effects between instances sharing the data directory.
+
+This restores file contents, not conversations, Git commits, permissions or process/network effects. Shell, MCP and uninstrumented custom tools are not automatically snapshotted. Multi-file changes are not a filesystem transaction: an I/O failure or crash during commit can leave a completed prefix. A noncooperating external process can race the final content/path check. Recovery classifies pending snapshots from observed bytes and never writes files; a conflicting pending change requires inspection and a fresh session for further automatic restoration. File snapshots are retained until the session is deleted, so protect your database and exports.
 
 ## Export or delete
 
@@ -112,7 +141,7 @@ syleks session list
 syleks session export ID > conversation.json
 ```
 
-JSON includes session metadata, messages, structured parts, and tool executions. It can include confidential code, prompts, reasoning, parameters, results, and secrets appearing in those contents. Store it privately and keep it out of version control. Shell redirection can overwrite a file; choose a new filename or use `set -C` in a compatible shell first. There is no session import command in this version.
+Version 2 JSON includes session metadata, messages, structured parts, tool executions, summaries, todos, usage, native file snapshots and delegated child histories. Fork branches are separate exports. It can include confidential code, prompts, reasoning, parameters, results, and secrets appearing in those contents. Store it privately and keep it out of version control. Shell redirection can overwrite a file; choose a new filename or use `set -C` in a compatible shell first. Use `syleks session import conversation.json` or `/import conversation.json` to import a validated archive into this project; see below.
 
 In the session picker (**Ctrl+R** or `/sessions`), select a row and press **Delete**, then **Enter** to confirm or **Esc** to cancel. The picker stays open and keeps its filter. Deleting the current session clears its chat and unsent draft; a new session is created when you next send a message. Deleting another session preserves your current chat and draft. A session busy in another terminal cannot be deleted.
 
@@ -123,6 +152,18 @@ syleks session delete ID
 ```
 
 **The shell command deletes immediately, with no confirmation prompt. Deletion cannot be undone in Syleks.** Check the ID first. Related messages and tool records are deleted too; forks survive. Deletion is not secure erasure from disk or backups.
+
+## Import an archive
+
+```sh
+syleks session import conversation.json
+```
+
+The command prints a new UUID. `/import PATH` opens the imported root session in chat. The current project's canonical root must match the archive's `projectRoot`; legacy version 1 records require the same local project ID. There is no cross-project override. Imports do not install provider/agent configuration or bind an archived provider account to your credentials. Select a missing provider/account/model explicitly before sending new requests.
+
+All session, message, part, execution, usage-request and file-change identities are remapped. Existing sessions are never overwritten, including when importing the same archive twice. Tool references, parent/child task relations and usage are remapped together. Importing a tree preserves its own and descendant counters without charging them to the original tree. Pending work becomes interrupted and is never resumed automatically. Todo state and summary boundaries are preserved; raw transcript timestamps and ordering remain available.
+
+Imported file snapshots are marked historical and cannot be undone/redone, so opening an archive never changes workspace files. No tools, commands, callbacks or URLs from an archive are executed. Provider credentials and remembered approvals are not imported. JSON is validated before the transaction writes any rows: supported versions, unique IDs, ordered messages/parts, paired tool references, execution parameters, task topology and nonnegative usage metrics are checked. Failure rolls back the entire import. Archives are limited to 32 MiB and 128 related sessions.
 
 ## Several terminals
 

@@ -21,6 +21,13 @@ public class ToolExecutor {
 
     private ToolRegistry fallbackRegistry;
 
+    @io.yupiik.fusion.framework.build.api.scanning.Injection
+    fr.openobject.ai.syleks.session.FileChangeJournal fileChanges;
+
+    public void fileChanges(fr.openobject.ai.syleks.session.FileChangeJournal journal) {
+        fileChanges = journal;
+    }
+
     @io.yupiik.fusion.framework.build.api.lifecycle.Destroy
     public synchronized void close() {
         if (fallbackRegistry != null) fallbackRegistry.close();
@@ -135,7 +142,12 @@ public class ToolExecutor {
                     return allowed;
                 };
         try {
-            var context = new ToolContext(config.workspace(), session, actor, gate, questions);
+            var mutations =
+                    session != null && fileChanges != null
+                            ? fileChanges.recording(session, call.id())
+                            : FileMutation.DIRECT;
+            var context =
+                    new ToolContext(config.workspace(), session, actor, gate, questions, mutations);
             if (AuxiliaryTools.NAMES.contains(call.name()))
                 return bounded(new AuxiliaryTools(config, todos).execute(call, context));
             if (extension != null) {
@@ -153,7 +165,7 @@ public class ToolExecutor {
                 return bounded(extension.execute(context, call.arguments()));
             }
             if (AgentTools.NAMES.contains(call.name()))
-                return bounded(ToolResult.success(files.execute(call, gate)));
+                return bounded(ToolResult.success(files.execute(call, gate, mutations)));
             if (!call.name().equals("bash"))
                 return ToolResult.failed("Tool error: unsupported tool " + call.name());
             var args = call.arguments();

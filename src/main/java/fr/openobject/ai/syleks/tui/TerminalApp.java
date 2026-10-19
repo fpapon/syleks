@@ -605,7 +605,14 @@ public class TerminalApp implements AutoCloseable {
                 case "/session" -> changeSession("open", arg);
                 case "/resume" -> changeSession("resume", "");
                 case "/rename" -> changeSession("rename", arg);
-                case "/fork" -> changeSession("fork", "");
+                case "/fork" -> changeSession(arg.isBlank() ? "fork" : "fork-at", arg);
+                case "/import" -> changeSession("import", arg);
+                case "/messages" -> changeSession("messages", "");
+                case "/changes" -> changeSession("changes", "");
+                case "/diff" -> changeSession("diff", "");
+                case "/compact" -> session.maintainSession("compact");
+                case "/undo" -> session.maintainSession("undo");
+                case "/redo" -> session.maintainSession("redo");
                 case "/usage" -> usageModal = new UsageModal();
                 case "/sidebar" -> {
                     if (usagePreferences == null)
