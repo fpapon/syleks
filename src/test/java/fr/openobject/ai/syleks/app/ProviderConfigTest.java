@@ -80,7 +80,16 @@ class ProviderConfigTest {
 
     @Test
     void switchesBetweenProvidersWithIndependentConnectionsAndAgentModels() throws Exception {
-        var config = config(Files.readString(Path.of("examples/agent-config.json")), Map.of());
+        var settings =
+                mapper.instance()
+                        .fromString(
+                                Map.class, Files.readString(Path.of("examples/agent-config.json")));
+        var providers = (Map<?, ?>) settings.get("provider");
+        // This fixture stubs direct requests; dedicated tests below cover proxy routing.
+        for (var id : List.of("ollama", "chatgpt", "openai-api")) providers.remove(id);
+        for (var provider : providers.values())
+            ((Map<?, ?>) ((Map<?, ?>) provider).get("options")).remove("proxy");
+        var config = config(mapper.instance().toString(settings), Map.of());
         var local = config.resolveModel("local/qwen3:8b");
         var remote = config.resolveModel("remote/qwen3:8b");
         assertEquals("qwen3:8b", local.model());

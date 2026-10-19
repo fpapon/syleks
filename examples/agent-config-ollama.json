@@ -42,8 +42,7 @@
         "task": {
           "*": "deny",
           "explore": "allow",
-          "reviewer": "ask",
-          "triage": "ask"
+          "reviewer": "ask"
         },
         "save": "ask",
         "edit": "ask",

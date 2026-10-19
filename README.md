@@ -293,14 +293,18 @@ The layout uses a workspace header, blue user-message rails, shaded code cards w
 
 ```text
 Main (CLI routing) -> Fusion container
-                               |
-                        TerminalApp (JLine event loop)
-                         |                 |
-                  ChatRenderer         ChatSession (Fusion bean)
-                  TerminalCanvas        |
-                  TerminalPainter    OllamaClient (Fusion bean)
-                                      |
-                                 Ollama /api/chat or provider /chat/completions
+                            |
+                       TerminalApp (JLine)
+                        |          |
+                   ChatRenderer  ChatSession -> AgentRuntime
+                   TerminalCanvas     |           |
+                   TerminalPainter SQLite     Provider adapters
+                                                  |
+                                        Ollama / Responses /
+                                        Chat Completions
+
+AgentRuntime -> ToolExecutor -> native tools / MCP / Java extensions
+             -> SubagentExecutor -> persisted child sessions
 ```
 
 - TerminalApp is the only owner of terminal output. Generated content is synchronized into ChatSession via a virtual thread.
@@ -310,7 +314,7 @@ Main (CLI routing) -> Fusion container
 
 ## Current feature boundaries
 
-The app supports streaming conversations, declared agents/subagents, and permission-checked shell, file, search, and web tools. Unknown tool names are reported to the model without execution. The `/demo` entries remain synthetic and do not run tools. Markdown styling is deliberately lightweight (highlighted fenced code, headings, emphasis, inline code, links, and line prefixes) and is not yet a complete CommonMark implementation. Unicode display-width handling is approximate, particularly for combining grapheme clusters.
+The app supports streaming conversations, persisted root/child sessions, declared agents, bounded parallel delegation, permission-checked native tools, MCP servers and Java tool extensions. Unknown tool names are reported to the model without execution. The `/demo` entries remain synthetic and do not run tools. Markdown styling is deliberately lightweight (highlighted fenced code, headings, emphasis, inline code, links, and line prefixes) and is not yet a complete CommonMark implementation. Unicode display-width handling is approximate, particularly for combining grapheme clusters.
 
 ## Security notes
 
@@ -326,7 +330,7 @@ The app supports streaming conversations, declared agents/subagents, and permiss
 1. Encryption at rest and automatic context summaries.
 2. Syntax-aware diff navigation and richer Markdown tables.
 3. Richer file browsing and attachment workflows.
-4. OS-sandboxed execution and modifications with diff approval.
+4. OS-sandboxed execution and richer change review.
 5. File picker, fuzzy search, configurable keymap, terminal themes.
 
 Licensed Apache-2.0 (see LICENSE).
