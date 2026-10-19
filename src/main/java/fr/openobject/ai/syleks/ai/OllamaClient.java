@@ -29,10 +29,15 @@ public class OllamaClient {
     @io.yupiik.fusion.framework.build.api.scanning.Injection ToolRegistry tools;
     private ToolRegistry fallbackTools;
 
-    private synchronized ToolRegistry tools() {
+    public synchronized ToolRegistry tools() {
         if (tools != null) return tools;
         if (fallbackTools == null) fallbackTools = new ToolRegistry(config, List.of());
         return fallbackTools;
+    }
+
+    @io.yupiik.fusion.framework.build.api.lifecycle.Destroy
+    public synchronized void close() {
+        if (fallbackTools != null) fallbackTools.close();
     }
 
     private final ThreadLocal<Observer> observer = new ThreadLocal<>();

@@ -154,3 +154,7 @@ The optional `subagents` object adds finite child execution ceilings: `max_depth
 ## Token sidebar
 
 `/sidebar [auto|show|hide]` saves visibility in the existing provider-selection `config.json`. Context color thresholds are configured with `context_warning_percent` and `context_critical_percent` in that file. See [Token usage](token-usage.md) for the exact location, defaults and precision limits.
+
+## MCP servers
+
+Configure stdio or Streamable HTTP servers in `mcp`. Project definitions require an exact workspace entry in the global `mcp_trusted_projects` list. MCP credentials and permissions are independent of model providers. See [MCP servers](mcp.md) for configuration, OAuth and limits.

@@ -15,6 +15,53 @@ public class ToolRegistry {
     private final AppConfig config;
     private final List<CustomTool> extensions;
     private boolean initialized;
+    private fr.openobject.ai.syleks.mcp.McpClientManager mcp;
+    private List<CustomTool> mcpSnapshot = List.of();
+
+    public synchronized fr.openobject.ai.syleks.mcp.McpClientManager mcp() {
+        ready();
+        return mcp;
+    }
+
+    @io.yupiik.fusion.framework.build.api.lifecycle.Destroy
+    public synchronized void close() {
+        if (mcp != null) mcp.close();
+    }
+
+    private void refreshMcp() {
+        final List<CustomTool> next;
+        try {
+            next = mcp.catalogue();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("MCP discovery interrupted");
+        }
+        synchronized (this) {
+            if (next.equals(mcpSnapshot)) return;
+            for (var t : mcpSnapshot) unregister(t.definition().name());
+            var accepted = new ArrayList<CustomTool>();
+            var groups = new LinkedHashMap<String, List<CustomTool>>();
+            for (var t : next) {
+                String server = t.definition().name().substring(4).split("__", 2)[0];
+                groups.computeIfAbsent(server, ignored -> new ArrayList<>()).add(t);
+            }
+            for (var group : groups.entrySet()) {
+                var saved = new LinkedHashMap<>(entries);
+                int savedCharacters = schemaCharacters;
+                try {
+                    for (var tool : group.getValue()) add(tool.definition(), tool);
+                    accepted.addAll(group.getValue());
+                } catch (RuntimeException e) {
+                    entries.clear();
+                    entries.putAll(saved);
+                    schemaCharacters = savedCharacters;
+                    mcp.rejectCatalogue(group.getKey());
+                }
+            }
+            mcpSnapshot = List.copyOf(accepted);
+        }
+    }
+
     private int schemaCharacters;
     private final Map<String, Entry> entries = new LinkedHashMap<>();
 
@@ -48,6 +95,7 @@ public class ToolRegistry {
                     null);
         }
         for (CustomTool extension : extensions) register(extension);
+        mcp = new fr.openobject.ai.syleks.mcp.McpClientManager(config);
     }
 
     public synchronized void register(CustomTool extension) {
@@ -120,41 +168,48 @@ public class ToolRegistry {
 
     public record Invocation(boolean exclusive, CustomTool extension) {}
 
-    public synchronized void validate(ToolCall call) {
+    public void validate(ToolCall call) {
         resolve(call);
     }
 
-    public synchronized Invocation resolve(ToolCall call) {
-        var entry = entries.get(call.name());
-        if (entry == null) throw new IllegalArgumentException("Unsupported tool: " + call.name());
-        var arguments = JSON.valueToTree(call.arguments());
-        if (arguments.toString().length() > 1100000)
-            throw new IllegalArgumentException("Tool arguments exceed limits");
-        var errors = entry.validator().validate(arguments);
-        // Do not echo rejected argument values (may contain credentials).
-        if (!errors.isEmpty())
-            throw new IllegalArgumentException("Invalid arguments for tool " + call.name());
-        return new Invocation(entry.definition().exclusive(), entry.handler());
+    public Invocation resolve(ToolCall call) {
+        if (call.name().startsWith("mcp_")) refreshMcp();
+        synchronized (this) {
+            var entry = entries.get(call.name());
+            if (entry == null)
+                throw new IllegalArgumentException("Unsupported tool: " + call.name());
+            var arguments = JSON.valueToTree(call.arguments());
+            if (arguments.toString().length() > 1100000)
+                throw new IllegalArgumentException("Tool arguments exceed limits");
+            var errors = entry.validator().validate(arguments);
+            // Do not echo rejected argument values (may contain credentials).
+            if (!errors.isEmpty())
+                throw new IllegalArgumentException("Invalid arguments for tool " + call.name());
+            return new Invocation(entry.definition().exclusive(), entry.handler());
+        }
     }
 
-    public synchronized List<Map<String, Object>> forAgent(String actor) {
-        var result = new ArrayList<Map<String, Object>>();
-        for (var entry : entries.values()) {
-            String name = entry.definition().name();
-            if (name.equals("task")
-                    ? config.delegationAvailable(actor)
-                    : config.toolAvailable(actor, name)) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> snapshot =
-                        JSON.convertValue(
-                                JSON.valueToTree(
-                                        name.equals("task")
-                                                ? ToolSchemas.task(config, actor)
-                                                : entry.definition().schema()),
-                                Map.class);
-                result.add(snapshot);
+    public List<Map<String, Object>> forAgent(String actor) {
+        refreshMcp();
+        synchronized (this) {
+            var result = new ArrayList<Map<String, Object>>();
+            for (var entry : entries.values()) {
+                String name = entry.definition().name();
+                if (name.equals("task")
+                        ? config.delegationAvailable(actor)
+                        : config.toolAvailable(actor, name)) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> snapshot =
+                            JSON.convertValue(
+                                    JSON.valueToTree(
+                                            name.equals("task")
+                                                    ? ToolSchemas.task(config, actor)
+                                                    : entry.definition().schema()),
+                                    Map.class);
+                    result.add(snapshot);
+                }
             }
+            return List.copyOf(result);
         }
-        return List.copyOf(result);
     }
 }

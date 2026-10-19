@@ -639,6 +639,7 @@ public class ChatSession {
             checkActive(id);
             if (executor == null && fallbackExecutor == null) {
                 fallbackExecutor = new ToolExecutor(config);
+                fallbackExecutor.registry = ollama.tools();
                 if (persistence != null) fallbackExecutor.todos = persistence.sessions().todos();
             }
             service = executor == null ? fallbackExecutor : executor;
@@ -1290,6 +1291,8 @@ public class ChatSession {
                 }
             }
         try {
+            if (fallbackExecutor != null) fallbackExecutor.close();
+            ollama.close();
             if (persistence != null) persistence.close();
         } finally {
             if (interrupted) Thread.currentThread().interrupt();

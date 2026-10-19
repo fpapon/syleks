@@ -17,6 +17,7 @@ Syleks is a terminal assistant for working on code. Chat with a model, ask it to
 | Delegate tasks, inspect children and control parallel work | [Subagents](subagents.md) |
 | Let the assistant read files, make edits, run commands, or search the web | [Tools and approvals](tools-and-permissions.md) |
 | Use patches, skill references, session todos, questions, or Java extensions | [Extensible tools](tools.md) |
+| Connect external tools, resources and prompts | [MCP servers](mcp.md) |
 | Look up a CLI option or slash command | [Command reference](commands.md) |
 | Locate, back up, or protect my data | [Storage and privacy](storage-and-privacy.md) |
 | Fix connection, configuration, terminal, or session problems | [Troubleshooting](troubleshooting.md) |

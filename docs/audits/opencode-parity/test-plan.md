@@ -54,9 +54,9 @@ Les tests TUI existants couvrent modals/pickers/permissions et plusieurs parcour
 | E2E-004 | NOT_IMPLEMENTED | Pas de gestionnaire d’enfants concurrents/corrélation ; pas de test de concurrence fictif |
 | E2E-005 | NOT_IMPLEMENTED | Réouverture testée : seule la session parent existe, aucune sous-session à restaurer |
 | E2E-006 | FAIL | Refus simples fonctionnels, mais contournement command-pattern par shell composé reproduit |
-| E2E-007 | NOT_IMPLEMENTED | Pas de client stdio MCP à connecter |
-| E2E-008 | NOT_IMPLEMENTED | Pas de client Streamable HTTP MCP à connecter |
-| E2E-009 | NOT_IMPLEMENTED | Pas de tools MCP/policies associées |
+| E2E-007 | PASS_VERIFIED | Phase 6 : handshake stdio, découverte, appels, schémas, résultats, timeout/annulation et cleanup sur processus simulé ; voir [MCP](mcp.md) |
+| E2E-008 | PASS_VERIFIED | Phase 6 : Streamable HTTP JSON/SSE, session/version, auth, pagination, refresh du catalogue et DELETE sur serveur loopback ; voir [MCP](mcp.md) |
+| E2E-009 | PASS_VERIFIED | Phase 6 : permissions communes, refus sans effet, boucle LLM, historique SQLite et restauration ; voir [MCP](mcp.md) |
 | E2E-010 | PARTIAL | Vrai halt JVM existant + frontière tool interrompu ajoutée ; pas de crash après effet externe avant commit du résultat |
 | E2E-011 | PARTIAL | Tours tools NDJSON, Chat Completions et Responses testés séparément ; le scénario complet read/edit/test n’est pas paramétré sur tous les providers |
 | E2E-012 | PARTIAL | File tools et sessions refusent autre projet ; shell autorisé garde accès hôte, pas de sandbox générale de projet |

@@ -65,6 +65,8 @@ public final class Main {
                                syleks auth use <account-id>
                                syleks provider list|use <provider-id>
                                syleks model list|use <model-id>
+                               syleks mcp list|tools
+                               syleks mcp auth|logout <server-id>
                         No option: open the TUI and offer this project's sessions.
                         -c: resume the latest session; create one if this project has none.
                         config init: open the configuration TUI to create/update provider and model settings.
@@ -76,7 +78,44 @@ public final class Main {
                         """);
                 return 0;
             }
-            if (ProviderCommands.handles(args)) {
+            if (args.length > 0 && args[0].equals("mcp")) {
+                require(
+                        args.length == 2 && java.util.Set.of("list", "tools").contains(args[1])
+                                || args.length == 3
+                                        && java.util.Set.of("auth", "logout").contains(args[1]));
+                try (var container = ConfiguringContainer.of().start();
+                        var instance =
+                                container.lookup(fr.openobject.ai.syleks.ai.ToolRegistry.class)) {
+                    var registry = instance.instance();
+                    if (args[1].equals("auth")) {
+                        registry.mcp()
+                                .login(
+                                        args[2],
+                                        uri ->
+                                                out.println(
+                                                        "Open this URL to authorize MCP (waiting up to 3 minutes):\n"
+                                                                + uri));
+                        out.println("MCP authorized");
+                        return 0;
+                    }
+                    if (args[1].equals("logout")) {
+                        registry.mcp().logout(args[2]);
+                        out.println("MCP credentials removed");
+                        return 0;
+                    }
+                    var tools = registry.forAgent(registryConfigAgent(container));
+                    if (args[1].equals("list"))
+                        registry.mcp()
+                                .status()
+                                .forEach((id, status) -> out.println(id + "\t" + status));
+                    else
+                        for (var tool : tools) {
+                            var function = (java.util.Map<?, ?>) tool.get("function");
+                            if (function.get("name").toString().startsWith("mcp_"))
+                                out.println(function.get("name"));
+                        }
+                }
+            } else if (ProviderCommands.handles(args)) {
                 try (var container = ConfiguringContainer.of().start();
                         var instance = container.lookup(ProviderCommands.class)) {
                     instance.instance().run(args, out);
@@ -163,6 +202,13 @@ public final class Main {
         } catch (Exception e) {
             error.println("Syleks: " + safe(e.getMessage()));
             return 1;
+        }
+    }
+
+    private static String registryConfigAgent(
+            io.yupiik.fusion.framework.api.RuntimeContainer container) {
+        try (var config = container.lookup(AppConfig.class)) {
+            return config.instance().defaultAgent();
         }
     }
 

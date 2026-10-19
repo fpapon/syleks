@@ -29,6 +29,11 @@ public class AppConfig {
     private final Path workspace;
     private final Path home;
     private final SubagentLimits subagentLimits;
+    private final Map<String, fr.openobject.ai.syleks.mcp.McpServerConfig> mcpServers;
+
+    public Map<String, fr.openobject.ai.syleks.mcp.McpServerConfig> mcpServers() {
+        return mcpServers;
+    }
 
     public AppConfig(JsonMapper json) {
         this(
@@ -51,6 +56,39 @@ public class AppConfig {
                     "SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
+        var mcp = new LinkedHashMap<String, fr.openobject.ai.syleks.mcp.McpServerConfig>();
+        mcp.putAll(
+                fr.openobject.ai.syleks.mcp.McpServerConfig.parse(
+                        settings.containsKey("mcp") ? settings.get("mcp") : Map.of(), file));
+        var projectFile = workspace.resolve(".syleks/agent-config.json");
+        boolean trustedMcpProject = false;
+        if (settings.containsKey("mcp_trusted_projects")) {
+            if (!(settings.get("mcp_trusted_projects") instanceof List<?> trusted)
+                    || trusted.size() > 128)
+                throw new IllegalStateException("Invalid mcp_trusted_projects in " + file);
+            for (var path : trusted) {
+                if (!(path instanceof String text) || text.isBlank() || !Path.of(text).isAbsolute())
+                    throw new IllegalStateException(
+                            "mcp_trusted_projects requires absolute paths in " + file);
+                if (Path.of(text).normalize().equals(workspace)) trustedMcpProject = true;
+            }
+        }
+        String projectJson =
+                trustedMcpProject
+                        ? ConfigurationFiles.optional(projectFile, 1024 * 1024, workspace)
+                        : "";
+        if (!projectJson.isEmpty()) {
+            var projectSettings = json.fromString(Object.class, projectJson);
+            if (!(projectSettings instanceof Map<?, ?> pm))
+                throw new IllegalStateException("Invalid project MCP configuration");
+            if (pm.containsKey("mcp"))
+                mcp.putAll(
+                        fr.openobject.ai.syleks.mcp.McpServerConfig.parse(
+                                pm.get("mcp"), projectFile));
+        }
+        if (mcp.size() > 16)
+            throw new IllegalStateException("MCP configuration exceeds 16 servers");
+        this.mcpServers = java.util.Collections.unmodifiableMap(mcp);
         this.subagentLimits =
                 SubagentLimits.parse(
                         settings.containsKey("subagents") ? settings.get("subagents") : Map.of(),
@@ -479,8 +517,8 @@ public class AppConfig {
                 || policy.rules().stream()
                         .anyMatch(
                                 rule ->
-                                        (rule.operation().equals(operation)
-                                                        || rule.operation().equals("*"))
+                                        (PermissionPolicy.operationMatches(
+                                                        rule.operation(), operation))
                                                 && !rule.target().equals("*")
                                                 && rule.decision()
                                                         != PermissionPolicy.Decision.DENY);

@@ -1,5 +1,7 @@
 # Matrice de parité fonctionnelle
 
+> Phase 6 : les lignes MCP conservent les constats historiques de l’audit initial. Voir [le suivi MCP](mcp.md) pour l’implémentation, les preuves actuelles et les limites.
+
 > **Matrice historique :** la correction shell P0 est suivie séparément dans [shell-security.md](shell-security.md). Les FAIL et scores ci-dessous décrivent la campagne initiale ; aucune parité complète des tools n’est revendiquée par cette correction.
 
 Référence : [baseline.md](baseline.md). Verdict : **pas de parité fonctionnelle**. Les 53 lignes représentent des exigences composites ; un test positif sur une partie ne suffit pas à valider toute la ligne.

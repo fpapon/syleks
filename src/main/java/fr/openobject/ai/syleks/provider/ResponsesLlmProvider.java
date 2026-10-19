@@ -16,6 +16,11 @@ import java.util.*;
 public abstract class ResponsesLlmProvider implements LlmProvider {
     private ToolRegistry fallbackTools;
 
+    @io.yupiik.fusion.framework.build.api.lifecycle.Destroy
+    public synchronized void close() {
+        if (fallbackTools != null) fallbackTools.close();
+    }
+
     protected synchronized ToolRegistry tools() {
         if (fallbackTools == null) fallbackTools = new ToolRegistry(config, List.of());
         return fallbackTools;

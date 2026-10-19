@@ -10,7 +10,9 @@
 
 > **Phase 5, tools P1/P2 : implémentée**, voir [le suivi des outils et sa validation](tools.md).
 
-> Les phases 6 à 8 restent à réaliser.
+> **Phase 6, MCP P1/P2 : implémentée**, voir [le suivi MCP et sa validation](mcp.md).
+
+> Les phases 7 à 8 restent à réaliser.
 
 Cette roadmap propose des changements ultérieurs, **non réalisés pendant l’audit**. Conserver Java 25, Fusion, SQLite et la TUI JLine. Réutiliser les services existants au lieu de multiplier les abstractions. Complexité relative : S locale, M plusieurs composants, L état/lifecycle/protocole transversal ; ce ne sont pas des estimations calendaires.
 

@@ -30,7 +30,9 @@ public record PermissionPolicy(List<Rule> rules) {
                     "question");
 
     public static boolean validOperation(String operation) {
-        return OPERATIONS.contains(operation) || operation.matches("custom_[a-z][a-z0-9_]{0,55}");
+        return OPERATIONS.contains(operation)
+                || operation.matches("custom_[a-z][a-z0-9_]{0,55}")
+                || operation.matches("mcp_[a-z][a-z0-9_]{0,59}");
     }
 
     public enum Decision {
@@ -66,7 +68,9 @@ public record PermissionPolicy(List<Rule> rules) {
         } else if (value instanceof Map<?, ?> operations) {
             for (var entry : operations.entrySet()) {
                 if (!(entry.getKey() instanceof String operation)
-                        || !(operation.equals("*") || validOperation(operation))) {
+                        || !(operation.equals("*")
+                                || validOperation(operation)
+                                || operation.matches("mcp_[a-z0-9_*?]+"))) {
                     throw invalid(file, "unknown operation: " + entry.getKey());
                 }
                 if (entry.getValue() instanceof Map<?, ?> targets) {
@@ -107,10 +111,14 @@ public record PermissionPolicy(List<Rule> rules) {
     Rule matchingRule(String operation, String target) {
         Rule result = null;
         for (var rule : rules) {
-            if ((rule.operation().equals("*") || rule.operation().equals(operation))
+            if ((rule.operation().equals("*") || matches(rule.operation(), operation))
                     && matches(rule.target(), target)) result = rule;
         }
         return result;
+    }
+
+    public static boolean operationMatches(String pattern, String operation) {
+        return matches(pattern, operation);
     }
 
     private static boolean matches(String glob, String target) {

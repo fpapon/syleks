@@ -19,6 +19,10 @@ Run these from the project whose sessions you want to access. `ID` means a full 
 | `syleks session list` | List this project's sessions with IDs, titles, update times, models, message counts, and statuses |
 | `syleks session export ID` | Write the full session as JSON to standard output |
 | `syleks session delete ID` | Permanently delete a session, without a confirmation prompt |
+| `syleks mcp list` | Connect and report configured MCP server status |
+| `syleks mcp tools` | List MCP tools available to the default agent |
+| `syleks mcp auth SERVER` | Authorize an MCP server with OAuth PKCE |
+| `syleks mcp logout SERVER` | Remove locally stored MCP OAuth credentials |
 | `syleks -h` or `syleks --help` | Show usage |
 
 Choose one interactive selection option at a time: `--new`, `--continue`, `--session`, or `--fork`. These also work after the historical `chat` prefix. IDs from another project are rejected; change into that project to access them.
@@ -83,3 +87,5 @@ bin/syleks model use <provider/model-or-model-id>
 ```
 
 TUI: `/connect` opens login choices, `/providers` selects a provider, `/models` filters/selects account models, `/accounts` manages individual registrations, `/logout [account-id]` signs out. Existing `/model provider/model` still works. Cloud use and API billing require explicit choices; see [Providers](providers.md) and [Authentication](authentication.md).
+
+See [MCP servers](mcp.md) for server configuration, project trust, authentication and permissions.

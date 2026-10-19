@@ -1,0 +1,263 @@
+package fr.openobject.ai.syleks.mcp;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.sun.net.httpserver.HttpServer;
+import java.net.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class McpTransportTest {
+    @TempDir Path root;
+
+    @Test
+    void rejectsRedirectsMismatchedIdsUnsupportedVersionsAndLeakingRpcErrors() throws Exception {
+        var mode = new AtomicReference<>("redirect");
+        var authorization = new AtomicReference<String>();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext(
+                "/mcp",
+                exchange -> {
+                    try (exchange) {
+                        authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+                        if (mode.get().equals("redirect")) {
+                            exchange.getResponseHeaders().add("Location", "/credential-trap");
+                            exchange.sendResponseHeaders(307, -1);
+                            return;
+                        }
+                        var request = McpConnection.JSON.readTree(exchange.getRequestBody());
+                        Object id = mode.get().equals("id") ? 999 : request.get("id");
+                        Object response =
+                                mode.get().equals("error")
+                                        ? Map.of(
+                                                "jsonrpc",
+                                                "2.0",
+                                                "id",
+                                                id,
+                                                "error",
+                                                Map.of(
+                                                        "code",
+                                                        -32000,
+                                                        "message",
+                                                        "FICTIONAL_MCP_SECRET"))
+                                        : Map.of(
+                                                "jsonrpc",
+                                                "2.0",
+                                                "id",
+                                                id,
+                                                "result",
+                                                Map.of(
+                                                        "protocolVersion",
+                                                        "2099-01-01",
+                                                        "capabilities",
+                                                        Map.of(),
+                                                        "serverInfo",
+                                                        Map.of("name", "fixture", "version", "1")));
+                        byte[] bytes = McpConnection.JSON.writeValueAsBytes(response);
+                        exchange.getResponseHeaders().add("Content-Type", "application/json");
+                        exchange.sendResponseHeaders(200, bytes.length);
+                        exchange.getResponseBody().write(bytes);
+                    }
+                });
+        var redirected = new AtomicBoolean();
+        server.createContext(
+                "/credential-trap",
+                exchange -> {
+                    redirected.set(true);
+                    exchange.sendResponseHeaders(500, -1);
+                    exchange.close();
+                });
+        server.start();
+        try {
+            var config =
+                    McpServerConfig.parse(
+                                    Map.of(
+                                            "remote",
+                                            Map.of(
+                                                    "type",
+                                                    "http",
+                                                    "url",
+                                                    "http://127.0.0.1:"
+                                                            + server.getAddress().getPort()
+                                                            + "/mcp",
+                                                    "bearer_token_env",
+                                                    "FIXTURE_TOKEN")),
+                                    root)
+                            .get("remote");
+            assertThrows(Exception.class, () -> new McpConnection(config, root, Map.of(), root));
+            for (String m : List.of("redirect", "id", "error", "version")) {
+                mode.set(m);
+                try (var connection =
+                        new McpConnection(
+                                config,
+                                root,
+                                Map.of(
+                                        "FIXTURE_TOKEN",
+                                        "fixture-mcp-token",
+                                        "OPENAI_API_KEY",
+                                        "unrelated-provider-secret"),
+                                root)) {
+                    var error = assertThrows(Exception.class, connection::initialize);
+                    assertFalse(error.toString().contains("FICTIONAL_MCP_SECRET"));
+                    assertEquals("Bearer fixture-mcp-token", authorization.get());
+                }
+            }
+            assertFalse(redirected.get());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void boundsSseBodyReadDeadlineAndSendsCancellationWithoutReplayingTheCall() throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        try (var workers = Executors.newVirtualThreadPerTaskExecutor()) {
+            server.setExecutor(workers);
+            var calls = new AtomicInteger();
+            var cancellations = new CountDownLatch(1);
+            server.createContext(
+                    "/mcp",
+                    exchange -> {
+                        try (exchange) {
+                            var request = McpConnection.JSON.readTree(exchange.getRequestBody());
+                            if (request.path("method").asText().equals("notifications/cancelled")) {
+                                cancellations.countDown();
+                                exchange.sendResponseHeaders(202, -1);
+                                return;
+                            }
+                            calls.incrementAndGet();
+                            exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+                            exchange.sendResponseHeaders(200, 0);
+                            exchange.getResponseBody()
+                                    .write(
+                                            ": waiting\n\n"
+                                                    .getBytes(
+                                                            java.nio.charset.StandardCharsets
+                                                                    .UTF_8));
+                            exchange.getResponseBody().flush();
+                            cancellations.await(5, TimeUnit.SECONDS);
+                        } catch (Exception ignored) {
+                        }
+                    });
+            server.start();
+            try {
+                var config =
+                        McpServerConfig.parse(
+                                        Map.of(
+                                                "remote",
+                                                Map.of(
+                                                        "type",
+                                                        "http",
+                                                        "url",
+                                                        "http://127.0.0.1:"
+                                                                + server.getAddress().getPort()
+                                                                + "/mcp",
+                                                        "timeout_seconds",
+                                                        1)),
+                                        root)
+                                .get("remote");
+                try (var connection = new McpConnection(config, root, Map.of(), root)) {
+                    long began = System.nanoTime();
+                    assertThrows(
+                            TimeoutException.class,
+                            () ->
+                                    connection.request(
+                                            "tools/call",
+                                            Map.of("name", "wait", "arguments", Map.of())));
+                    assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - began) < 3000);
+                    assertTrue(cancellations.await(2, TimeUnit.SECONDS));
+                    assertEquals(1, calls.get());
+                }
+            } finally {
+                server.stop(0);
+            }
+        }
+    }
+
+    @Test
+    void concurrentDiscoveryCanBeInterruptedAndShutdownDoesNotWaitForItsDeadline()
+            throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        var began = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        server.createContext(
+                "/mcp",
+                exchange -> {
+                    try (exchange) {
+                        exchange.getRequestBody().readAllBytes();
+                        exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+                        exchange.sendResponseHeaders(200, 0);
+                        exchange.getResponseBody()
+                                .write(
+                                        ": wait\n\n"
+                                                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                        exchange.getResponseBody().flush();
+                        began.countDown();
+                        release.await(10, TimeUnit.SECONDS);
+                    } catch (Exception ignored) {
+                    }
+                });
+        server.start();
+        try {
+            Path config = root.resolve("home/.config/syleks/agent-config.json");
+            Files.createDirectories(config.getParent());
+            Files.writeString(
+                    config,
+                    McpConnection.JSON.writeValueAsString(
+                            Map.of(
+                                    "mcp",
+                                    Map.of(
+                                            "remote",
+                                            Map.of(
+                                                    "type",
+                                                    "http",
+                                                    "url",
+                                                    "http://127.0.0.1:"
+                                                            + server.getAddress().getPort()
+                                                            + "/mcp",
+                                                    "timeout_seconds",
+                                                    10)))));
+            try (var f = new fr.openobject.ai.syleks.session.SessionFixture(root)) {
+                var registry = new fr.openobject.ai.syleks.ai.ToolRegistry(f.config, List.of());
+                var first = Thread.ofVirtual().start(() -> registry.forAgent("build"));
+                try {
+                    assertTrue(began.await(3, TimeUnit.SECONDS));
+                    var cancelled = new AtomicBoolean();
+                    var waiting = new CountDownLatch(1);
+                    var second =
+                            Thread.ofVirtual()
+                                    .start(
+                                            () -> {
+                                                waiting.countDown();
+                                                try {
+                                                    registry.forAgent("build");
+                                                } catch (IllegalStateException e) {
+                                                    cancelled.set(
+                                                            Thread.currentThread().isInterrupted());
+                                                }
+                                            });
+                    assertTrue(waiting.await(1, TimeUnit.SECONDS));
+                    second.interrupt();
+                    second.join(1500);
+                    assertFalse(second.isAlive());
+                    assertTrue(cancelled.get());
+                    long start = System.nanoTime();
+                    registry.close();
+                    assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 2000);
+                    first.join(2000);
+                    assertFalse(first.isAlive());
+                } finally {
+                    registry.close();
+                    first.interrupt();
+                }
+            }
+        } finally {
+            release.countDown();
+            server.stop(0);
+        }
+    }
+}

@@ -21,6 +21,11 @@ public class ToolExecutor {
 
     private ToolRegistry fallbackRegistry;
 
+    @io.yupiik.fusion.framework.build.api.lifecycle.Destroy
+    public synchronized void close() {
+        if (fallbackRegistry != null) fallbackRegistry.close();
+    }
+
     public synchronized ToolRegistry registry() {
         if (registry != null) return registry;
         if (fallbackRegistry == null)
@@ -69,6 +74,8 @@ public class ToolExecutor {
         try {
             invocation = registry().resolve(call);
         } catch (Exception e) {
+            if (Thread.currentThread().isInterrupted())
+                throw new InterruptedException("Tool cancelled");
             return ToolResult.failed(e);
         }
         return manager()
@@ -139,7 +146,10 @@ public class ToolExecutor {
                 context.require(
                         call.name(),
                         extension.target(call.arguments()),
-                        "Invoke extension " + call.name() + "\n" + details);
+                        (call.name().startsWith("mcp_") ? "Invoke MCP tool " : "Invoke extension ")
+                                + call.name()
+                                + "\n"
+                                + details);
                 return bounded(extension.execute(context, call.arguments()));
             }
             if (AgentTools.NAMES.contains(call.name()))
