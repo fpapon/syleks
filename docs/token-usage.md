@@ -37,6 +37,12 @@ Cached and reasoning tokens are **never added again** to the total. `N/A` means 
 
 The last request is reset to `RUNNING`/Generating at the start of each HTTP invocation, while confirmed session consumption remains visible. Exact counters are pending during streaming. A text fragment, SSE event or JSON object is never treated as one token. On failure or cancellation, Syleks preserves metrics actually received; missing metrics remain unknown. There is no inferred cost or billing estimate. A ChatGPT subscription is separate from paid OpenAI API usage.
 
+## Configured request budget
+
+`/usage` shows the active model's configured context window, response reserve, and input allowance (`window - reserve`). Instructions, conversation history and tool schemas share the input allowance. Admission uses a conservative UTF-8 estimate; these configuration ceilings are separate from provider-reported token counts and do not measure the next prompt's live occupancy. Use `/compact` to summarize older exchanges when needed.
+
+Long provider/model values wrap in the detail view. Use arrows, PgUp/PgDn, Home/End and Esc to navigate and close it; page size follows the terminal height.
+
 ## Context is different from session consumption
 
 **Cumulative session tokens are not the tokens currently occupying the model's context window.** History can be sent repeatedly, so session consumption can exceed the context capacity many times.

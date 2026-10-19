@@ -81,7 +81,7 @@ public class AgentTools {
             }
             case "list", "glob", "grep" -> {
                 description =
-                        "Search workspace entries (no symlinks). path defaults to '.', limit to 100 (max 500). list is one level; glob uses Java path globs relative to path; grep uses Java regex on UTF-8 files. Scans stop after 10000 entries.";
+                        "Search workspace entries (no symlinks). path defaults to '.', limit to 100 (max 500). list is one level; glob uses Java path globs relative to path; grep uses Java regex on UTF-8 files. Scans stop after 10000 entries, 8M decoded characters, 8M regex character accesses or 5 seconds of work (permission waits excluded); output includes the stop reason.";
                 properties.put("path", type("string"));
                 properties.put("limit", type("integer"));
                 if (!name.equals("list")) properties.put("pattern", type("string"));
@@ -264,12 +264,16 @@ public class AgentTools {
         require(gate, name, root.toString(), "pattern=" + pattern + ", limit=" + limit);
         var output = new StringBuilder();
         int hits = 0, visited = 0;
+        var budget = new SearchBudget();
+        String stopped = "complete";
         try (var paths = Files.walk(root, name.equals("list") ? 1 : 32)) {
             var iterator = paths.iterator();
-            while (iterator.hasNext()
-                    && visited++ < 10000
-                    && hits < limit
-                    && output.length() < MAX_OUTPUT) {
+            while (iterator.hasNext()) {
+                budget.check();
+                if (visited >= 10000) throw new SearchStopped("entry limit");
+                if (hits >= limit) throw new SearchStopped("result limit");
+                if (output.length() >= MAX_OUTPUT - 256) throw new SearchStopped("output limit");
+                visited++;
                 if (Thread.currentThread().isInterrupted()) throw new InterruptedException();
                 var entry = iterator.next();
                 if (entry.equals(root) && Files.isDirectory(root)) continue;
@@ -277,9 +281,10 @@ public class AgentTools {
                 var relative = root.equals(entry) ? entry.getFileName() : root.relativize(entry);
                 if (glob != null && !glob.matches(relative)) continue;
                 if (regex != null && !Files.isRegularFile(entry)) continue;
-                if (!gate.allow(name, entry.toString(), "Access matching entry")) continue;
+                if (!budget.allow(gate, name, entry.toString(), "Access matching entry")) continue;
                 if (regex != null) {
-                    if (!gate.allow("read", entry.toString(), "Read file for grep: " + pattern))
+                    if (!budget.allow(
+                            gate, "read", entry.toString(), "Read file for grep: " + pattern))
                         continue;
                     String content;
                     try {
@@ -287,12 +292,19 @@ public class AgentTools {
                     } catch (IOException e) {
                         continue;
                     }
+                    if (content.length() > 8_000_000 - budget.text)
+                        throw new SearchStopped("text limit");
+                    budget.text += content.length();
                     var lines = content.lines().iterator();
                     int line = 0;
-                    while (lines.hasNext() && hits < limit && output.length() < MAX_OUTPUT) {
+                    while (lines.hasNext()) {
+                        budget.check();
+                        if (hits >= limit) throw new SearchStopped("result limit");
+                        if (output.length() >= MAX_OUTPUT - 256)
+                            throw new SearchStopped("output limit");
                         var value = lines.next();
                         line++;
-                        if (regex.matcher(value).find()) {
+                        if (regex.matcher(new SearchText(value, budget)).find()) {
                             output.append(entry)
                                     .append(':')
                                     .append(line)
@@ -307,9 +319,78 @@ public class AgentTools {
                     hits++;
                 }
             }
+        } catch (SearchStopped e) {
+            if (Thread.currentThread().isInterrupted()) throw new InterruptedException();
+            stopped = e.getMessage();
+        } catch (StackOverflowError tooComplex) {
+            // Java's backtracking engine can exhaust its stack before the work budget.
+            stopped = "regex stack limit";
         }
-        return bounded(
-                output + "[" + hits + " results; bounded scan, denied/unreadable entries omitted]");
+        int end = Math.min(output.length(), MAX_OUTPUT - 256);
+        if (end < output.length()) {
+            if (end > 0 && Character.isHighSurrogate(output.charAt(end - 1))) end--;
+            output.setLength(end);
+            stopped = "output limit";
+        }
+        return output
+                + "\n["
+                + hits
+                + " results; "
+                + visited
+                + " entries; "
+                + budget.text
+                + " text chars; "
+                + (stopped.equals("complete")
+                        ? "complete within depth limit"
+                        : "truncated: " + stopped)
+                + "; denied/unreadable entries omitted]";
+    }
+
+    private static final class SearchStopped extends RuntimeException {
+        SearchStopped(String reason) {
+            super(reason, null, false, false);
+        }
+    }
+
+    private static final class SearchBudget {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        int accesses, text;
+
+        void check() {
+            if (Thread.currentThread().isInterrupted()) throw new SearchStopped("cancelled");
+            if (System.nanoTime() - deadline >= 0) throw new SearchStopped("time limit");
+        }
+
+        boolean allow(Gate gate, String operation, String path, String details) throws Exception {
+            check();
+            long start = System.nanoTime();
+            try {
+                return gate.allow(operation, path, details);
+            } finally {
+                deadline += System.nanoTime() - start;
+            }
+        }
+    }
+
+    /** Shared budget follows Matcher subsequences and checks backtracking without worker leaks. */
+    private record SearchText(String value, SearchBudget budget) implements CharSequence {
+        public int length() {
+            return value.length();
+        }
+
+        public char charAt(int index) {
+            if (++budget.accesses > 8_000_000) throw new SearchStopped("regex work limit");
+            if ((budget.accesses & 1023) == 0) budget.check();
+            return value.charAt(index);
+        }
+
+        public CharSequence subSequence(int start, int end) {
+            return new SearchText(value.substring(start, end), budget);
+        }
+
+        public String toString() {
+            return value;
+        }
     }
 
     Path path(String value) throws IOException {

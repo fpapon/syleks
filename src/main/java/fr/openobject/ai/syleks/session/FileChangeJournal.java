@@ -46,21 +46,23 @@ public class FileChangeJournal {
     }
 
     public List<Change> list(String session) {
-        return list(session, false);
+        return list(session, false, false);
     }
 
     public List<Change> listTree(String session) {
-        return list(session, true);
+        return list(session, true, false);
     }
 
-    private List<Change> list(String session, boolean children) {
+    private List<Change> list(String session, boolean children, boolean pending) {
         return database.read(
                 c -> {
                     try (var s =
                             c.prepareStatement(
                                     children
                                             ? "WITH RECURSIVE tree(id) AS (SELECT ? UNION SELECT t.session_id FROM agent_tasks t JOIN tree ON t.parent_session_id=tree.id) SELECT * FROM file_changes WHERE session_id IN (SELECT id FROM tree) ORDER BY rowid"
-                                            : "SELECT * FROM file_changes WHERE session_id=? ORDER BY rowid")) {
+                                            : "SELECT * FROM file_changes WHERE session_id=?"
+                                                    + (pending ? " AND state LIKE 'PENDING%'" : "")
+                                                    + " ORDER BY rowid")) {
                         s.setString(1, session);
                         try (var r = s.executeQuery()) {
                             var result = new ArrayList<Change>();
@@ -108,9 +110,16 @@ public class FileChangeJournal {
                             database.transaction(
                                     () -> {
                                         // A new edit branches away from any redo history.
-                                        for (var old : list(session))
-                                            if (old.state().equals("UNDONE"))
-                                                state(old.id(), "ABANDONED");
+                                        database.write(
+                                                c -> {
+                                                    try (var statement =
+                                                            c.prepareStatement(
+                                                                    "UPDATE file_changes SET state='ABANDONED' WHERE session_id=? AND state='UNDONE'")) {
+                                                        statement.setString(1, session);
+                                                        statement.executeUpdate();
+                                                    }
+                                                    return null;
+                                                });
                                         insert(change);
                                         return null;
                                     });
@@ -157,12 +166,11 @@ public class FileChangeJournal {
     }
 
     public void recover(String session) {
-        if (list(session).stream().noneMatch(c -> c.state().startsWith("PENDING"))) return;
+        if (list(session, false, true).isEmpty()) return;
         try {
             locked(
                     () -> {
-                        for (var change : list(session)) {
-                            if (!change.state().startsWith("PENDING")) continue;
+                        for (var change : list(session, false, true)) {
                             String value;
                             try {
                                 byte[] actual = bytes(checked(change.path()));

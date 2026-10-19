@@ -1,5 +1,7 @@
 # Écarts et risques
 
+> **Phase 8 :** voir [l'audit renouvelé des optimisations et de l'ergonomie](optimisations-and-ergonomics.md) pour les preuves actuelles, mesures reproductibles, budgets et limites. Les constats et scores de la campagne initiale ci-dessous restent historiques.
+
 > **Suivi :** le contournement shell G-TOO-003/G-TOO-007 décrit ci-dessous a depuis été corrigé. [Validation et limites du correctif](shell-security.md). Les autres écarts et le score restent ceux de l’audit initial.
 
 La suite verte certifie les observations des tests, pas la parité. Les défauts ci-dessous sont laissés dans le code métier. P0 = risque de modification non autorisée démontré ; aucun scénario n’a utilisé le repository réel comme cible.

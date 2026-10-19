@@ -71,6 +71,9 @@ public class ContextService {
                                                 || m.position() > summarized
                                                         && m.position() <= through)
                         .toList();
+        var partsByMessage = new HashMap<String, List<MessagePart>>();
+        for (var message : history)
+            partsByMessage.put(message.id(), conversations.parts(message.id()));
         Set<String> results = new HashSet<>();
         Set<String> callsWithResults = new HashSet<>();
         var references = new HashMap<String, String>();
@@ -78,7 +81,7 @@ public class ContextService {
         var callCounts = new HashMap<String, Integer>();
         var duplicateResults = new HashSet<String>();
         for (var message : history)
-            for (var part : conversations.parts(message.id())) {
+            for (var part : partsByMessage.get(message.id())) {
                 var payload = conversations.payload(part);
                 String call = Objects.toString(payload.get("callId"), "");
                 if (part.type() == PartType.TOOL_CALL) {
@@ -104,7 +107,7 @@ public class ContextService {
             var calls = new ArrayList<Map<String, Object>>();
             Map<String, Object> toolResult = null;
             String projectSnapshot = null;
-            for (var part : conversations.parts(message.id())) {
+            for (var part : partsByMessage.get(message.id())) {
                 var payload = conversations.payload(part);
                 switch (part.type()) {
                     case TEXT -> {

@@ -14,7 +14,7 @@
 
 > **Phase 7, sessions et contexte P1/P2 : implémentée**, voir [le suivi et sa validation](sessions-and-context.md).
 
-> La phase 8 reste à réaliser.
+> **Phase 8, optimisations et ergonomie P3 : implémentée**, voir [les mesures, la validation et l’audit renouvelé](optimisations-and-ergonomics.md).
 
 Cette roadmap propose des changements ultérieurs, **non réalisés pendant l’audit**. Conserver Java 25, Fusion, SQLite et la TUI JLine. Réutiliser les services existants au lieu de multiplier les abstractions. Complexité relative : S locale, M plusieurs composants, L état/lifecycle/protocole transversal ; ce ne sont pas des estimations calendaires.
 

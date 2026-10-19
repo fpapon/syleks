@@ -1392,6 +1392,16 @@ public class ChatSession {
                 : persistence.usageSnapshot();
     }
 
+    public fr.openobject.ai.syleks.usage.ContextMetricsService.Limits contextLimits(
+            String selection) {
+        try {
+            return new fr.openobject.ai.syleks.usage.ContextMetricsService.Limits(
+                    config.contextWindow(selection), config.responseTokens(selection));
+        } catch (IllegalArgumentException unavailable) {
+            return null;
+        }
+    }
+
     public Path configurationHome() {
         return config.home();
     }

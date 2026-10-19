@@ -41,13 +41,13 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | Command | Result |
 | --- | --- |
 | `/sidebar [auto\|show\|hide]` | Toggle or select persisted token sidebar visibility (safe terminal constraints always apply) |
-| `/usage` | Open scrollable session token and performance details |
+| `/usage` | Open token/performance details and configured context/response budgets |
 | `/help` | Open the scrollable command and keyboard reference popup |
 | `/config`, `/config init`, `/config edit` | Open the same configuration form |
 | `/restart` | Reload configuration and reopen this session, preserving history and drafts |
 | `/new` | Open a new persistent session |
 | `/clear` | Same as `/new`; the previous session is retained |
-| `/sessions` | Open the searchable session picker |
+| `/sessions` | Filter sessions by title, ID or model; navigate with arrows, pages and Home/End |
 | `/resume` | Open the latest session |
 | `/rename TITLE` | Change the current session's title |
 | `/fork [MESSAGE-ID]` | Fork the whole conversation or an inclusive message prefix |

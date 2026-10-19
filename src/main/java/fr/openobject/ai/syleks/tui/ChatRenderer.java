@@ -7,6 +7,7 @@ import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.usage.*;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -18,6 +19,26 @@ public final class ChatRenderer {
     private static final int[] AGENT_ACCENTS = {
         0x5EEAD4, 0xF9A8D4, 0xFDBA74, 0xA3E635, 0xFCD34D, 0x67E8F9
     };
+
+    // UI-thread owned. Bound both source text and expanded terminal lines.
+    private record MessageKey(ChatMessage message, int width, int index) {}
+
+    private final LinkedHashMap<MessageKey, List<Line>> messageCache =
+            new LinkedHashMap<>(16, .75f, true);
+    private int cachedWeight;
+    private List<ChatMessage> lastMessages = List.of();
+    private List<Line> lastTranscript = List.of();
+    private int lastWidth = -1;
+    private long wrappedMessages;
+
+    long wrappedMessages() {
+        return wrappedMessages;
+    }
+
+    int cachedWeight() {
+        return cachedWeight;
+    }
+
     private final String workspace;
     private final java.util.function.LongSupplier clock;
 
@@ -463,88 +484,27 @@ public final class ChatRenderer {
 
     private List<Line> transcript(List<ChatMessage> messages, int width) {
         var lines = new ArrayList<Line>();
+        if (width == lastWidth && lastMessages.equals(messages)) return lastTranscript;
         int messageIndex = 0;
         for (var message : messages) {
-            int firstLine = lines.size();
-            if (message.role().equals("user")) {
-                for (var physical : message.displayContent().split("\n", -1)) {
-                    for (var segment : wrapProse(physical, width - 2)) {
-                        lines.add(line(segment, WHITE, BG, 2, true, false));
+            var key = new MessageKey(message, width, messageIndex++);
+            var cached = messageCache.get(key);
+            if (cached == null) {
+                cached = renderMessage(message, width, key.index());
+                wrappedMessages++;
+                int weight = weight(key, cached);
+                if (weight <= 2_000_000) {
+                    while (!messageCache.isEmpty()
+                            && (messageCache.size() >= 512 || cachedWeight + weight > 2_000_000)) {
+                        var eldest = messageCache.entrySet().iterator().next();
+                        cachedWeight -= weight(eldest.getKey(), eldest.getValue());
+                        messageCache.remove(eldest.getKey());
                     }
+                    messageCache.put(key, cached);
+                    cachedWeight += weight;
                 }
-                lines.add(line("You · " + message.time(), SUB, BG, 2, true, false));
-            } else {
-                boolean code = false;
-                String fence = "";
-                SyntaxHighlighter highlighter = new SyntaxHighlighter("text");
-                boolean info = message.role().equals("system");
-                for (var physical : message.displayContent().split("\n", -1)) {
-                    var marker = FENCE.matcher(physical);
-                    boolean candidate = marker.matches();
-                    boolean closing =
-                            candidate
-                                    && code
-                                    && marker.group(1).charAt(0) == fence.charAt(0)
-                                    && marker.group(1).length() >= fence.length()
-                                    && marker.group(2).isBlank();
-                    if (candidate && !code || closing) {
-                        if (closing) {
-                            lines.add(line("", SUB, CODE, 2, false, false));
-                        } else {
-                            if (!lines.isEmpty()) lines.add(line("", SUB, BG, 0, false, false));
-                            fence = marker.group(1);
-                            var label = marker.group(2).strip();
-                            highlighter = new SyntaxHighlighter(label);
-                            int space = label.indexOf(' ');
-                            if (space >= 0) label = label.substring(space + 1).strip();
-                            lines.add(line("", SUB, CODE, 2, false, false));
-                            lines.add(
-                                    line(
-                                            label.isEmpty() ? "Code" : label,
-                                            BLUE,
-                                            CODE,
-                                            2,
-                                            false,
-                                            false));
-                        }
-                        code = !code;
-                        continue;
-                    }
-                    if (code) {
-                        var source = physical.replace("\t", "    ");
-                        var tokens = new ArrayList<SyntaxHighlighter.Token>();
-                        if (source.startsWith("+ ") || source.startsWith("- ")) {
-                            tokens.add(
-                                    new SyntaxHighlighter.Token(
-                                            source.substring(0, 2),
-                                            source.startsWith("+") ? GREEN : RED,
-                                            false));
-                            tokens.addAll(highlighter.highlight(source.substring(2)));
-                        } else tokens.addAll(highlighter.highlight(source));
-                        appendColored(lines, tokens, width - 4, CODE, 2, false);
-                    } else {
-                        appendProse(lines, physical, width, info);
-                    }
-                }
-                if (code) lines.add(line("", SUB, CODE, 2, false, false));
             }
-            lines.add(line("", SUB, BG, 0, false, false));
-            if (message.role().equals("user")) lines.add(line("", SUB, BG, 0, false, false));
-            int offset = 0;
-            for (int index = firstLine; index < lines.size(); index++) {
-                var line = lines.get(index);
-                lines.set(
-                        index,
-                        new Line(
-                                line.spans(),
-                                line.background(),
-                                line.inset(),
-                                line.rail(),
-                                messageIndex,
-                                offset));
-                for (var span : line.spans()) offset += span.text().length();
-            }
-            messageIndex++;
+            lines.addAll(cached);
         }
         // Trailing spacing belongs between messages, rather than consuming the viewport bottom.
         while (!lines.isEmpty()) {
@@ -553,7 +513,114 @@ public final class ChatRenderer {
                 break;
             lines.removeLast();
         }
+        // Do not retain unbounded source/transcript data in the frame cache.
+        long sourceSize =
+                messages.stream()
+                        .mapToLong(m -> (long) m.content().length() + m.displayContent().length())
+                        .sum();
+        if (lines.size() <= 50_000 && sourceSize <= 2_000_000) {
+            lastMessages = List.copyOf(messages);
+            lastWidth = width;
+            lastTranscript = List.copyOf(lines);
+            return lastTranscript;
+        }
+        lastMessages = List.of();
+        lastTranscript = List.of();
+        lastWidth = -1;
         return lines;
+    }
+
+    private int weight(MessageKey key, List<Line> lines) {
+        long weight =
+                (long) key.message().content().length()
+                        + key.message().displayContent().length()
+                        + 64L * lines.size();
+        for (var line : lines) for (var span : line.spans()) weight += span.text().length() + 32L;
+        return (int) Math.min(Integer.MAX_VALUE, weight);
+    }
+
+    private List<Line> renderMessage(ChatMessage message, int width, int messageIndex) {
+        var lines = new ArrayList<Line>();
+        if (message.role().equals("user")) {
+            for (var physical : message.displayContent().split("\n", -1)) {
+                for (var segment : wrapProse(physical, width - 2)) {
+                    lines.add(line(segment, WHITE, BG, 2, true, false));
+                }
+            }
+            lines.add(line("You · " + message.time(), SUB, BG, 2, true, false));
+        } else {
+            boolean code = false;
+            String fence = "";
+            SyntaxHighlighter highlighter = new SyntaxHighlighter("text");
+            boolean info = message.role().equals("system");
+            for (var physical : message.displayContent().split("\n", -1)) {
+                var marker = FENCE.matcher(physical);
+                boolean candidate = marker.matches();
+                boolean closing =
+                        candidate
+                                && code
+                                && marker.group(1).charAt(0) == fence.charAt(0)
+                                && marker.group(1).length() >= fence.length()
+                                && marker.group(2).isBlank();
+                if (candidate && !code || closing) {
+                    if (closing) {
+                        lines.add(line("", SUB, CODE, 2, false, false));
+                    } else {
+                        if (messageIndex > 0 || !lines.isEmpty())
+                            lines.add(line("", SUB, BG, 0, false, false));
+                        fence = marker.group(1);
+                        var label = marker.group(2).strip();
+                        highlighter = new SyntaxHighlighter(label);
+                        int space = label.indexOf(' ');
+                        if (space >= 0) label = label.substring(space + 1).strip();
+                        lines.add(line("", SUB, CODE, 2, false, false));
+                        lines.add(
+                                line(
+                                        label.isEmpty() ? "Code" : label,
+                                        BLUE,
+                                        CODE,
+                                        2,
+                                        false,
+                                        false));
+                    }
+                    code = !code;
+                    continue;
+                }
+                if (code) {
+                    var source = physical.replace("\t", "    ");
+                    var tokens = new ArrayList<SyntaxHighlighter.Token>();
+                    if (source.startsWith("+ ") || source.startsWith("- ")) {
+                        tokens.add(
+                                new SyntaxHighlighter.Token(
+                                        source.substring(0, 2),
+                                        source.startsWith("+") ? GREEN : RED,
+                                        false));
+                        tokens.addAll(highlighter.highlight(source.substring(2)));
+                    } else tokens.addAll(highlighter.highlight(source));
+                    appendColored(lines, tokens, width - 4, CODE, 2, false);
+                } else {
+                    appendProse(lines, physical, width, info);
+                }
+            }
+            if (code) lines.add(line("", SUB, CODE, 2, false, false));
+        }
+        lines.add(line("", SUB, BG, 0, false, false));
+        if (message.role().equals("user")) lines.add(line("", SUB, BG, 0, false, false));
+        int offset = 0;
+        for (int index = 0; index < lines.size(); index++) {
+            var line = lines.get(index);
+            lines.set(
+                    index,
+                    new Line(
+                            line.spans(),
+                            line.background(),
+                            line.inset(),
+                            line.rail(),
+                            messageIndex,
+                            offset));
+            for (var span : line.spans()) offset += span.text().length();
+        }
+        return List.copyOf(lines);
     }
 
     private void appendProse(List<Line> lines, String text, int width, boolean info) {

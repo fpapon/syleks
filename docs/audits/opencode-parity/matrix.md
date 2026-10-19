@@ -1,5 +1,7 @@
 # Matrice de parité fonctionnelle
 
+> **Phase 8 :** voir [l'audit renouvelé des optimisations et de l'ergonomie](optimisations-and-ergonomics.md) pour les preuves actuelles, mesures reproductibles, budgets et limites. Les constats et scores de la campagne initiale ci-dessous restent historiques.
+
 > Phase 7 : les constats historiques SES/ORC sont complétés par [le suivi sessions et contexte](sessions-and-context.md), avec les preuves de résumés, fork au message, import/export et reprise sans replay.
 
 

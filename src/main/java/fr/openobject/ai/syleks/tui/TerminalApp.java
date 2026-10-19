@@ -216,7 +216,8 @@ public class TerminalApp implements AutoCloseable {
                                     screen.canvas(),
                                     session.usageSnapshot(),
                                     slash < 0 ? "ollama" : selection.substring(0, slash),
-                                    slash < 0 ? selection : selection.substring(slash + 1));
+                                    slash < 0 ? selection : selection.substring(slash + 1),
+                                    session.contextLimits(selection));
                 }
                 painter.paint(terminal, screen);
                 int input = reader.read(70);
@@ -455,8 +456,10 @@ public class TerminalApp implements AutoCloseable {
             switch (sequence.toString()) {
                 case "A" -> usageModal.move(-1);
                 case "B" -> usageModal.move(1);
-                case "5~" -> usageModal.move(-8);
-                case "6~" -> usageModal.move(8);
+                case "5~" -> usageModal.page(-1);
+                case "6~" -> usageModal.page(1);
+                case "H", "1~", "7~" -> usageModal.edge(false);
+                case "F", "4~", "8~" -> usageModal.edge(true);
                 default -> {}
             }
             return;
@@ -490,6 +493,10 @@ public class TerminalApp implements AutoCloseable {
                 }
                 case "A" -> sessionPicker.move(-1);
                 case "B" -> sessionPicker.move(1);
+                case "5~" -> sessionPicker.page(-1);
+                case "6~" -> sessionPicker.page(1);
+                case "H", "1~", "7~" -> sessionPicker.edge(false);
+                case "F", "4~", "8~" -> sessionPicker.edge(true);
                 case "200~" -> paste = true;
                 case "201~" -> paste = false;
                 default -> {}

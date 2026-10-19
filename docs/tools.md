@@ -18,6 +18,12 @@ All providers advertise the same registry. Schemas count toward the model contex
 
 This fragment supplements existing settings. Patch also requires `edit` for updates and `write` for additions/deletions. A parent agent's denial remains effective in a child. Skills additionally require `read` on their absolute file path. Todos and questions do not execute shell commands.
 
+## Bounded workspace searches
+
+`list` scans one level; `glob` and `grep` scan to depth 32. Specify `path` to focus a large project and `limit` to bound matches (default 100, maximum 500). Searches stop after 10,000 visited entries, 8 million inspected text characters, 8 million regex character accesses, or five seconds of cooperative work. Approval waits do not consume that time. Files are at most 1 MB; one extra file can be read before detecting the remaining text budget. Results include counts and an explicit truncation reason; denied/unreadable entries are omitted. Output stays within 32,000 characters, including its search footer.
+
+Cancellation is checked between entries/lines and during regex backtracking. A regex that exhausts its work budget or stack returns an incomplete result. Filesystem calls and the Java glob matcher are not forcibly interrupted mid-call. No build/vendor directories are silently excluded; narrow `path` when a broad scan is incomplete.
+
 ## Patches
 
 `apply_patch` takes a `patch` string:

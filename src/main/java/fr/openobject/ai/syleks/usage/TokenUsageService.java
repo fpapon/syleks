@@ -7,6 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /** All JDBC access occurs on session/generation workers. Rendering reads immutable cached snapshots. */
 @ApplicationScoped
 public class TokenUsageService {
+    private static final TokenUsageAggregator.Snapshot EMPTY =
+            TokenUsageAggregator.aggregate(List.of());
     private final TokenUsageRepository repository;
     private final Map<String, TokenUsageAggregator.Snapshot> snapshots = new ConcurrentHashMap<>();
     private final java.util.concurrent.CopyOnWriteArrayList<
@@ -34,8 +36,6 @@ public class TokenUsageService {
     }
 
     public TokenUsageAggregator.Snapshot snapshot(String session) {
-        return session == null
-                ? TokenUsageAggregator.aggregate(List.of())
-                : snapshots.getOrDefault(session, TokenUsageAggregator.aggregate(List.of()));
+        return session == null ? EMPTY : snapshots.getOrDefault(session, EMPTY);
     }
 }

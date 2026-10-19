@@ -10,14 +10,17 @@ import java.util.Locale;
 final class SessionPicker {
     private List<Session> sessions = List.of();
     private String query = "";
+    private List<Session> matches;
     private String active;
     private int selected;
+    private int visible = 8;
     private boolean open;
     private Session pendingDeletion;
     private String error;
 
     void open(List<Session> values, String current) {
         sessions = List.copyOf(values);
+        matches = null;
         active = current;
         selected = 0;
         query = "";
@@ -40,18 +43,27 @@ final class SessionPicker {
     }
 
     List<Session> filtered() {
-        return sessions.stream()
-                .filter(
-                        s ->
-                                s.title()
-                                        .toLowerCase(Locale.ROOT)
-                                        .contains(query.toLowerCase(Locale.ROOT)))
-                .toList();
+        if (matches == null) {
+            String needle = query.toLowerCase(Locale.ROOT);
+            matches =
+                    sessions.stream()
+                            .filter(
+                                    s ->
+                                            s.title().toLowerCase(Locale.ROOT).contains(needle)
+                                                    || s.id().toLowerCase(Locale.ROOT)
+                                                            .contains(needle)
+                                                    || s.model()
+                                                            .toLowerCase(Locale.ROOT)
+                                                            .contains(needle))
+                            .toList();
+        }
+        return matches;
     }
 
     void type(int codepoint) {
         if (pendingDeletion != null) return;
         error = null;
+        matches = null;
         query += new String(Character.toChars(codepoint));
         selected = 0;
     }
@@ -59,6 +71,7 @@ final class SessionPicker {
     void backspace() {
         if (pendingDeletion != null) return;
         error = null;
+        matches = null;
         if (!query.isEmpty())
             query = query.substring(0, query.offsetByCodePoints(query.length(), -1));
         selected = 0;
@@ -68,6 +81,19 @@ final class SessionPicker {
         if (pendingDeletion != null) return;
         int size = filtered().size();
         selected = size == 0 ? 0 : Math.floorMod(selected + direction, size);
+    }
+
+    void page(int direction) {
+        if (pendingDeletion == null)
+            selected =
+                    Math.clamp(
+                            selected + direction * Math.max(1, visible),
+                            0,
+                            Math.max(0, filtered().size() - 1));
+    }
+
+    void edge(boolean end) {
+        if (pendingDeletion == null) selected = end ? Math.max(0, filtered().size() - 1) : 0;
     }
 
     Session selected() {
@@ -96,6 +122,7 @@ final class SessionPicker {
     void removed(String id, String current) {
         sessions = sessions.stream().filter(s -> !s.id().equals(id)).toList();
         active = current;
+        matches = null;
         selected = Math.min(selected, Math.max(0, filtered().size() - 1));
         pendingDeletion = null;
         error = null;
@@ -123,13 +150,27 @@ final class SessionPicker {
                 top + 2,
                 width,
                 pendingDeletion == null
-                        ? "↑↓ select · Enter open · Del delete · Esc close · type to filter"
+                        ? "↑↓ PgUp/PgDn Home/End · Enter open · Del delete · Esc · filter title/ID/model"
                         : "Enter delete permanently · Esc cancel",
                 SUB,
                 INPUT);
         if (error != null) line(canvas, left, top + 3, width, error, SUB, INPUT);
         var list = filtered();
-        int visible = Math.max(0, height - 5), begin = Math.max(0, selected - visible + 1);
+        visible = Math.max(0, height - 5);
+        int begin = Math.max(0, selected - visible + 1);
+        line(
+                canvas,
+                left,
+                top + height - 1,
+                width,
+                (list.isEmpty() ? 0 : selected + 1)
+                        + " / "
+                        + list.size()
+                        + " matches · "
+                        + sessions.size()
+                        + " sessions",
+                SUB,
+                INPUT);
         if (list.isEmpty())
             line(
                     canvas,

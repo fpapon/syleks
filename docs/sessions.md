@@ -170,3 +170,7 @@ Imported file snapshots are marked historical and cannot be undone/redone, so op
 You can use different sessions in multiple Syleks instances. Another instance may read the same conversation, but only one instance can generate or perform a protected change on that session at a time.
 
 If a session is busy, finish or cancel work in the other terminal, then retry. A terminated process releases its lock automatically. Do not delete lock files to bypass a busy session. See [Troubleshooting](troubleshooting.md) for storage errors.
+
+## Navigating large session lists
+
+The picker filters titles, full or partial session IDs, and model names without regard to case. Matching lists are reused until you change the filter or session list. Arrows cycle through matches; PgUp/PgDn move one visible page and stop at the edges; Home/End jump to the first/last match. The footer shows your position and match count. Navigation stays disabled while confirming deletion.

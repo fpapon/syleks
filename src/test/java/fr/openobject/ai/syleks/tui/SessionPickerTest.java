@@ -164,6 +164,35 @@ class SessionPickerTest {
         assertFalse(views.snapshot(editor.text()).containsKey("two"));
     }
 
+    @Test
+    void cachesLargeFilteredListsAndSupportsPageAndEdgeNavigation() {
+        var values =
+                java.util.stream.IntStream.range(0, 10_000)
+                        .mapToObj(i -> session("id-" + i, "Task " + i))
+                        .toList();
+        var picker = new SessionPicker();
+        picker.open(values, "id-0");
+        var all = picker.filtered();
+        picker.paint(new TerminalCanvas(120, 32));
+        picker.page(1);
+        assertEquals("id-17", picker.selected().id());
+        assertSame(all, picker.filtered());
+        picker.edge(true);
+        assertEquals("id-9999", picker.selected().id());
+        picker.page(1);
+        assertEquals("id-9999", picker.selected().id());
+        picker.edge(false);
+        assertEquals("id-0", picker.selected().id());
+        for (int cp : "id-9999".codePoints().toArray()) picker.type(cp);
+        assertEquals(1, picker.filtered().size());
+        assertEquals("id-9999", picker.selected().id());
+        picker.removed("id-9999", "id-0");
+        assertTrue(picker.filtered().isEmpty());
+        picker.open(values, "id-0");
+        for (int cp : "QWEN3:8B".codePoints().toArray()) picker.type(cp);
+        assertEquals(10_000, picker.filtered().size());
+    }
+
     private String text(TerminalCanvas canvas) {
         var result = new StringBuilder();
         for (int y = 0; y < canvas.height(); y++) {

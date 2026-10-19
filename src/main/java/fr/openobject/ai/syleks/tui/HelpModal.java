@@ -15,7 +15,9 @@ final class HelpModal {
             List.of(
                     new Entry("Chat & sessions", ""),
                     new Entry("/new · /clear", "Start a new chat; keep the previous session."),
-                    new Entry("/sessions", "Browse and search saved sessions."),
+                    new Entry(
+                            "/sessions",
+                            "Filter saved sessions by title, ID or model; PgUp/PgDn and Home/End navigate."),
                     new Entry("/session ID", "Open a saved session by ID."),
                     new Entry("/children · /parent", "Browse child tasks or return to the parent."),
                     new Entry("/resume", "Open the latest session."),
@@ -59,7 +61,9 @@ final class HelpModal {
                     new Entry(
                             "/sidebar [auto|show|hide]",
                             "Toggle the token sidebar; saved preference."),
-                    new Entry("/usage", "Open detailed token and performance metrics."),
+                    new Entry(
+                            "/usage",
+                            "Inspect token totals, configured input/output budgets and request timings."),
                     new Entry("/help", "Open this reference."),
                     new Entry("/demo", "Preview tool cards and code highlighting."),
                     new Entry("/quit · /exit", "Close Syleks."),
