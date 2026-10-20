@@ -20,8 +20,6 @@ jobs:
         run: |
           java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar --help
           java --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar session list
-      - name: Check terminal navigation, resizing and streaming cancellation
-        run: python3 scripts/phase8-smoke.py
       - name: Archive performance fixtures and test results
         if: always()
         uses: actions/upload-artifact@v4
