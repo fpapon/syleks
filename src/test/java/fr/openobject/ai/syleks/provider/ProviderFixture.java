@@ -16,6 +16,35 @@ public final class ProviderFixture {
                         new OllamaLlmProvider(legacy, f.config, f.json),
                         chatgpt,
                         new OpenAiApiLlmProvider(f.auth, f.json, f.config),
+                        new SpaceXsiLlmProvider(
+                                f.auth,
+                                f.json,
+                                f.config,
+                                legacy,
+                                f.base.resolve("xai/language-models"),
+                                f.base.resolve("xai/chat/completions")),
+                        new OpenRouterLlmProvider(
+                                f.auth,
+                                f.json,
+                                f.config,
+                                legacy,
+                                f.base.resolve("openrouter/models"),
+                                f.base.resolve("openrouter/chat/completions")),
+                        new OpenCodeLlmProvider(
+                                f.auth,
+                                f.json,
+                                f.config,
+                                legacy,
+                                f.base.resolve("opencode/models"),
+                                f.base.resolve("opencode/openai/v1/"),
+                                f.base.resolve("opencode/openai/v1/chat/completions")),
+                        new GoogleLlmProvider(
+                                f.auth,
+                                f.json,
+                                f.config,
+                                legacy,
+                                f.base.resolve("google/models"),
+                                f.base.resolve("google/chat/completions")),
                         f.config,
                         legacy);
         registry.initialize();

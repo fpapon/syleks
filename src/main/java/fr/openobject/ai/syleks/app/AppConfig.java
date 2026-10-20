@@ -15,6 +15,30 @@ import java.util.Map;
  */
 @DefaultScoped
 public class AppConfig {
+    /**
+     * Reserved provider ids. Keep this aligned with {@code agent-config.schema.json}
+     * patternProperties for built-in providers.
+     */
+    public static final java.util.Set<String> BUILT_IN_PROVIDERS =
+            java.util.Set.of(
+                    "ollama",
+                    "chatgpt",
+                    "openai-api",
+                    "spacexsi",
+                    "openrouter",
+                    "opencode",
+                    "google");
+
+    public static boolean builtInProvider(String id) {
+        return BUILT_IN_PROVIDERS.contains(id);
+    }
+
+    public static boolean apiKeyProvider(String id) {
+        return id != null
+                && java.util.Set.of("openai-api", "spacexsi", "openrouter", "opencode", "google")
+                        .contains(id);
+    }
+
     private final int contextWindow;
     private final int responseTokens;
     private final URI endpoint;
@@ -112,10 +136,8 @@ public class AppConfig {
         if (settings.containsKey("model") && !environment.containsKey("OLLAMA_MODEL")) {
             if (!defaultModel.contains("/")
                     || !(providers.containsKey(defaultModel.substring(0, defaultModel.indexOf('/')))
-                            || java.util.Set.of("ollama", "chatgpt", "openai-api")
-                                    .contains(
-                                            defaultModel.substring(
-                                                    0, defaultModel.indexOf('/'))))) {
+                            || builtInProvider(
+                                    defaultModel.substring(0, defaultModel.indexOf('/'))))) {
                 throw new IllegalStateException(
                         "Invalid model in " + file + ": expected a configured provider/model");
             }
@@ -272,7 +294,7 @@ public class AppConfig {
                 throw new IllegalStateException("Invalid provider identifier in " + file);
             }
             var provider = object(definitions, id, file);
-            if (java.util.Set.of("ollama", "chatgpt", "openai-api").contains(id)) {
+            if (builtInProvider(id)) {
                 var options = object(provider, "options", file);
                 if (!provider.keySet().equals(java.util.Set.of("options"))
                         || !options.keySet().equals(java.util.Set.of("proxy"))) {
@@ -411,6 +433,19 @@ public class AppConfig {
                         null,
                         null,
                         true);
+            if (provider.equals("spacexsi")
+                    || provider.equals("openrouter")
+                    || provider.equals("opencode")
+                    || provider.equals("google"))
+                return new ModelConnection(
+                        apiEndpoint(provider),
+                        model,
+                        apiName(provider),
+                        model,
+                        "",
+                        null,
+                        null,
+                        true);
             if (provider.equals("ollama"))
                 return new ModelConnection(endpoint, model, "Ollama", model, "", null, null, false);
         }
@@ -434,6 +469,29 @@ public class AppConfig {
                     true);
         }
         return new ModelConnection(endpoint, selection, "Ollama", selection, "", null, null, false);
+    }
+
+    private static URI apiEndpoint(String provider) {
+        return switch (provider) {
+            case "spacexsi" -> URI.create("https://api.x.ai/v1/chat/completions");
+            case "openrouter" -> URI.create("https://openrouter.ai/api/v1/chat/completions");
+            case "opencode" ->
+                    URI.create("https://opencode.ai/inference/openai/v1/chat/completions");
+            case "google" ->
+                    URI.create(
+                            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions");
+            default -> throw new IllegalArgumentException("Unknown API provider: " + provider);
+        };
+    }
+
+    private static String apiName(String provider) {
+        return switch (provider) {
+            case "spacexsi" -> "SpaceXSI";
+            case "openrouter" -> "OpenRouter";
+            case "opencode" -> "OpenCode";
+            case "google" -> "Google";
+            default -> provider;
+        };
     }
 
     public AgentDefinition agent(String name) {

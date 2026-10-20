@@ -22,6 +22,7 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     }
 
     protected synchronized ToolRegistry tools() {
+        if (boundTools != null) return boundTools;
         if (fallbackTools == null) fallbackTools = new ToolRegistry(config, List.of());
         return fallbackTools;
     }
@@ -29,7 +30,7 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     private final AgentRuntime fallbackRuntime = new AgentRuntime();
 
     protected AgentRuntime runtime() {
-        return fallbackRuntime;
+        return boundRuntime != null ? boundRuntime : fallbackRuntime;
     }
 
     private final AuthenticationService auth;
@@ -62,6 +63,19 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     public ProviderCapabilities capabilities() {
         return new ProviderCapabilities(false, true, true);
     }
+
+    public boolean requiresAccount() {
+        return true;
+    }
+
+    /** Tests and OpenCode bind the shared engine when Fusion field injection is absent. */
+    synchronized void bind(AgentRuntime runtime, ToolRegistry tools) {
+        if (runtime != null) boundRuntime = runtime;
+        if (tools != null) boundTools = tools;
+    }
+
+    private AgentRuntime boundRuntime;
+    private ToolRegistry boundTools;
 
     private Credentials credentials(String accountId) throws Exception {
         var c = auth.credentials(accountId);

@@ -686,6 +686,35 @@ class AgentEngineParityTest {
                                 auth.auth, auth.json, db.config, auth.base.resolve("v1/")),
                         new OpenAiApiLlmProvider(
                                 auth.auth, auth.json, db.config, auth.base.resolve("v1/")),
+                        new SpaceXsiLlmProvider(
+                                auth.auth,
+                                auth.json,
+                                db.config,
+                                legacy,
+                                auth.base.resolve("xai/language-models"),
+                                auth.base.resolve("xai/chat/completions")),
+                        new OpenRouterLlmProvider(
+                                auth.auth,
+                                auth.json,
+                                db.config,
+                                legacy,
+                                auth.base.resolve("openrouter/models"),
+                                auth.base.resolve("openrouter/chat/completions")),
+                        new OpenCodeLlmProvider(
+                                auth.auth,
+                                auth.json,
+                                db.config,
+                                legacy,
+                                auth.base.resolve("opencode/models"),
+                                auth.base.resolve("opencode/openai/v1/"),
+                                auth.base.resolve("opencode/openai/v1/chat/completions")),
+                        new GoogleLlmProvider(
+                                auth.auth,
+                                auth.json,
+                                db.config,
+                                legacy,
+                                auth.base.resolve("google/models"),
+                                auth.base.resolve("google/chat/completions")),
                         db.config,
                         legacy);
         registry.initialize();

@@ -44,8 +44,15 @@ class ProviderCliTest {
         builder.environment().put("HOME", root.resolve("home").toString());
         builder.environment().put("XDG_CONFIG_HOME", root.resolve("config").toString());
         builder.environment().put("SYLEKS_CREDENTIAL_BACKEND", "file");
-        for (String name : List.of("OLLAMA_URL", "OLLAMA_MODEL", "OPENAI_API_KEY"))
-            builder.environment().remove(name);
+        for (String name :
+                List.of(
+                        "OLLAMA_URL",
+                        "OLLAMA_MODEL",
+                        "OPENAI_API_KEY",
+                        "XAI_API_KEY",
+                        "OPENROUTER_API_KEY",
+                        "OPENCODE_API_KEY",
+                        "GEMINI_API_KEY")) builder.environment().remove(name);
         var process = builder.start();
         assertTrue(process.waitFor(10, TimeUnit.SECONDS));
         String text =
@@ -54,6 +61,25 @@ class ProviderCliTest {
                         java.nio.charset.StandardCharsets.UTF_8);
         assertEquals(0, process.exitValue(), text);
         return text;
+    }
+
+    @Test
+    void apiKeyLoginReadsOnlyTheMatchingVariable() {
+        assertEquals("XAI_API_KEY", ProviderCommands.apiKeyVariable("spacexsi"));
+        assertEquals("OPENROUTER_API_KEY", ProviderCommands.apiKeyVariable("openrouter"));
+        assertEquals("OPENCODE_API_KEY", ProviderCommands.apiKeyVariable("opencode"));
+        assertEquals("GEMINI_API_KEY", ProviderCommands.apiKeyVariable("google"));
+        assertEquals("OPENAI_API_KEY", ProviderCommands.apiKeyVariable("openai-api"));
+        assertNull(ProviderCommands.apiKeyVariable("chatgpt"));
+        var environment = Map.of("XAI_API_KEY", "xai-secret", "OPENAI_API_KEY", "openai-secret");
+        assertEquals("xai-secret", ProviderCommands.loginKey("spacexsi", environment));
+        assertEquals("openai-secret", ProviderCommands.loginKey("openai-api", environment));
+        assertNull(ProviderCommands.loginKey("openrouter", environment));
+        assertNull(ProviderCommands.loginKey("google", environment));
+        assertEquals(
+                "gemini-secret",
+                ProviderCommands.loginKey("google", Map.of("GEMINI_API_KEY", "gemini-secret")));
+        assertNull(ProviderCommands.loginKey("ollama", environment));
     }
 
     @Test

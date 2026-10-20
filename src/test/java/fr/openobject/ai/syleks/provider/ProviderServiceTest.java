@@ -20,7 +20,14 @@ class ProviderServiceTest {
         try (var f = new AuthFixture(root)) {
             var p = new ProviderFixture(f);
             assertEquals(
-                    List.of("chatgpt", "ollama", "openai-api"),
+                    List.of(
+                            "chatgpt",
+                            "ollama",
+                            "openai-api",
+                            "spacexsi",
+                            "openrouter",
+                            "opencode",
+                            "google"),
                     p.registry.providers().stream().map(LlmProvider::id).toList());
             assertEquals("ollama", p.service.active().providerId());
             p.service.useModel("ollama/local-model");
@@ -58,6 +65,10 @@ class ProviderServiceTest {
                     "{\"allow_cloud\":false}");
             assertThrows(Exception.class, () -> p.service.useAccount(c.account().id()));
             assertThrows(Exception.class, () -> p.service.checkCloud("openai-api"));
+            assertThrows(Exception.class, () -> p.service.checkCloud("spacexsi"));
+            assertThrows(Exception.class, () -> p.service.checkCloud("openrouter"));
+            assertThrows(Exception.class, () -> p.service.checkCloud("opencode"));
+            assertThrows(Exception.class, () -> p.service.checkCloud("google"));
             p.service.useModel("ollama/local");
             assertEquals("ollama/local", p.service.selection());
         }

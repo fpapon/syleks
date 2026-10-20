@@ -20,7 +20,16 @@ class ConfigSchemaTest {
 
     @Test
     void validatesProviderProxySettings() throws Exception {
-        for (String id : List.of("local", "ollama", "chatgpt", "openai-api")) {
+        for (String id :
+                List.of(
+                        "local",
+                        "ollama",
+                        "chatgpt",
+                        "openai-api",
+                        "spacexsi",
+                        "openrouter",
+                        "opencode",
+                        "google")) {
             var options = json.createObjectNode();
             if (id.equals("local")) options.put("baseURL", "https://llm.example.com/v1");
             var config = json.createObjectNode();
@@ -83,6 +92,7 @@ class ConfigSchemaTest {
                         "{\"agent\":{\"reviewer\":{\"disable\":\"true\"}}}",
                         "{\"agent\":{\"reviewer\":{\"hidden\":null}}}",
                         "{\"providers\":{}}",
+                        "{\"provider\":{\"spacexsi\":{\"options\":{\"apiKey\":\"secret\"}}}}",
                         "{\"model\":\"bare-model\"}",
                         "{\"max_rounds\":0}",
                         "{\"max_rounds\":-2}",

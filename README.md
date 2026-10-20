@@ -1,6 +1,6 @@
 # Syleks TUI — Java 25 + Yupiik Fusion
 
-A dark, OpenCode/Codex-inspired full-screen agent TUI for **Ollama, ChatGPT plan usage, OpenAI API and OpenAI-compatible servers**, with permission-checked local commands.
+A dark, OpenCode/Codex-inspired full-screen agent TUI for **Ollama, ChatGPT plan usage, OpenAI API, SpaceXSI, OpenRouter, OpenCode Console, Gemini and OpenAI-compatible servers**, with permission-checked local commands.
 
 > **Status: working-source MVP.** Java 25 and Maven 3.9+ are required. The test suite covers configuration, rendering, streaming protocols, permissions, and local command execution. Verify your chosen model server and terminal in your own environment.
 
@@ -17,7 +17,7 @@ bin/syleks model use chatgpt/<slug-from-list>
 bin/syleks --new
 ```
 
-Use `/connect`, `/providers`, `/models`, `/accounts` and `/logout` in the TUI. Accounts persist across launches with token rotation and dedicated protected storage. Identity alone does not authorize plan usage. `auth login openai-api` is a separate, explicit API billing path.
+Use `/connect`, `/providers`, `/models`, `/accounts` and `/logout` in the TUI. Accounts persist across launches with token rotation and dedicated protected storage. Identity alone does not authorize plan usage. `auth login openai-api`, `auth login spacexsi`, `auth login openrouter`, `auth login opencode` and `auth login google` are separate, explicit API billing paths. Noninteractive login reads `OPENAI_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`, `OPENCODE_API_KEY` or `GEMINI_API_KEY` only for that command.
 
 Cloud requests send necessary conversation context, instructions and approved tool results outside your environment. `{"allow_cloud":false}` in `.syleks/project.json` forbids cloud providers. See [Providers](docs/providers.md) and [Authentication](docs/authentication.md) for commands, architecture, XDG/Secret Service storage, restrictions, SSH and manual checks. OAuth/inference tests use simulated servers; no real subscription request was performed here.
 

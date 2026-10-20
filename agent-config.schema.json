@@ -21,7 +21,7 @@
         "pattern": "^[A-Za-z0-9._-]+$"
       },
       "patternProperties": {
-        "^(ollama|chatgpt|openai-api)$": { "$ref": "#/$defs/builtinProvider" }
+        "^(ollama|chatgpt|openai-api|spacexsi|openrouter|opencode|google)$": { "$ref": "#/$defs/builtinProvider" }
       },
       "additionalProperties": {
         "$ref": "#/$defs/provider"

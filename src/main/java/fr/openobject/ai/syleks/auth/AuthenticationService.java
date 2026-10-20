@@ -55,11 +55,17 @@ public class AuthenticationService {
     }
 
     public Credentials apiKey(String key) throws Exception {
+        return apiKey("openai-api", key);
+    }
+
+    public Credentials apiKey(String providerId, String key) throws Exception {
+        if (!fr.openobject.ai.syleks.app.AppConfig.apiKeyProvider(providerId))
+            throw new IllegalArgumentException("Provider does not accept an API key");
         if (key == null || key.isBlank() || key.chars().anyMatch(Character::isWhitespace))
             throw new IllegalArgumentException("Enter a valid API key");
         var account =
                 new ProviderAccount(
-                        "openai-api", UUID.randomUUID().toString(), null, null, null, null, null);
+                        providerId, UUID.randomUUID().toString(), null, null, null, null, null);
         var c =
                 new Credentials(
                         account,
