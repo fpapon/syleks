@@ -31,6 +31,7 @@ public class TerminalApp implements AutoCloseable {
     private java.util.concurrent.Future<?> providerTask;
     private long providerRevision;
     private String selectedAccount;
+    private String apiKeyProvider = "openai-api";
     private java.net.URI manualAuthorization;
     private final ChatSession session;
     private final ConfigInitializer configInitializer;
@@ -700,6 +701,26 @@ public class TerminalApp implements AutoCloseable {
         sessionLoading = false;
     }
 
+    private static String apiKeyTitle(String provider) {
+        return switch (provider) {
+            case "spacexsi" -> "SpaceXSI API key";
+            case "openrouter" -> "OpenRouter API key";
+            case "opencode" -> "OpenCode API key";
+            case "google" -> "Gemini API key";
+            default -> "OpenAI API key";
+        };
+    }
+
+    private static String apiKeyNotice(String provider) {
+        return switch (provider) {
+            case "spacexsi" -> "This key uses SpaceXSI credits.";
+            case "openrouter" -> "This key uses OpenRouter credits.";
+            case "opencode" -> "This key uses OpenCode Console credits.";
+            case "google" -> "This key uses Gemini API billing.";
+            default -> "This key uses API billing independently of your ChatGPT plan.";
+        };
+    }
+
     private String cloudNotice() {
         return session.providers()
                         .registry()
@@ -731,7 +752,7 @@ public class TerminalApp implements AutoCloseable {
                                                             ? "Continue with ChatGPT"
                                                             : p.capabilities().local()
                                                                     ? "Local provider"
-                                                                    : p.id().equals("openai-api")
+                                                                    : p.requiresAccount()
                                                                             ? "API key · separate API billing"
                                                                             : "Configured provider"))
                             .toList();
@@ -872,10 +893,13 @@ public class TerminalApp implements AutoCloseable {
             providerModal.clearInput();
             providerWork(
                     () -> {
-                        var c = authentication.apiKey(key);
+                        var c = authentication.apiKey(apiKeyProvider, key);
                         session.providers().useAccount(c.account().id());
                         applyProviderModel();
-                        return "Connected to OpenAI API · separate API billing. " + cloudNotice();
+                        return "Connected to "
+                                + session.providers().registry().get(apiKeyProvider).displayName()
+                                + " · separate API billing. "
+                                + cloudNotice();
                     });
             return;
         }
@@ -884,15 +908,15 @@ public class TerminalApp implements AutoCloseable {
         switch (providerModal.kind()) {
             case CONNECT -> {
                 if (entry.id().equals("chatgpt")) startProviderLogin(null);
-                else if (entry.id().equals("openai-api")) {
+                else if (session.providers().registry().get(entry.id()).requiresAccount()) {
+                    apiKeyProvider = entry.id();
                     providerModal =
                             new ProviderModal(
                                     ProviderModal.Kind.API_KEY,
-                                    "OpenAI API key",
+                                    apiKeyTitle(entry.id()),
                                     java.util.List.of());
                     providerModal.message(
-                            ProviderCommands.CLOUD_NOTICE
-                                    + "\nThis key uses API billing independently of your ChatGPT plan.");
+                            ProviderCommands.CLOUD_NOTICE + "\n" + apiKeyNotice(entry.id()));
                 } else
                     providerWork(
                             () -> {
@@ -928,9 +952,7 @@ public class TerminalApp implements AutoCloseable {
                                                     "Select account",
                                                     "Preserve conversation"),
                                             new ProviderModal.Entry(
-                                                    "login",
-                                                    "Reconnect",
-                                                    "Saved ChatGPT registration"),
+                                                    "login", "Reconnect", "Saved registration"),
                                             new ProviderModal.Entry(
                                                     "logout",
                                                     "Sign out",
@@ -967,8 +989,9 @@ public class TerminalApp implements AutoCloseable {
                                     .orElseThrow(
                                             () -> new IllegalArgumentException("Unknown account"));
                     boolean revoked = session.providers().logout(id);
-                    if (account.account().providerId().equals("openai-api"))
-                        return "Signed out. API key removed locally; revoke it separately in OpenAI API settings.";
+                    if (fr.openobject.ai.syleks.app.AppConfig.apiKeyProvider(
+                            account.account().providerId()))
+                        return "Signed out. API key removed locally; revoke it separately in the provider console.";
                     return revoked
                             ? "Signed out. Renewable session revoked."
                             : "Signed out locally. Remote revocation was not confirmed; disconnect Syleks in ChatGPT Settings.";

@@ -61,7 +61,7 @@ public class OllamaClient {
 
     public String createPayload(String model, String agent, List<ChatMessage> history)
             throws IOException {
-        return payload(model, agent, conversation(agent, history));
+        return payload(null, model, agent, conversation(agent, history));
     }
 
     private List<Map<String, Object>> conversation(String agent, List<ChatMessage> history) {
@@ -75,18 +75,21 @@ public class OllamaClient {
         return messages;
     }
 
-    private String payload(String model, String agent, List<Map<String, Object>> messages) {
-        var connection = config.resolveModel(model);
+    private String payload(
+            AppConfig.ModelConnection connection,
+            String model,
+            String agent,
+            List<Map<String, Object>> messages) {
+        var resolved = connection == null ? config.resolveModel(model) : connection;
         var request = new LinkedHashMap<String, Object>();
-        request.put("model", connection.model());
+        request.put("model", resolved.model());
         request.put("messages", messages);
         request.put("stream", true);
         var temperature = config.temperature(agent);
-        if (connection.openAiCompatible()) {
+        if (resolved.openAiCompatible()) {
             request.put("stream_options", Map.of("include_usage", true));
             if (temperature != null) request.put("temperature", temperature);
-            if (connection.outputLimit() != null)
-                request.put("max_tokens", connection.outputLimit());
+            if (resolved.outputLimit() != null) request.put("max_tokens", resolved.outputLimit());
         } else if (temperature != null) {
             request.put("options", Map.of("temperature", temperature));
         }
@@ -105,7 +108,7 @@ public class OllamaClient {
             request.put("messages", bounded.messages());
             if (bounded.omittedMessages() > 0 && observer.get() != null)
                 observer.get().contextLimited(bounded.omittedMessages());
-            if (connection.openAiCompatible()) request.put("max_tokens", reserve);
+            if (resolved.openAiCompatible()) request.put("max_tokens", reserve);
             else {
                 var options = new LinkedHashMap<String, Object>();
                 if (temperature != null) options.put("temperature", temperature);
@@ -146,7 +149,7 @@ public class OllamaClient {
             ToolHandler tools)
             throws Exception {
         streamConversation(
-                model, agent, conversation(agent, history), receive, tools, observer.get());
+                null, model, agent, conversation(agent, history), receive, tools, observer.get());
     }
 
     /** Compatibility alias for existing integrations. */
@@ -180,7 +183,32 @@ public class OllamaClient {
         toolsEnabled.set(tools.toolsEnabled());
         this.observer.set(observer);
         try {
-            streamConversation(model, agent, history, receive, tools, observer);
+            streamConversation(null, model, agent, history, receive, tools, observer);
+        } finally {
+            persistentRequest.remove();
+            toolsEnabled.remove();
+            this.observer.remove();
+        }
+    }
+
+    /**
+     * Streams one prepared conversation through an explicit connection. Account-backed providers
+     * pass the bearer token here so it never has to live in agent-config.json.
+     */
+    public void streamPrepared(
+            AppConfig.ModelConnection connection,
+            String model,
+            String agent,
+            List<Map<String, Object>> history,
+            Consumer<String> receive,
+            ToolHandler tools,
+            Observer observer)
+            throws Exception {
+        persistentRequest.set(true);
+        toolsEnabled.set(tools.toolsEnabled());
+        this.observer.set(observer);
+        try {
+            streamConversation(connection, model, agent, history, receive, tools, observer);
         } finally {
             persistentRequest.remove();
             toolsEnabled.remove();
@@ -189,6 +217,7 @@ public class OllamaClient {
     }
 
     private void streamConversation(
+            AppConfig.ModelConnection connection,
             String model,
             String agent,
             List<Map<String, Object>> history,
@@ -197,23 +226,23 @@ public class OllamaClient {
             Observer observer)
             throws Exception {
         var engine = runtime == null ? new AgentRuntime() : runtime;
+        var resolved = connection == null ? config.resolveModel(model) : connection;
         engine.run(
                 history,
                 config.maxRounds(agent),
-                messages -> streamTurn(model, agent, messages, receive),
-                new fr.openobject.ai.syleks.provider.ToolHistory(
-                        config.resolveModel(model).openAiCompatible(), json),
+                messages -> streamTurn(resolved, model, agent, messages, receive),
+                new fr.openobject.ai.syleks.provider.ToolHistory(resolved.openAiCompatible(), json),
                 tools,
                 observer);
     }
 
     private AgentRuntime.Turn streamTurn(
+            AppConfig.ModelConnection connection,
             String model,
             String agent,
             List<Map<String, Object>> messages,
             Consumer<String> receive)
             throws Exception {
-        var connection = config.resolveModel(model);
         var builder =
                 HttpRequest.newBuilder(connection.endpoint())
                         .timeout(Duration.ofMinutes(10))
@@ -225,7 +254,8 @@ public class OllamaClient {
                                         : "application/x-ndjson")
                         .POST(
                                 HttpRequest.BodyPublishers.ofString(
-                                        payload(model, agent, messages), StandardCharsets.UTF_8));
+                                        payload(connection, model, agent, messages),
+                                        StandardCharsets.UTF_8));
         if (connection.openAiCompatible() && !connection.apiKey().isEmpty())
             builder.header("Authorization", "Bearer " + connection.apiKey());
         String provider = model.contains("/") ? model.substring(0, model.indexOf('/')) : "ollama";
@@ -413,7 +443,7 @@ public class OllamaClient {
                 null,
                 tools,
                 toolCalls(delta.get("tool_calls")),
-                "");
+                delta.get("reasoning_content") instanceof String reasoning ? reasoning : "");
     }
 
     public Chunk parseChunk(String line) throws IOException {

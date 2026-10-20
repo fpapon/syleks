@@ -86,6 +86,10 @@ CLI commands work without opening the TUI:
 ```sh
 bin/syleks auth login chatgpt [account-id]
 bin/syleks auth login openai-api
+bin/syleks auth login spacexsi
+bin/syleks auth login openrouter
+bin/syleks auth login opencode
+bin/syleks auth login google
 bin/syleks auth logout chatgpt [account-id]
 bin/syleks auth status
 bin/syleks auth accounts

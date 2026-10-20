@@ -11,6 +11,10 @@ public class ProviderRegistry {
     private final OllamaLlmProvider ollama;
     private final ChatGptLlmProvider chatgpt;
     private final OpenAiApiLlmProvider api;
+    private final SpaceXsiLlmProvider spacexsi;
+    private final OpenRouterLlmProvider openrouter;
+    private final OpenCodeLlmProvider opencode;
+    private final GoogleLlmProvider google;
     private final AppConfig config;
     private final OllamaClient legacy;
 
@@ -18,11 +22,19 @@ public class ProviderRegistry {
             OllamaLlmProvider ollama,
             ChatGptLlmProvider chatgpt,
             OpenAiApiLlmProvider api,
+            SpaceXsiLlmProvider spacexsi,
+            OpenRouterLlmProvider openrouter,
+            OpenCodeLlmProvider opencode,
+            GoogleLlmProvider google,
             AppConfig config,
             OllamaClient legacy) {
         this.ollama = ollama;
         this.chatgpt = chatgpt;
         this.api = api;
+        this.spacexsi = spacexsi;
+        this.openrouter = openrouter;
+        this.opencode = opencode;
+        this.google = google;
         this.config = config;
         this.legacy = legacy;
     }
@@ -32,6 +44,10 @@ public class ProviderRegistry {
         register(chatgpt);
         register(ollama);
         register(api);
+        register(spacexsi);
+        register(openrouter);
+        register(opencode);
+        register(google);
         for (String id : config.configuredProviders()) {
             if (providers.containsKey(id))
                 throw new IllegalArgumentException(

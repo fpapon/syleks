@@ -57,6 +57,26 @@
       "options": {
         "proxy": "http://proxy.example.com:8080"
       }
+    },
+    "spacexsi": {
+      "options": {
+        "proxy": "http://proxy.example.com:8080"
+      }
+    },
+    "openrouter": {
+      "options": {
+        "proxy": "http://proxy.example.com:8080"
+      }
+    },
+    "opencode": {
+      "options": {
+        "proxy": "http://proxy.example.com:8080"
+      }
+    },
+    "google": {
+      "options": {
+        "proxy": "http://proxy.example.com:8080"
+      }
     }
   },
   "permission": {

@@ -106,12 +106,16 @@ Set `options.proxy` independently on each provider to route its API calls throug
     },
     "ollama": { "options": { "proxy": "http://proxy.example.com:8080" } },
     "chatgpt": { "options": { "proxy": "http://proxy.example.com:8080" } },
-    "openai-api": { "options": { "proxy": "http://proxy.example.com:8080" } }
+    "openai-api": { "options": { "proxy": "http://proxy.example.com:8080" } },
+    "spacexsi": { "options": { "proxy": "http://proxy.example.com:8080" } },
+    "openrouter": { "options": { "proxy": "http://proxy.example.com:8080" } },
+    "opencode": { "options": { "proxy": "http://proxy.example.com:8080" } },
+    "google": { "options": { "proxy": "http://proxy.example.com:8080" } }
   }
 }
 ```
 
-The proxy URL requires the `http` scheme, a hostname and an explicit port from `1` to `65535`. An optional trailing slash is allowed; credentials, other paths, query parameters and fragments are rejected. HTTPS API requests use the proxy's CONNECT tunnel. Proxy authentication is not supported. Omit `proxy` to keep the Java HTTP client's default proxy behavior. Built-in entries (`ollama`, `chatgpt`, `openai-api`) accept only `options.proxy`; their endpoints and authentication remain configured through the existing settings. Proxy settings cover chat and model discovery, and do not change OAuth login or token refresh traffic. Restart after editing the file.
+The proxy URL requires the `http` scheme, a hostname and an explicit port from `1` to `65535`. An optional trailing slash is allowed; credentials, other paths, query parameters and fragments are rejected. HTTPS API requests use the proxy's CONNECT tunnel. Proxy authentication is not supported. Omit `proxy` to keep the Java HTTP client's default proxy behavior. Built-in entries (`ollama`, `chatgpt`, `openai-api`, `spacexsi`, `openrouter`, `opencode`, `google`) accept only `options.proxy`; their endpoints and authentication remain configured through the existing settings. Proxy settings cover chat and model discovery, and do not change OAuth login or token refresh traffic. Restart after editing the file.
 
 `$schema` enables validation/completion in compatible editors using the schema beside the configuration. The repository also contains a [full configuration example](../examples/agent-config.json) and [schema](../agent-config.schema.json). Startup separately validates references and supported settings. Restart after hand edits.
 
@@ -200,7 +204,7 @@ There are no `providers`, `tools`, `system_prompt`, `instructions` or `agents` t
 
 Custom providers require `options.baseURL`. Their `models` catalog is optional, but a selected custom model must be declared. Model IDs can include `/` (for example `remote/team/reasoner` selects provider `remote`, model `team/reasoner`). Provider IDs use letters, digits, `.`, `_` or `-`; model IDs additionally allow `:` and `/`. The schema gives exact length and character restrictions.
 
-Reserved entries `ollama`, `chatgpt` and `openai-api` accept only `options.proxy`. They do not accept custom URLs, API keys, names or model catalogs. Configure Ollama using its legacy keys/environment; configure built-in cloud authentication through [account commands](authentication.md). Provider JSON values are literal: `${NAME}`, `{env:NAME}`, `~` and relative file includes are not expanded by Syleks.
+Reserved entries `ollama`, `chatgpt`, `openai-api`, `spacexsi`, `openrouter`, `opencode` and `google` accept only `options.proxy`. They do not accept custom URLs, API keys, names or model catalogs. Configure Ollama using its legacy keys/environment; configure built-in cloud authentication through [account commands](authentication.md). Provider JSON values are literal: `${NAME}`, `{env:NAME}`, `~` and relative file includes are not expanded by Syleks.
 
 ### JSON agent fields
 

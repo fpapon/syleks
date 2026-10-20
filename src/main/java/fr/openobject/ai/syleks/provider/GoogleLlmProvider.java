@@ -1,0 +1,73 @@
+package fr.openobject.ai.syleks.provider;
+
+import fr.openobject.ai.syleks.ai.OllamaClient;
+import fr.openobject.ai.syleks.app.AppConfig;
+import fr.openobject.ai.syleks.auth.AuthenticationService;
+import io.yupiik.fusion.framework.api.scope.DefaultScoped;
+import io.yupiik.fusion.json.JsonMapper;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Gemini through Google's OpenAI-compatible API. The key is {@code GEMINI_API_KEY} and requests go
+ * to {@code generativelanguage.googleapis.com}.
+ */
+@DefaultScoped
+public class GoogleLlmProvider extends ApiKeyChatProvider {
+    private final URI models;
+
+    public GoogleLlmProvider(
+            AuthenticationService auth, JsonMapper json, AppConfig config, OllamaClient client) {
+        this(
+                auth,
+                json,
+                config,
+                client,
+                URI.create("https://generativelanguage.googleapis.com/v1beta/openai/models"),
+                URI.create(
+                        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"));
+    }
+
+    GoogleLlmProvider(
+            AuthenticationService auth,
+            JsonMapper json,
+            AppConfig config,
+            OllamaClient client,
+            URI models,
+            URI chat) {
+        super(auth, json, config, client, chat);
+        this.models = models;
+    }
+
+    public String id() {
+        return "google";
+    }
+
+    public String displayName() {
+        return "Google";
+    }
+
+    public List<LlmModel> listModels(String accountId) throws Exception {
+        var body = object(fetch(models, credentials(accountId).accessToken()));
+        if (!(body.get("data") instanceof List<?> list))
+            throw new IOException("Invalid Google model catalog");
+        var seen = new LinkedHashSet<String>();
+        var found = new ArrayList<LlmModel>();
+        for (var item : list) {
+            if (!(item instanceof Map<?, ?> model) || !(model.get("id") instanceof String raw))
+                continue;
+            String id = raw.startsWith("models/") ? raw.substring("models/".length()) : raw;
+            if (!modelId(id) || !seen.add(id)) continue;
+            String label =
+                    model.get("name") instanceof String name && !name.isBlank() && !name.equals(raw)
+                            ? name
+                            : id;
+            found.add(new LlmModel(id(), id, label, capabilities()));
+        }
+        return List.copyOf(found);
+    }
+}

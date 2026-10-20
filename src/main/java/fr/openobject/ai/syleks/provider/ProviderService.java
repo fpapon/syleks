@@ -146,6 +146,26 @@ public class ProviderService {
         if (value.accountId() != null) accounts.put(value.providerId(), value.accountId());
     }
 
+    private String selectableModel(String provider, List<LlmModel> models, String preferred)
+            throws IOException {
+        if (preferred != null && !preferred.isBlank()) {
+            for (var model : models)
+                if (model.id().equals(preferred) && selectable(provider, model.id()))
+                    return model.id();
+        }
+        for (var model : models) if (selectable(provider, model.id())) return model.id();
+        throw new IOException("Provider has no selectable models");
+    }
+
+    private boolean selectable(String provider, String model) {
+        try {
+            registry.get(provider).validateModel(model);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     public void useProvider(String provider) throws Exception {
         registry.get(provider);
         checkCloud(provider);
@@ -154,10 +174,8 @@ public class ProviderService {
         if (models.isEmpty()) throw new IOException("Provider has no selectable models");
         var old = active;
         String model =
-                old.providerId().equals(provider)
-                                && models.stream().anyMatch(m -> m.id().equals(old.modelId()))
-                        ? old.modelId()
-                        : models.getFirst().id();
+                selectableModel(
+                        provider, models, old.providerId().equals(provider) ? old.modelId() : null);
         save(new ProviderConfiguration(provider, model, account));
     }
 
@@ -171,6 +189,7 @@ public class ProviderService {
         if (!provider.equals("ollama")
                 && models(provider, account, true).stream().noneMatch(m -> m.id().equals(model)))
             throw new IOException("Model unavailable for this account; refresh /models");
+        registry.get(provider).validateModel(model);
         save(new ProviderConfiguration(provider, model, account));
     }
 
@@ -193,10 +212,10 @@ public class ProviderService {
         if (models.isEmpty())
             throw new IOException("Account connected, but no selectable models are available");
         String model =
-                previous.providerId().equals(provider)
-                                && models.stream().anyMatch(m -> m.id().equals(previous.modelId()))
-                        ? previous.modelId()
-                        : models.getFirst().id();
+                selectableModel(
+                        provider,
+                        models,
+                        previous.providerId().equals(provider) ? previous.modelId() : null);
         save(new ProviderConfiguration(provider, model, id));
     }
 
@@ -206,7 +225,7 @@ public class ProviderService {
         registry.get(provider);
         config.resolveModel(selection);
         active = new ProviderConfiguration(provider, registry.modelId(selection), accountId);
-        if (provider.equals("chatgpt") || provider.equals("openai-api")) {
+        if (registry.get(provider).requiresAccount()) {
             if (accountId == null) accounts.remove(provider);
             else accounts.put(provider, accountId);
             if (accountId == null)
@@ -239,7 +258,7 @@ public class ProviderService {
         if (selection.equals(unavailableSelection)) return "Unavailable · /providers";
         String id = registry.providerId(selection);
         if (registry.get(id).capabilities().local()) return "Local";
-        if (!id.equals("chatgpt") && !id.equals("openai-api")) return "Configured";
+        if (!registry.get(id).requiresAccount()) return "Configured";
         String account = accounts.get(id);
         return account == null
                 ? "Disconnected"
@@ -269,11 +288,12 @@ public class ProviderService {
         String provider = registry.providerId(request.model());
         checkCloud(provider);
         String model = registry.modelId(request.model());
-        if ((provider.equals("chatgpt") || provider.equals("openai-api"))
+        if (registry.get(provider).requiresAccount()
                 && models(provider, request.accountId(), true).stream()
                         .noneMatch(m -> m.id().equals(model)))
             throw new IOException(
                     "Saved model unavailable; refresh /models and select a replacement");
+        registry.get(provider).validateModel(model);
         try {
             registry.get(provider)
                     .chat(

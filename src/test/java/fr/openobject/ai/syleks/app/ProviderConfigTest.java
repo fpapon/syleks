@@ -86,7 +86,8 @@ class ProviderConfigTest {
                                 Map.class, Files.readString(Path.of("examples/agent-config.json")));
         var providers = (Map<?, ?>) settings.get("provider");
         // This fixture stubs direct requests; dedicated tests below cover proxy routing.
-        for (var id : List.of("ollama", "chatgpt", "openai-api")) providers.remove(id);
+        for (var id : new java.util.ArrayList<>(providers.keySet()))
+            if (AppConfig.builtInProvider(String.valueOf(id))) providers.remove(id);
         for (var provider : providers.values())
             ((Map<?, ?>) ((Map<?, ?>) provider).get("options")).remove("proxy");
         var config = config(mapper.instance().toString(settings), Map.of());
@@ -495,6 +496,33 @@ class ProviderConfigTest {
         } finally {
             proxy.stop(0);
         }
+    }
+
+    @Test
+    void reservedApiProvidersAcceptProxyOnlyAndQualifiedModelIds() throws Exception {
+        var config =
+                config(
+                        """
+                        {"model":"spacexsi/grok-4.7","provider":{"spacexsi":{"options":{"proxy":"http://proxy.example.com:8080"}}}}
+                        """,
+                        Map.of());
+        assertEquals("grok-4.7", config.resolveModel("spacexsi/grok-4.7").model());
+        assertEquals("SpaceXSI", config.resolveModel("spacexsi/grok-4.7").providerName());
+        assertEquals("openai/gpt-test", config.resolveModel("openrouter/openai/gpt-test").model());
+        assertEquals(
+                URI.create("https://api.x.ai/v1/chat/completions"),
+                config.resolveModel("spacexsi/grok-4.7").endpoint());
+        var error =
+                assertThrows(
+                        IllegalStateException.class,
+                        () ->
+                                config(
+                                        """
+                                        {"provider":{"opencode":{"options":{"apiKey":"secret-key"}}}}
+                                        """,
+                                        Map.of()));
+        assertTrue(error.getMessage().contains("only supports options.proxy"));
+        assertFalse(error.getMessage().contains("secret-key"));
     }
 
     @Test

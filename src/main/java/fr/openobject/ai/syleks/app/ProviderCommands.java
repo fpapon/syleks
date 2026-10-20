@@ -95,23 +95,24 @@ public class ProviderCommands {
                                                 "Open manually if needed: " + attempt.manualUri());
                                         browser.open(attempt.authorizationUri());
                                     });
-                } else if (args[2].equals("openai-api") && args.length == 3) {
+                } else if (AppConfig.apiKeyProvider(args[2]) && args.length == 3) {
                     var console = System.console();
                     String key;
                     if (console != null) {
-                        char[] secret =
-                                console.readPassword("OpenAI API key (separate API billing): ");
+                        char[] secret = console.readPassword(apiKeyPrompt(args[2]));
                         if (secret == null)
                             throw new IllegalArgumentException("API key entry cancelled");
                         key = new String(secret);
                         Arrays.fill(secret, '\0');
                     } else {
-                        key = System.getenv("OPENAI_API_KEY");
+                        key = loginKey(args[2], System.getenv());
                         if (key == null)
                             throw new IllegalArgumentException(
-                                    "Use an interactive terminal or explicitly provide OPENAI_API_KEY for this login command");
+                                    "Use an interactive terminal or explicitly provide "
+                                            + apiKeyVariable(args[2])
+                                            + " for this login command");
                     }
-                    credentials = auth.apiKey(key);
+                    credentials = auth.apiKey(args[2], key);
                 } else throw usage();
                 out.println(
                         "Connected: "
@@ -152,8 +153,8 @@ public class ProviderCommands {
                 boolean revoked = providers.logout(selected.account().id());
                 out.println(
                         "Signed out locally. "
-                                + (selected.account().providerId().equals("openai-api")
-                                        ? "API key removed; revoke it separately in OpenAI API settings."
+                                + (AppConfig.apiKeyProvider(selected.account().providerId())
+                                        ? "API key removed; revoke it separately in the provider console."
                                         : revoked
                                                 ? "Renewable session revoked."
                                                 : "Remote revocation was not confirmed; disconnect Syleks in ChatGPT Settings."));
@@ -168,6 +169,33 @@ public class ProviderCommands {
                 ? "Plan usage: "
                         + (c.planAuthorized() ? "Authorized" : "Disabled (permission missing)")
                 : "API key configured · separate API billing";
+    }
+
+    /** Environment variable read only by noninteractive {@code auth login}. */
+    public static String apiKeyVariable(String provider) {
+        return switch (provider) {
+            case "openai-api" -> "OPENAI_API_KEY";
+            case "spacexsi" -> "XAI_API_KEY";
+            case "openrouter" -> "OPENROUTER_API_KEY";
+            case "opencode" -> "OPENCODE_API_KEY";
+            case "google" -> "GEMINI_API_KEY";
+            default -> null;
+        };
+    }
+
+    static String loginKey(String provider, java.util.Map<String, String> environment) {
+        String variable = apiKeyVariable(provider);
+        return variable == null || environment == null ? null : environment.get(variable);
+    }
+
+    private static String apiKeyPrompt(String provider) {
+        return switch (provider) {
+            case "spacexsi" -> "SpaceXSI API key (separate API billing): ";
+            case "openrouter" -> "OpenRouter API key (separate API billing): ";
+            case "opencode" -> "OpenCode Console API key (separate API billing): ";
+            case "google" -> "Gemini API key (separate API billing): ";
+            default -> "OpenAI API key (separate API billing): ";
+        };
     }
 
     private static IllegalArgumentException usage() {
