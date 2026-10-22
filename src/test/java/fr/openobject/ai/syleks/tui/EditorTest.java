@@ -37,4 +37,69 @@ class EditorTest {
         editor.insert("one\ntwo\rthree\tend");
         assertEquals("one\ntwo\nthree end", editor.text());
     }
+
+    @Test
+    void recallsMultilinePromptsAndRestoresDraftWithUnicodeCursor() {
+        var editor = new Editor();
+        editor.previousPrompt();
+        editor.nextPrompt();
+        assertEquals("", editor.text());
+        editor.remember("first\n🧪 second line");
+        editor.remember("latest");
+        editor.setText("draft 🧪 end");
+        editor.left();
+        int draftCaret = editor.caret();
+        editor.previousPrompt();
+        assertEquals("latest", editor.text());
+        assertEquals(editor.text().length(), editor.caret());
+        editor.previousPrompt();
+        editor.previousPrompt();
+        assertEquals("first\n🧪 second line", editor.text());
+        editor.nextPrompt();
+        assertEquals("latest", editor.text());
+        editor.nextPrompt();
+        editor.nextPrompt();
+        assertEquals("draft 🧪 end", editor.text());
+        assertEquals(draftCaret, editor.caret());
+    }
+
+    @Test
+    void editingRecalledPromptDoesNotChangeTheStoredEntry() {
+        var editor = new Editor();
+        editor.remember("original");
+        editor.previousPrompt();
+        editor.insert(" edited");
+        editor.nextPrompt();
+        assertEquals("", editor.text());
+        editor.previousPrompt();
+        assertEquals("original", editor.text());
+        editor.remember("original edited");
+        editor.clear();
+        editor.previousPrompt();
+        assertEquals("original edited", editor.text());
+        editor.previousPrompt();
+        assertEquals("original", editor.text());
+    }
+
+    @Test
+    void newDraftResetsNavigationAndHistoryIsBoundedWithoutConsecutiveDuplicates() {
+        var editor = new Editor();
+        editor.remember(" ");
+        for (int i = 0; i < 501; i++) {
+            editor.remember("prompt " + i);
+            editor.remember("prompt " + i);
+        }
+        assertEquals(500, editor.promptHistory().size());
+        assertEquals("prompt 1", editor.promptHistory().getFirst());
+        editor.previousPrompt();
+        editor.setText("another session draft");
+        editor.previousPrompt();
+        assertEquals("prompt 500", editor.text());
+        editor.nextPrompt();
+        assertEquals("another session draft", editor.text());
+        var restarted = new Editor();
+        restarted.restorePromptHistory(editor.promptHistory());
+        restarted.previousPrompt();
+        assertEquals("prompt 500", restarted.text());
+    }
 }

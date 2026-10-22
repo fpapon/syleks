@@ -21,6 +21,11 @@ package fr.openobject.ai.syleks.tui;
 public final class Editor {
     private final StringBuilder data = new StringBuilder();
     private int caret;
+    private static final int HISTORY_LIMIT = 500;
+    private final java.util.List<String> history = new java.util.ArrayList<>();
+    private int historyIndex;
+    private String draft = "";
+    private int draftCaret;
 
     public String text() {
         return data.toString();
@@ -31,9 +36,54 @@ public final class Editor {
     }
 
     public void setText(String text) {
+        historyIndex = history.size();
+        draft = "";
+        replaceText(text);
+    }
+
+    private void replaceText(String text) {
         data.setLength(0);
         data.append(text);
         caret = data.length();
+    }
+
+    /** Record only accepted submissions, never modal input or unsent drafts. */
+    public void remember(String text) {
+        if (text.isBlank()) return;
+        if (history.isEmpty() || !history.getLast().equals(text)) {
+            history.add(text);
+            if (history.size() > HISTORY_LIMIT) history.removeFirst();
+        }
+        historyIndex = history.size();
+        draft = "";
+    }
+
+    public void previousPrompt() {
+        if (historyIndex == 0) return;
+        if (historyIndex == history.size()) {
+            draft = text();
+            draftCaret = caret;
+        }
+        replaceText(history.get(--historyIndex));
+    }
+
+    public void nextPrompt() {
+        if (historyIndex == history.size()) return;
+        if (++historyIndex == history.size()) {
+            replaceText(draft);
+            caret = draftCaret;
+            draft = "";
+        } else replaceText(history.get(historyIndex));
+    }
+
+    public java.util.List<String> promptHistory() {
+        return java.util.List.copyOf(history);
+    }
+
+    public void restorePromptHistory(java.util.List<String> entries) {
+        history.clear();
+        for (var entry : entries) remember(entry);
+        historyIndex = history.size();
     }
 
     public void clear() {

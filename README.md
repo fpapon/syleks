@@ -271,7 +271,8 @@ Highlighting preserves source whitespace and carries multiline comment/string st
 | Ctrl+C or Esc | Cancel in-flight generation (Ctrl+C again exits) |
 | Ctrl+D | Exit |
 | Left / Right | Edit the text |
-| Up / Down, PageUp / PageDown | Scroll conversation |
+| Up / Down | Recall older/newer prompts and commands; Down past the newest restores the draft |
+| PageUp / PageDown | Scroll conversation |
 | Bracketed paste | Paste code without sending it |
 | `/help` | Open command and keyboard help popup |
 | `/clear` | Open a new persistent session; keep the previous conversation |

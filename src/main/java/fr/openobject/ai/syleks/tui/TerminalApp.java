@@ -55,7 +55,10 @@ public class TerminalApp implements AutoCloseable {
     private RestartRequest restartRequest;
 
     public record RestartRequest(
-            String sessionId, String draft, java.util.Map<String, String> drafts) {}
+            String sessionId,
+            String draft,
+            java.util.Map<String, String> drafts,
+            java.util.List<String> promptHistory) {}
 
     public record ConfigurationResult(boolean saved, boolean restart) {}
 
@@ -103,6 +106,7 @@ public class TerminalApp implements AutoCloseable {
 
     public void restoreAfterRestart(RestartRequest request) {
         if (!session.childHistory()) session.model(session.configuredModel());
+        editor.restorePromptHistory(request.promptHistory());
         editor.setText(request.draft());
         sessionViews.restore(request.sessionId(), request.drafts());
         sessionPicker.close();
@@ -535,9 +539,10 @@ public class TerminalApp implements AutoCloseable {
                 }
             return;
         }
+        if (paste && !sequence.toString().equals("201~")) return;
         switch (sequence.toString()) {
-            case "A" -> scrollUp(2);
-            case "B" -> scrollDown(2);
+            case "A" -> editor.previousPrompt();
+            case "B" -> editor.nextPrompt();
             case "C" -> editor.right();
             case "D" -> editor.left();
             case "5~" -> scrollUp(8);
@@ -578,6 +583,7 @@ public class TerminalApp implements AutoCloseable {
         var value = editor.text().strip();
         if (value.isBlank()) return;
         if (value.startsWith("/")) {
+            editor.remember(editor.text());
             editor.clear();
             command(value);
             sessionViews.scroll(0);
@@ -585,6 +591,7 @@ public class TerminalApp implements AutoCloseable {
         }
         try {
             if (session.send(value)) {
+                editor.remember(editor.text());
                 editor.clear();
                 sessionViews.scroll(0);
             }
@@ -1170,7 +1177,8 @@ public class TerminalApp implements AutoCloseable {
                 new RestartRequest(
                         session.snapshot().sessionId(),
                         editor.text(),
-                        sessionViews.snapshot(editor.text()));
+                        sessionViews.snapshot(editor.text()),
+                        editor.promptHistory());
         running = false;
     }
 

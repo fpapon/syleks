@@ -68,7 +68,7 @@ See [Storage and privacy](storage-and-privacy.md) before restoring, moving, or m
 
 - Enlarge the terminal to at least 35 columns by 15 rows.
 - Use Ctrl+O for a newline if Shift+Enter sends the message instead.
-- Up/Down scroll the transcript; Left/Right edit the composer.
+- Up/Down recall prompt history; Page Up/Page Down scroll the transcript; Left/Right edit the composer.
 - Finish or cancel current generation/approval before opening configuration or switching sessions/models/agents.
 - Use a truecolor-capable terminal and a Unicode monospace font for the intended appearance. Some combining characters and complex Markdown layouts have limited rendering support.
 - If a forced stop leaves your shell in an unusual terminal mode, run `reset` in that shell.
