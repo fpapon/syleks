@@ -46,16 +46,23 @@ In another terminal, go to your project and start Syleks:
 
 ```sh
 cd /path/to/your/project
-OLLAMA_MODEL=qwen3:8b syleks
+syleks
 ```
 
 Without a configuration file, Syleks uses `http://127.0.0.1:11434` and `qwen3:8b`. For another Ollama server:
 
-```sh
-OLLAMA_URL=http://YOUR-SERVER:11434 OLLAMA_MODEL=qwen3:8b syleks
+Save this in `~/.config/syleks/agent-config.json`:
+
+```json
+{
+  "model": "ollama/qwen3:8b",
+  "provider": {
+    "ollama": { "options": { "baseURL": "http://YOUR-SERVER:11434" } }
+  }
+}
 ```
 
-`OLLAMA_URL` is the server address; Syleks adds `/api/chat`. It does not change the address of a configured OpenAI-compatible provider. Use a trusted connection for remote servers.
+`provider.ollama.options.baseURL` is the server address; Syleks adds `/api/chat`. Use a trusted connection for remote servers.
 
 ## Option B: use an OpenAI-compatible server
 

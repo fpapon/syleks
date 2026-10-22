@@ -85,9 +85,9 @@ class SessionWirePhaseSevenTest {
                     new SessionFixture(
                             root,
                             root.resolve("project"),
-                            Map.of(
-                                    "OLLAMA_URL",
-                                    "http://127.0.0.1:" + server.getAddress().getPort()))) {
+                            java.net.URI.create(
+                                    "http://127.0.0.1:" + server.getAddress().getPort()),
+                            Map.of())) {
                 f.agent.create("qwen3:8b");
                 id = f.agent.current().id();
                 try (var g = f.agent.begin("qwen3:8b", "build", "OLD RAW QUESTION", false)) {
@@ -179,9 +179,8 @@ class SessionWirePhaseSevenTest {
                 new SessionFixture(
                         root,
                         root.resolve("project"),
+                        java.net.URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
                         Map.of(
-                                "OLLAMA_URL",
-                                "http://127.0.0.1:" + server.getAddress().getPort(),
                                 "SYLEKS_CONTEXT_WINDOW",
                                 "32768",
                                 "SYLEKS_RESPONSE_TOKENS",

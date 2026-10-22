@@ -21,21 +21,12 @@
         "pattern": "^[A-Za-z0-9._-]+$"
       },
       "patternProperties": {
-        "^(ollama|chatgpt|openai-api|spacexsi|openrouter|opencode|google)$": { "$ref": "#/$defs/builtinProvider" }
+        "^ollama$": { "$ref": "#/$defs/ollamaProvider" },
+        "^(chatgpt|openai-api|spacexsi|openrouter|opencode|google)$": { "$ref": "#/$defs/builtinProvider" }
       },
       "additionalProperties": {
         "$ref": "#/$defs/provider"
       }
-    },
-    "ollama_url": {
-      "$ref": "#/$defs/nonBlank",
-      "default": "http://127.0.0.1:11434",
-      "description": "Legacy Ollama base URL; overridden by OLLAMA_URL."
-    },
-    "ollama_model": {
-      "$ref": "#/$defs/modelId",
-      "default": "qwen3:8b",
-      "description": "Legacy Ollama model; model takes precedence, and OLLAMA_MODEL overrides both."
     },
     "default_agent": {
       "type": "string",
@@ -257,6 +248,21 @@
       "type": "string",
       "pattern": "^http://(?:\\[[0-9A-Fa-f:.]+\\]|[^\\s/?#@:]+):[0-9]+/?$",
       "description": "Optional HTTP proxy URL with explicit port (1-65535), e.g. http://proxy.example.com:8080. No credentials, query or fragment. HTTPS API requests use CONNECT."
+    },
+    "ollamaProvider": {
+      "type": "object",
+      "properties": {
+        "options": {
+          "type": "object",
+          "properties": {
+            "baseURL": {"type": "string", "pattern": "^https?://[^\\s/?#@]+(?:/[^\\s?#]*)?$", "default": "http://127.0.0.1:11434"},
+            "proxy": {"$ref": "#/$defs/httpProxy"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["options"],
+      "additionalProperties": false
     },
     "builtinProvider": {
       "type": "object",

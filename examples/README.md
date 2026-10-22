@@ -21,7 +21,7 @@ The full reference includes mutually exclusive alternatives as **separate server
 5. Inspect existing global and project agent Markdown files. They override JSON agent fields and prompts. To use these JSON policies, reconcile the Markdown definitions, or install the matching examples below. For the Ollama variant, remove `model` from copied Markdown definitions to inherit Ollama, or replace it with your exact Ollama ID.
 6. Run `/restart` in chat, or launch `syleks --new`. Check `/agents`, `/permissions build`, `/permissions reviewer` and the selected model before using tools.
 
-`agent-config.json` uses `local/qwen3:8b` by default. Architect demonstrates a separate model on `remote/team/reasoner`: configure that server or change Architect's `model`. Optional empty model entries such as `{}` use fallback token budgets. `model` takes precedence over `ollama_model`; the latter documents the Ollama fallback.
+`agent-config.json` uses `local/qwen3:8b` by default. Architect demonstrates a separate model on `remote/team/reasoner`: configure that server or change Architect's `model`. Optional empty model entries such as `{}` use fallback token budgets. Use `model: "ollama/qwen3:8b"` to select the built-in Ollama provider.
 
 ## Install agent and subagent definitions
 

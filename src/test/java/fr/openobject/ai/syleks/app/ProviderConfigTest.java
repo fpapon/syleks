@@ -309,8 +309,11 @@ class ProviderConfigTest {
     void preservesOllamaConfigurationAndTemperatureOptions() throws IOException {
         var config =
                 config(
-                        CONFIG,
-                        Map.of("OLLAMA_URL", "http://localhost:11435", "OLLAMA_MODEL", "qwen3:8b"));
+                        CONFIG.replace("local/qwen3.8-27b", "ollama/qwen3:8b")
+                                .replace(
+                                        "\"provider\": {",
+                                        "\"provider\": {\"ollama\":{\"options\":{\"baseURL\":\"http://localhost:11435\"}},"),
+                        Map.of());
         var connection = config.resolveModel(config.defaultModel());
         assertFalse(connection.openAiCompatible());
         assertEquals(URI.create("http://localhost:11435/api/chat"), connection.endpoint());
@@ -322,7 +325,7 @@ class ProviderConfigTest {
 
     @Test
     void streamsOllamaWithoutProviderAuthentication() throws Exception {
-        var config = config(CONFIG, Map.of("OLLAMA_MODEL", "qwen3:8b"));
+        var config = config(CONFIG.replace("local/qwen3.8-27b", "ollama/qwen3:8b"), Map.of());
         var captured = new AtomicReference<CapturedRequest>();
         var client =
                 client(
@@ -488,8 +491,8 @@ class ProviderConfigTest {
             var config =
                     config(
                             """
-                    {"ollama_url":"http://ollama.invalid:11434","provider":{
-                      "ollama":{"options":{"proxy":"http://127.0.0.1:%d"}}
+                    {"provider":{
+                      "ollama":{"options":{"baseURL":"http://ollama.invalid:11434","proxy":"http://127.0.0.1:%d"}}
                     }}
                     """
                                     .formatted(proxy.getAddress().getPort()),

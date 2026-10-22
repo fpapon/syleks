@@ -19,11 +19,11 @@ If chat cannot start because of malformed configuration, standalone `syleks conf
 
 | Symptom | What to try |
 | --- | --- |
-| Connection refused / timeout | Start the model server and verify its address is reachable from this machine. For Ollama, check `OLLAMA_URL`; for a provider, check `options.baseURL`. |
+| Connection refused / timeout | Start the model server and verify its address is reachable from this machine. For Ollama, check `provider.ollama.options.baseURL`; for another provider, check its `options.baseURL`. |
 | Authentication failure | Check the provider's API key and server requirements. Save changes and restart. Do not paste keys into a support conversation. |
 | Model not found | Use the exact model ID listed by your server. For Ollama, check `ollama list` and install the chosen model if needed. Syleks does not pull models automatically. |
 | Saved model unavailable | The old provider/model may have been removed. History remains readable; select a replacement with `/model provider/model` or restore its configuration. |
-| A different model keeps appearing | Check `OLLAMA_MODEL`, agent model overrides, and the saved session model. Selecting an agent reapplies its model selection. |
+| A different model keeps appearing | Check the configured `model`, agent model overrides, and the saved session model. Selecting an agent reapplies its model selection. |
 | Settings have not changed after saving | Choose Restart chat after setup, or run `/restart`. Later leaves the current runtime unchanged. |
 | Configuration changed elsewhere | Reopen the form and review the newest file before saving again. Syleks rejects stale updates. |
 | Round limit reached | Tool results are saved. Send a follow-up to continue, or adjust global/per-agent `max_rounds` and restart. |

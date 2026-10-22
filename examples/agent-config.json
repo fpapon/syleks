@@ -1,8 +1,6 @@
 {
   "$schema": "../agent-config.schema.json",
   "model": "local/qwen3:8b",
-  "ollama_url": "http://127.0.0.1:11434",
-  "ollama_model": "qwen3:8b",
   "default_agent": "build",
   "max_rounds": 20,
   "provider": {

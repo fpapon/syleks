@@ -87,55 +87,42 @@ class AppConfigTest {
     }
 
     @Test
-    void readsOllamaSettingsAndNormalizesTrailingSlashes() throws IOException {
+    void readsProviderSettingsAndNormalizesTrailingSlashes() throws IOException {
         writeConfig(
                 """
-                {"ollama_url":"https://ollama.example.test:8443/proxy///", "ollama_model":"llama3.2:3b"}
+                {"model":"ollama/llama3.2:3b","provider":{"ollama":{"options":{"baseURL":"https://ollama.example.test:8443/proxy///"}}}}
                 """);
         var config = config(Map.of());
         assertEquals(
                 URI.create("https://ollama.example.test:8443/proxy/api/chat"), config.endpoint());
-        assertEquals("llama3.2:3b", config.defaultModel());
+        assertEquals("ollama/llama3.2:3b", config.defaultModel());
     }
 
     @Test
-    void supportsPartialAndEmptySettings() throws IOException {
-        writeConfig("{\"ollama_model\":\"llama3.2:3b\",\"unknown\":true}");
-        assertEquals("llama3.2:3b", config(Map.of()).defaultModel());
-        assertEquals(URI.create("http://127.0.0.1:11434/api/chat"), config(Map.of()).endpoint());
-        writeConfig("{\"ollama_url\":\"http://localhost:11435\"}");
-        assertEquals("qwen3:8b", config(Map.of()).defaultModel());
-        assertEquals(URI.create("http://localhost:11435/api/chat"), config(Map.of()).endpoint());
-        writeConfig("{}");
-        assertEquals("qwen3:8b", config(Map.of()).defaultModel());
-    }
-
-    @Test
-    void environmentOverridesFileSettings() throws IOException {
+    void ignoresRemovedLegacySettingsAndEnvironmentOverrides() throws IOException {
         writeConfig(
-                "{\"ollama_url\":\"http://file.example.test:11434\",\"ollama_model\":\"file-model\"}");
+                """
+                {"model":"ollama/llama3.2:3b","ollama_url":"http://old.invalid","ollama_model":"old"}
+                """);
         var config =
                 config(
                         Map.of(
-                                "OLLAMA_URL", "https://env.example.test/",
-                                "OLLAMA_MODEL", "env-model",
-                                "AGENT_SYSTEM_PROMPT", "Custom prompt"));
-        assertEquals(URI.create("https://env.example.test/api/chat"), config.endpoint());
-        assertEquals("env-model", config.defaultModel());
+                                "OLLAMA_URL",
+                                "http://env.invalid",
+                                "OLLAMA_MODEL",
+                                "env-model",
+                                "AGENT_SYSTEM_PROMPT",
+                                "Custom prompt"));
+        assertEquals(URI.create("http://127.0.0.1:11434/api/chat"), config.endpoint());
+        assertEquals("ollama/llama3.2:3b", config.defaultModel());
         assertEquals("Custom prompt", config.systemPrompt());
-    }
-
-    @Test
-    void supportsEnvironmentSettingsWithoutAFile() {
-        var config =
-                config(Map.of("OLLAMA_URL", "http://localhost:11435", "OLLAMA_MODEL", "env-model"));
-        assertEquals(URI.create("http://localhost:11435/api/chat"), config.endpoint());
-        assertEquals("env-model", config.defaultModel());
+        writeConfig("{}");
+        assertEquals("qwen3:8b", config(Map.of("OLLAMA_MODEL", "env-model")).defaultModel());
     }
 
     @Test
     void reportsInvalidJsonAndNonObjectRootsWithFilePath() throws IOException {
-        for (var content : new String[] {"{\"ollama_url\":", "[]", "null", "\"text\""}) {
+        for (var content : new String[] {"{\"model\":", "[]", "null", "\"text\""}) {
             var file = writeConfig(content);
             var error = assertThrows(IllegalStateException.class, () -> config(Map.of()), content);
             assertTrue(error.getMessage().contains(file.toString()));
@@ -145,13 +132,35 @@ class AppConfigTest {
 
     @Test
     void rejectsBlankNullAndNonStringSettings() throws IOException {
-        for (var key : new String[] {"ollama_url", "ollama_model"}) {
+        for (var key : new String[] {"model"}) {
             for (var value : new String[] {"null", "42", "true", "{}", "\"\"", "\"  \""}) {
                 var file = writeConfig("{\"" + key + "\":" + value + "}");
                 var error = assertThrows(IllegalStateException.class, () -> config(Map.of()));
                 assertTrue(error.getMessage().contains(key));
                 assertTrue(error.getMessage().contains(file.toString()));
             }
+        }
+    }
+
+    @Test
+    void rejectsInvalidOllamaProviderUrls() throws IOException {
+        for (var url :
+                java.util.List.of(
+                        "",
+                        "ftp://localhost",
+                        "http://user:secret@localhost",
+                        "http://localhost?query",
+                        "http://localhost#fragment",
+                        "relative")) {
+            var file =
+                    writeConfig(
+                            "{\"provider\":{\"ollama\":{\"options\":{\"baseURL\":\""
+                                    + url
+                                    + "\"}}}}");
+            var error = assertThrows(IllegalStateException.class, () -> config(Map.of()));
+            assertTrue(error.getMessage().contains("baseURL"));
+            assertTrue(error.getMessage().contains(file.toString()));
+            assertFalse(error.getMessage().contains("secret"));
         }
     }
 

@@ -2,7 +2,7 @@
 
 | ID | Transport | Authentication | Billing/data boundary |
 | --- | --- | --- | --- |
-| `ollama` | `/api/chat` NDJSON; discovery `/api/tags` | None | Local for loopback `OLLAMA_URL` |
+| `ollama` | `/api/chat` NDJSON; discovery `/api/tags` | None | Local for loopback `provider.ollama.options.baseURL` |
 | `chatgpt` | Public `/v1/responses` SSE; discovery `/v1/models` | Official Sign in with ChatGPT for open-source clients | Eligible, separately authorized ChatGPT plan usage |
 | `openai-api` | Public `/v1/responses` SSE; discovery `/v1/models` | Explicit API key login | Separate OpenAI API billing |
 | `spacexsi` | `POST https://api.x.ai/v1/chat/completions` SSE; discovery `GET /v1/language-models` | Explicit API key login (`XAI_API_KEY` only for that command) | SpaceXSI credits. Grok text models only |

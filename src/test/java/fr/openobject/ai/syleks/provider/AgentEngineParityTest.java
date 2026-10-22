@@ -70,10 +70,12 @@ class AgentEngineParityTest {
                             Map.of(
                                     "model",
                                     provider + "/test-model",
-                                    "ollama_url",
-                                    auth.base.toString(),
                                     "provider",
                                     Map.of(
+                                            "ollama",
+                                            Map.of(
+                                                    "options",
+                                                    Map.of("baseURL", auth.base.toString())),
                                             "compat",
                                             Map.of(
                                                     "options",
@@ -218,10 +220,12 @@ class AgentEngineParityTest {
                                     "architect",
                                     "model",
                                     provider + "/test-model",
-                                    "ollama_url",
-                                    auth.base.toString(),
                                     "provider",
                                     Map.of(
+                                            "ollama",
+                                            Map.of(
+                                                    "options",
+                                                    Map.of("baseURL", auth.base.toString())),
                                             "compat",
                                             Map.of(
                                                     "options",
@@ -363,10 +367,12 @@ class AgentEngineParityTest {
                                     Map.of("mode", "manual"),
                                     "model",
                                     provider + "/test-model",
-                                    "ollama_url",
-                                    auth.base.toString(),
                                     "provider",
                                     Map.of(
+                                            "ollama",
+                                            Map.of(
+                                                    "options",
+                                                    Map.of("baseURL", auth.base.toString())),
                                             "compat",
                                             Map.of(
                                                     "options",
@@ -569,10 +575,12 @@ class AgentEngineParityTest {
                             Map.of(
                                     "model",
                                     provider + "/test-model",
-                                    "ollama_url",
-                                    auth.base.toString(),
                                     "provider",
                                     Map.of(
+                                            "ollama",
+                                            Map.of(
+                                                    "options",
+                                                    Map.of("baseURL", auth.base.toString())),
                                             "compat",
                                             Map.of(
                                                     "options",

@@ -154,23 +154,14 @@ public class AppConfig {
                 SubagentLimits.parse(
                         settings.containsKey("subagents") ? settings.get("subagents") : Map.of(),
                         file);
-        var url =
-                environment.getOrDefault(
-                        "OLLAMA_URL",
-                        setting(settings, "ollama_url", "http://127.0.0.1:11434", file));
-        this.endpoint = URI.create(url.replaceAll("/+$", "") + "/api/chat");
+        var ollamaOptions =
+                object(object(object(settings, "provider", file), "ollama", file), "options", file);
+        var url = setting(ollamaOptions, "baseURL", "http://127.0.0.1:11434", file);
+        this.endpoint = providerEndpoint(url, "/api/chat", "ollama", file);
         this.proxies = readProxies(settings, file);
         this.providers = readProviders(settings, file);
-
-        this.defaultModel =
-                environment.getOrDefault(
-                        "OLLAMA_MODEL",
-                        setting(
-                                settings,
-                                "model",
-                                setting(settings, "ollama_model", "qwen3:8b", file),
-                                file));
-        if (settings.containsKey("model") && !environment.containsKey("OLLAMA_MODEL")) {
+        this.defaultModel = setting(settings, "model", "qwen3:8b", file);
+        if (settings.containsKey("model")) {
             if (!defaultModel.contains("/")
                     || !(providers.containsKey(defaultModel.substring(0, defaultModel.indexOf('/')))
                             || builtInProvider(
@@ -334,13 +325,17 @@ public class AppConfig {
             if (builtInProvider(id)) {
                 var options = object(provider, "options", file);
                 if (!provider.keySet().equals(java.util.Set.of("options"))
-                        || !options.keySet().equals(java.util.Set.of("proxy"))) {
+                        || !(id.equals("ollama")
+                                ? java.util.Set.of("proxy", "baseURL").containsAll(options.keySet())
+                                : options.keySet().equals(java.util.Set.of("proxy")))) {
                     throw new IllegalStateException(
                             "Built-in provider "
                                     + id
                                     + " in "
                                     + file
-                                    + " only supports options.proxy");
+                                    + (id.equals("ollama")
+                                            ? " only supports options.proxy and options.baseURL"
+                                            : " only supports options.proxy"));
                 }
                 continue;
             }
@@ -355,24 +350,7 @@ public class AppConfig {
             }
             var options = object(provider, "options", file);
             var baseURL = setting(options, "baseURL", "", file);
-            URI endpoint;
-            try {
-                endpoint = URI.create(baseURL.replaceAll("/+$", "") + "/chat/completions");
-                if (!("http".equals(endpoint.getScheme()) || "https".equals(endpoint.getScheme()))
-                        || endpoint.getHost() == null
-                        || endpoint.getQuery() != null
-                        || endpoint.getFragment() != null
-                        || endpoint.getUserInfo() != null) {
-                    throw new IllegalArgumentException();
-                }
-            } catch (IllegalArgumentException e) {
-                throw new IllegalStateException(
-                        "Invalid provider.options.baseURL for "
-                                + id
-                                + " in "
-                                + file
-                                + ": expected an HTTP(S) base URL");
-            }
+            URI endpoint = providerEndpoint(baseURL, "/chat/completions", id, file);
             var apiKey = setting(options, "apiKey", "", file);
             if (apiKey.chars().anyMatch(c -> c < 32 || c == 127)) {
                 throw new IllegalStateException(
@@ -406,6 +384,27 @@ public class AppConfig {
                             Map.copyOf(models)));
         }
         return Map.copyOf(result);
+    }
+
+    private static URI providerEndpoint(String baseURL, String path, String id, Path file) {
+        try {
+            var endpoint = URI.create(baseURL.replaceAll("/+$", "") + path);
+            if (!("http".equals(endpoint.getScheme()) || "https".equals(endpoint.getScheme()))
+                    || endpoint.getHost() == null
+                    || endpoint.getQuery() != null
+                    || endpoint.getFragment() != null
+                    || endpoint.getUserInfo() != null) {
+                throw new IllegalArgumentException();
+            }
+            return endpoint;
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException(
+                    "Invalid provider.options.baseURL for "
+                            + id
+                            + " in "
+                            + file
+                            + ": expected an HTTP(S) base URL");
+        }
     }
 
     private static Map<?, ?> object(Map<?, ?> parent, String key, Path file) {

@@ -43,6 +43,32 @@ public final class SessionFixture implements AutoCloseable {
         this(root, workspace, Map.of());
     }
 
+    public SessionFixture(
+            Path root, Path workspace, java.net.URI ollamaEndpoint, Map<String, String> environment)
+            throws Exception {
+        this(configureOllama(root, ollamaEndpoint), workspace, environment);
+    }
+
+    private static Path configureOllama(Path root, java.net.URI endpoint) throws Exception {
+        var file = root.resolve("home/.config/syleks/agent-config.json");
+        Files.createDirectories(file.getParent());
+        try (var container = ConfiguringContainer.of().start();
+                var json = container.lookup(JsonMapper.class)) {
+            var settings = new java.util.LinkedHashMap<String, Object>();
+            if (Files.exists(file)) {
+                Map<?, ?> existing = json.instance().fromString(Map.class, Files.readString(file));
+                existing.forEach((key, value) -> settings.put(key.toString(), value));
+            }
+            var providers = new java.util.LinkedHashMap<String, Object>();
+            ((Map<?, ?>) settings.getOrDefault("provider", Map.of()))
+                    .forEach((key, value) -> providers.put(key.toString(), value));
+            providers.put("ollama", Map.of("options", Map.of("baseURL", endpoint.toString())));
+            settings.put("provider", providers);
+            Files.writeString(file, json.instance().toString(settings));
+        }
+        return root;
+    }
+
     public SessionFixture(Path root, Path workspace, Map<String, String> environment)
             throws Exception {
         Files.createDirectories(workspace);

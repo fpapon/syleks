@@ -115,25 +115,27 @@ Set `options.proxy` independently on each provider to route its API calls throug
 }
 ```
 
-The proxy URL requires the `http` scheme, a hostname and an explicit port from `1` to `65535`. An optional trailing slash is allowed; credentials, other paths, query parameters and fragments are rejected. HTTPS API requests use the proxy's CONNECT tunnel. Proxy authentication is not supported. Omit `proxy` to keep the Java HTTP client's default proxy behavior. Built-in entries (`ollama`, `chatgpt`, `openai-api`, `spacexsi`, `openrouter`, `opencode`, `google`) accept only `options.proxy`; their endpoints and authentication remain configured through the existing settings. Proxy settings cover chat and model discovery, and do not change OAuth login or token refresh traffic. Restart after editing the file.
+The proxy URL requires the `http` scheme, a hostname and an explicit port from `1` to `65535`. An optional trailing slash is allowed; credentials, other paths, query parameters and fragments are rejected. HTTPS API requests use the proxy's CONNECT tunnel. Proxy authentication is not supported. Omit `proxy` to keep the Java HTTP client's default proxy behavior. Ollama also accepts `options.baseURL`. Other built-in entries (`chatgpt`, `openai-api`, `spacexsi`, `openrouter`, `opencode`, `google`) accept only `options.proxy`; their endpoints and authentication remain configured through the existing settings. Proxy settings cover chat and model discovery, and do not change OAuth login or token refresh traffic. Restart after editing the file.
 
 `$schema` enables validation/completion in compatible editors using the schema beside the configuration. The repository also contains a [full configuration example](../examples/agent-config.json) and [schema](../agent-config.schema.json). Startup separately validates references and supported settings. Restart after hand edits.
 
 ## Ollama configuration and environment variables
 
-Ollama does not need a provider entry. Without a file, Syleks defaults to `qwen3:8b` at `http://127.0.0.1:11434`. You can save legacy Ollama settings instead of a provider-based `model`:
+Ollama defaults to `qwen3:8b` at `http://127.0.0.1:11434`. Select its model and server through the provider configuration:
 
 ```json
 {
-  "ollama_url": "http://127.0.0.1:11434",
-  "ollama_model": "qwen3:8b"
+  "model": "ollama/qwen3:8b",
+  "provider": {
+    "ollama": { "options": { "baseURL": "http://127.0.0.1:11434" } }
+  }
 }
 ```
 
+Syleks appends `/api/chat` to the Ollama base URL. The built-in Ollama provider also supports `options.proxy`.
+
 | Variable | Effect |
 | --- | --- |
-| `OLLAMA_URL` | Overrides `ollama_url`; `/api/chat` is appended. Does not override provider URLs. |
-| `OLLAMA_MODEL` | Overrides the configured default model selection. A bare model ID selects Ollama. |
 | `AGENT_SYSTEM_PROMPT` | Replaces the shared default system prompt. Saved sessions retain their recorded instructions. |
 | `SYLEKS_CONTEXT_WINDOW` | Fallback context window, default `8192` |
 | `SYLEKS_RESPONSE_TOKENS` | Fallback response reserve, default `2048`, capped at one quarter of the selected context window when no output limit is specified |
@@ -141,7 +143,7 @@ Ollama does not need a provider entry. Without a file, Syleks defaults to `qwen3
 | `SYLEKS_DATA_DIR` | Overrides the session data directory; see [Storage](storage-and-privacy.md) |
 | `XDG_DATA_HOME` | Parent of the default `syleks/` data directory when `SYLEKS_DATA_DIR` is unset |
 
-Environment variables are read at startup. Remove an unwanted `OLLAMA_MODEL` override if your configured default model appears to be ignored. An agent's own model setting can also select a different model when that agent is activated.
+Environment variables are read at startup. An agent's own model setting can also select a different model when that agent is activated.
 
 ## Context, temperature, and round limits
 
@@ -186,10 +188,8 @@ Only the global `~/.config/syleks/agent-config.json` configures providers, agent
 | Key | Type / default when omitted | Purpose |
 | --- | --- | --- |
 | `$schema` | String, optional | Editor schema path/URI; generated setup uses a schema beside the configuration |
-| `model` | String, optional | Default `provider/model`; overrides `ollama_model`; built-in providers are also valid prefixes |
-| `provider` | Object, empty | Named compatible servers and built-in proxy overrides |
-| `ollama_url` | String, `http://127.0.0.1:11434` | Ollama endpoint before `/api/chat`; overridden by `OLLAMA_URL` |
-| `ollama_model` | Model ID, `qwen3:8b` | Ollama fallback when `model` is absent; overridden by `OLLAMA_MODEL` |
+| `model` | String, optional | Default `provider/model`; built-in providers are also valid prefixes |
+| `provider` | Object, empty | Named compatible servers, Ollama base URL, and built-in proxy overrides |
 | `default_agent` | Agent name, `build` | Enabled `primary` or `all` agent to select on startup/restart |
 | `max_rounds` | Integer, `12` | `-1` or 1–1000 rounds per turn; agents may override |
 | `permission` | Decision or object | Overlay on built-in permissions; not a replacement unless using a blanket decision |

@@ -38,4 +38,4 @@ Git history is unavailable in this checkout, so existing commit conventions cann
 
 ## Configuration & Security
 
-Configure `OLLAMA_URL`, `OLLAMA_MODEL`, and `AGENT_SYSTEM_PROMPT` through environment variables. Never commit credentials or sensitive chat exports. Preserve explicit, non-overwriting `/save` behavior and terminal escape sanitization.
+Configure model selection through `model` and Ollama servers through `provider.ollama.options.baseURL`; use `AGENT_SYSTEM_PROMPT` for the system prompt. Never commit credentials or sensitive chat exports. Preserve explicit, non-overwriting `/save` behavior and terminal escape sanitization.

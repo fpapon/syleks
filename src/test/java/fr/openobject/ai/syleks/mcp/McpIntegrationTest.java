@@ -443,9 +443,9 @@ class McpIntegrationTest {
                     new SessionFixture(
                             root,
                             root.resolve("project"),
-                            Map.of(
-                                    "OLLAMA_URL",
-                                    "http://127.0.0.1:" + server.getAddress().getPort()))) {
+                            java.net.URI.create(
+                                    "http://127.0.0.1:" + server.getAddress().getPort()),
+                            Map.of())) {
                 var chat =
                         new ChatSession(new OllamaClient(f.config, f.mapper.instance()), f.config);
                 chat.persistence(f.agent);

@@ -52,10 +52,9 @@ with tempfile.TemporaryDirectory(prefix='syleks-phase8-') as directory:
     home, project = root / 'home', root / 'project'
     (home / '.config/syleks').mkdir(parents=True)
     project.mkdir()
-    (home / '.config/syleks/agent-config.json').write_text('{"permission":"allow"}')
+    (home / '.config/syleks/agent-config.json').write_text(json.dumps({'permission': 'allow', 'model': 'ollama/qwen3:8b', 'provider': {'ollama': {'options': {'baseURL': f'http://127.0.0.1:{server.server_port}'}}}}))
     env = {k: v for k, v in os.environ.items() if not k.startswith(('SYLEKS_', 'OLLAMA_', 'AGENT_', 'XDG_'))}
     env.update(HOME=str(home), SYLEKS_DATA_DIR=str(root / 'data'), TERM='xterm-256color',
-               OLLAMA_URL=f'http://127.0.0.1:{server.server_port}', OLLAMA_MODEL='qwen3:8b',
                SYLEKS_CONTEXT_WINDOW='65536', SYLEKS_RESPONSE_TOKENS='2048')
     base = [java, '--enable-native-access=ALL-UNNAMED', '-Duser.home=' + str(home)]
     create = subprocess.run(base + ['-cp', str(repo / 'target/test-classes') + os.pathsep + str(jar),
