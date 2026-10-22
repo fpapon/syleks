@@ -36,6 +36,14 @@ final class ProviderEvents {
                 listener.onEvent(new ChatEvent(ChatEvent.Type.USAGE, "", event));
             }
 
+            public List<java.util.Map<String, Object>> prepareContext(
+                    List<java.util.Map<String, Object>> messages, int toolOverhead)
+                    throws Exception {
+                return original == null
+                        ? messages
+                        : original.prepareContext(messages, toolOverhead);
+            }
+
             public void contextLimited(int count) {
                 if (original != null) original.contextLimited(count);
             }

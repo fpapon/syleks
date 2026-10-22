@@ -138,6 +138,93 @@ class SessionWirePhaseSevenTest {
     }
 
     @Test
+    void automaticallySummarizesBeforeSendingAndRestoresToolsAndUsageOnMainRequest()
+            throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        var requests = new CopyOnWriteArrayList<JsonNode>();
+        server.createContext(
+                "/api/chat",
+                exchange -> {
+                    try (exchange) {
+                        var request = JSON.readTree(exchange.getRequestBody());
+                        requests.add(request);
+                        boolean summary =
+                                request.path("messages")
+                                        .get(0)
+                                        .path("content")
+                                        .asText()
+                                        .startsWith("Summarize the archived conversation");
+                        byte[] bytes =
+                                JSON.writeValueAsBytes(
+                                        Map.of(
+                                                "message",
+                                                Map.of(
+                                                        "content",
+                                                        summary
+                                                                ? "AUTOMATIC SUMMARY: preserve decision"
+                                                                : "continued answer"),
+                                                "done",
+                                                true,
+                                                "prompt_eval_count",
+                                                10,
+                                                "eval_count",
+                                                5));
+                        exchange.sendResponseHeaders(200, bytes.length + 1);
+                        exchange.getResponseBody().write(bytes);
+                        exchange.getResponseBody().write('\n');
+                    }
+                });
+        server.start();
+        try (var f =
+                new SessionFixture(
+                        root,
+                        root.resolve("project"),
+                        Map.of(
+                                "OLLAMA_URL",
+                                "http://127.0.0.1:" + server.getAddress().getPort(),
+                                "SYLEKS_CONTEXT_WINDOW",
+                                "32768",
+                                "SYLEKS_RESPONSE_TOKENS",
+                                "2048"))) {
+            f.agent.create("qwen3:8b");
+            try (var g = f.agent.begin("qwen3:8b", "build", "old question", false)) {
+                g.append("OLD RAW ANSWER ".repeat(2500));
+                g.finish(MessageStatus.COMPLETE);
+            }
+            var client = new OllamaClient(f.config, f.mapper.instance());
+            var chat = new ChatSession(client, f.config);
+            chat.persistence(f.agent);
+            try {
+                assertTrue(chat.send("continue"));
+                waitFor(chat);
+                assertEquals("Ready", chat.snapshot().status());
+                assertTrue(requests.size() >= 2);
+                for (var request : requests.subList(0, requests.size() - 1)) {
+                    assertFalse(request.has("tools"));
+                    assertFalse(request.toString().contains("contextSummary"));
+                }
+                var main = requests.getLast();
+                assertTrue(main.has("tools"));
+                assertTrue(main.toString().contains("AUTOMATIC SUMMARY"));
+                assertFalse(main.toString().contains("OLD RAW ANSWER"));
+                assertEquals(32768, main.path("options").path("num_ctx").asInt());
+                assertEquals(2048, main.path("options").path("num_predict").asInt());
+                assertEquals(requests.size(), f.agent.usageSnapshot().requests());
+                assertTrue(
+                        f.conversation
+                                .history(f.agent.current().id())
+                                .toString()
+                                .contains("OLD RAW ANSWER"));
+            } finally {
+                chat.shutdown();
+                client.close();
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void cancellingCompactionReleasesSessionLeaseAndNeverCommitsPartialSummary() throws Exception {
         try (var f = new SessionFixture(root)) {
             f.agent.create("qwen3:8b");

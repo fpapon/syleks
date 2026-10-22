@@ -32,7 +32,7 @@ bin/syleks session list
 bin/syleks --continue
 ```
 
-The default database is `~/.local/share/syleks/syleks.db`; `XDG_DATA_HOME` and `SYLEKS_DATA_DIR` override it. Sessions retain messages, streamed fragments and structured tool history. `/new`, `/resume`, `/rename TITLE` and `/fork` manage conversations without deleting previous history. Use `/compact` for generated context summaries, `/fork MESSAGE-ID` for prefix forks, and `/changes`, `/diff`, `/undo`, `/redo` for native file history. Validated JSON export/import and deletion are available through `session export ID`, `session import PATH` and `session delete ID`.
+The default database is `~/.local/share/syleks/syleks.db`; `XDG_DATA_HOME` and `SYLEKS_DATA_DIR` override it. Sessions retain messages, streamed fragments and structured tool history. `/new`, `/resume`, `/rename TITLE` and `/fork` manage conversations without deleting previous history. Primary chat automatically summarizes older context near its input limit; set `compaction.mode` to `manual` to disable additional summary requests. Use `/compact` for explicit context summaries, `/fork MESSAGE-ID` for prefix forks, and `/changes`, `/diff`, `/undo`, `/redo` for native file history. Validated JSON export/import and deletion are available through `session export ID`, `session import PATH` and `session delete ID`.
 
 See [Sessions](docs/sessions.md) for resume, forks, context budgets, concurrency, and recovery, and [Storage and privacy](docs/storage-and-privacy.md) for database locations, migrations, and backups. JSON exports may include confidential prompts, reasoning and tool results. `/clear` now starts a new persistent session.
 
@@ -327,7 +327,7 @@ The app supports streaming conversations, persisted root/child sessions, declare
 
 ## Suggested next increments
 
-1. Encryption at rest and automatic context summaries.
+1. Encryption at rest.
 2. Syntax-aware diff navigation and richer Markdown tables.
 3. Richer file browsing and attachment workflows.
 4. OS-sandboxed execution and richer change review.

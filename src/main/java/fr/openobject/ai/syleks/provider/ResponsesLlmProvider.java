@@ -223,14 +223,16 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                                 request.tools().toolsEnabled()
                                         ? tools().forAgent(request.agent())
                                         : List.<Map<String, Object>>of();
+                        int toolOverhead =
+                                json.toString(schemas).getBytes(StandardCharsets.UTF_8).length;
+                        if (request.observer() != null)
+                            messages = request.observer().prepareContext(messages, toolOverhead);
                         var bounded =
                                 fr.openobject.ai.syleks.session.ContextService.limit(
                                         messages,
                                         config.contextWindow(id() + "/" + request.model()),
                                         config.responseTokens(id() + "/" + request.model()),
-                                        json.toString(schemas)
-                                                .getBytes(StandardCharsets.UTF_8)
-                                                .length);
+                                        toolOverhead);
                         if (bounded.omittedMessages() > 0 && request.observer() != null)
                             request.observer().contextLimited(bounded.omittedMessages());
                         var turnRequest =

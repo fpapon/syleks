@@ -137,6 +137,7 @@ Ollama does not need a provider entry. Without a file, Syleks defaults to `qwen3
 | `AGENT_SYSTEM_PROMPT` | Replaces the shared default system prompt. Saved sessions retain their recorded instructions. |
 | `SYLEKS_CONTEXT_WINDOW` | Fallback context window, default `8192` |
 | `SYLEKS_RESPONSE_TOKENS` | Fallback response reserve, default `2048`, capped at one quarter of the selected context window when no output limit is specified |
+| `SYLEKS_COMPACTION` | `automatic` (default) or `manual`; overrides `compaction.mode` |
 | `SYLEKS_DATA_DIR` | Overrides the session data directory; see [Storage](storage-and-privacy.md) |
 | `XDG_DATA_HOME` | Parent of the default `syleks/` data directory when `SYLEKS_DATA_DIR` is unset |
 
@@ -146,7 +147,17 @@ Environment variables are read at startup. Remove an unwanted `OLLAMA_MODEL` ove
 
 Per-model `limit.context` and `limit.output` take priority over the context environment defaults. Positive global context/reserve values are required, and the global reserve must be smaller than the global window. Limits must also be supported by the server. Ollama requests use `num_ctx`/`num_predict`; OpenAI-compatible requests use `max_tokens` for output.
 
-Syleks estimates context size conservatively, reserves room for the response and tools, and keeps recent complete turns that fit. Older exchanges may be omitted from a request, with a notice in chat, but stay in your saved history. Use `/compact` to generate a persisted summary explicitly; automatic summarization is not enabled. See [Sessions](sessions.md) for details.
+Syleks estimates context size conservatively and reserves room for the response and tools. Automatic compaction is enabled for primary chat: before each request, including tool continuations, older complete turns are summarized when estimated input reaches 85% of the input allowance. Recent complete turns are retained with a target of 60% after compaction. Summaries use the selected provider/model/account and consume additional model requests under the existing chat permission.
+
+Configure this in `~/.config/syleks/agent-config.json`:
+
+```json
+{
+  "compaction": {"mode": "automatic", "threshold": 85, "target": 60}
+}
+```
+
+Percentages must be integers from 1 to 99, with `target < threshold`. Set `mode` to `manual` (or `SYLEKS_COMPACTION=manual`) to disable automatic summary requests. `/compact` remains available in either mode. Automatic compaction attempts at most once per user generation; each attempt has the existing bounded summary request count. If a summary fails, Syleks keeps the previous summary, reports the failure, and falls back to including recent turns that fit. The latest turn is never split; a turn or pinned instructions that exceed the budget still require a larger context or `/new`. The target is best effort, especially with large current tool results. Saved history is always preserved. See [Sessions](sessions.md) for details.
 
 Agent `temperature` is optional, from `0` to `2`; omitted values use the server default. Global `max_rounds` defaults to `12` without configuration and accepts `-1` for unlimited rounds or integers from `1` to `1000`. Per-agent values override it, including `-1`. Unlimited turns still finish when the model answers without tool calls and can be cancelled normally.
 

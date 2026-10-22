@@ -429,7 +429,6 @@ public class SessionService {
         assertWritable(id);
         try (var lease = acquire(id)) {
             recoverOwned(id);
-            var session = load(id);
             var history = messages.listMessages(id);
             int lastUser =
                     history.stream()
@@ -442,13 +441,26 @@ public class SessionService {
                     || summaries().find(id).map(v -> v.throughPosition() >= through).orElse(false))
                 throw new IllegalStateException(
                         "No older complete turns to summarize; keep the latest turn for continuation");
-            var input = context.summarySource(session, actor, through).messages();
-            String summary = ContextCompactor.summarize(input, window, output, provider);
-            if (Thread.currentThread().isInterrupted())
-                throw new InterruptedException("Compaction cancelled");
-            summaries().save(id, through, summary);
-            return load(id);
+            return compactOwned(id, actor, through, window, output, context, provider);
         }
+    }
+
+    /** Caller must hold this session's lease; never acquire a second lease during generation. */
+    Session compactOwned(
+            String id,
+            String actor,
+            int through,
+            int window,
+            int output,
+            ContextService context,
+            ContextCompactor.Summarizer provider)
+            throws Exception {
+        var input = context.summarySource(load(id), actor, through).messages();
+        String summary = ContextCompactor.summarize(input, window, output, provider);
+        if (Thread.currentThread().isInterrupted())
+            throw new InterruptedException("Compaction cancelled");
+        summaries().save(id, through, summary);
+        return load(id);
     }
 
     public String restoreFiles(

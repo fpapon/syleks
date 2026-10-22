@@ -53,6 +53,32 @@ class AppConfigTest {
     }
 
     @Test
+    void configuresCompactionAndValidatesThresholds() throws IOException {
+        assertTrue(config(Map.of()).compaction().automatic());
+        assertEquals(85, config(Map.of()).compaction().threshold());
+        writeConfig("{\"compaction\":{\"mode\":\"manual\",\"threshold\":90,\"target\":50}}");
+        assertFalse(config(Map.of()).compaction().automatic());
+        assertEquals(50, config(Map.of()).compaction().target());
+        assertTrue(config(Map.of("SYLEKS_COMPACTION", "automatic")).compaction().automatic());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> config(Map.of("SYLEKS_COMPACTION", "invalid")));
+        for (String policy :
+                java.util.List.of(
+                        "null",
+                        "[]",
+                        "{\"mode\":\"invalid\"}",
+                        "{\"threshold\":60,\"target\":60}",
+                        "{\"threshold\":0}",
+                        "{\"target\":100}",
+                        "{\"target\":1.5}",
+                        "{\"target\":\"60\"}")) {
+            writeConfig("{\"compaction\":" + policy + "}");
+            assertThrows(IllegalArgumentException.class, () -> config(Map.of()), policy);
+        }
+    }
+
+    @Test
     void usesDefaultsWithoutCreatingAFile() {
         var config = config(Map.of());
         assertEquals(URI.create("http://127.0.0.1:11434/api/chat"), config.endpoint());

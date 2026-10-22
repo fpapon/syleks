@@ -316,8 +316,12 @@ public class AgentService implements AutoCloseable {
                                                     context.instructions(agent)),
                                             Map.of("role", "user", "content", userText)),
                                     0)
-                            : context.reconstruct(current, agent);
+                            : config.compaction().automatic() && !childExecution
+                                    ? context.unbounded(current, agent)
+                                    : context.reconstruct(current, agent);
             generation = new Generation(current, lease, prepared, started[0]);
+            generation.actor = agent;
+            generation.selectedModel = model;
             return generation;
         } catch (RuntimeException e) {
             try {
@@ -347,6 +351,104 @@ public class AgentService implements AutoCloseable {
         private volatile String authorization = "PENDING";
         private String activeToolId;
         private java.util.function.IntConsumer contextNotice = count -> {};
+
+        private String actor, selectedModel;
+        private ContextCompactor.Summarizer summarizer;
+        private java.util.function.Consumer<String> maintenanceNotice = text -> {};
+        private boolean compactionAttempted, compacted;
+
+        public void automaticCompaction(
+                ContextCompactor.Summarizer provider, java.util.function.Consumer<String> notice) {
+            summarizer = provider;
+            maintenanceNotice = notice;
+        }
+
+        @Override
+        public List<Map<String, Object>> prepareContext(
+                List<Map<String, Object>> messages, int toolOverhead) throws Exception {
+            if (compacted)
+                messages = context.unbounded(sessions.load(session.id()), actor).messages();
+            var policy = config.compaction();
+            if (!policy.automatic() || summarizer == null || compactionAttempted) return messages;
+            int window = config.contextWindow(selectedModel),
+                    output = config.responseTokens(selectedModel);
+            long allowance = (long) window - output;
+            long used = (long) ContextBudget.UTF8.estimate(messages) + toolOverhead;
+            if (used * 100 < allowance * policy.threshold()) return messages;
+            var users =
+                    conversation.messages(session.id()).stream()
+                            .filter(m -> m.role().equals("user"))
+                            .toList();
+            if (users.size() < 2) return messages;
+            // Reserve the maximum summary size and keep as many complete recent turns as fit.
+            var pinned = messages.stream().filter(m -> "system".equals(m.get("role"))).toList();
+            var turns =
+                    messages.stream()
+                            .filter(
+                                    m ->
+                                            !"system".equals(m.get("role"))
+                                                    && !Boolean.TRUE.equals(
+                                                            m.get("contextSummary")))
+                            .toList();
+            int summaryMaximum = Math.min(16000, Math.max(128, (window - output) / 4));
+            long recentBudget =
+                    allowance * policy.target() / 100
+                            - toolOverhead
+                            - ContextBudget.UTF8.estimate(pinned)
+                            - summaryMaximum
+                            - 160;
+            int keep = 1;
+            try {
+                keep =
+                        (int)
+                                ContextCompactor.RECENT_TURNS
+                                        .select(
+                                                turns,
+                                                (int) Math.max(0, recentBudget),
+                                                ContextBudget.UTF8)
+                                        .stream()
+                                        .filter(m -> "user".equals(m.get("role")))
+                                        .count();
+            } catch (IllegalStateException tooLarge) {
+                // The current turn stays intact even when the target cannot be reached.
+            }
+            keep = Math.max(1, Math.min(keep, users.size()));
+            int through = users.get(users.size() - keep).position() - 1;
+            int covered =
+                    conversation.summary(session.id()).map(v -> v.throughPosition()).orElse(-1);
+            if (through <= covered) return messages;
+            compactionAttempted = true;
+            maintenanceNotice.accept(
+                    "Summarizing automatically: estimated context "
+                            + used
+                            + "/"
+                            + allowance
+                            + " input units (UTF-8 estimate).");
+            try {
+                flush();
+                current =
+                        sessions.compactOwned(
+                                session.id(), actor, through, window, output, context, summarizer);
+            } catch (InterruptedException cancelled) {
+                throw cancelled;
+            } catch (Exception failure) {
+                if (Thread.currentThread().isInterrupted())
+                    throw new InterruptedException("Compaction cancelled");
+                maintenanceNotice.accept(
+                        "Automatic compaction failed; previous summary preserved. Continuing with context limits; use /compact to retry.");
+                return messages;
+            }
+            compacted = true;
+            var rebuilt = context.unbounded(current, actor).messages();
+            long after = (long) ContextBudget.UTF8.estimate(rebuilt) + toolOverhead;
+            maintenanceNotice.accept(
+                    "Conversation summarized: estimated context "
+                            + after
+                            + "/"
+                            + allowance
+                            + " input units; full transcript remains in SQLite.");
+            return rebuilt;
+        }
 
         public void onContextLimited(java.util.function.IntConsumer consumer) {
             contextNotice = consumer;

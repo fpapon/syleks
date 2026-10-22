@@ -39,7 +39,7 @@ The last request is reset to `RUNNING`/Generating at the start of each HTTP invo
 
 ## Configured request budget
 
-`/usage` shows the active model's configured context window, response reserve, and input allowance (`window - reserve`). Instructions, conversation history and tool schemas share the input allowance. Admission uses a conservative UTF-8 estimate; these configuration ceilings are separate from provider-reported token counts and do not measure the next prompt's live occupancy. Use `/compact` to summarize older exchanges when needed.
+`/usage` shows the active model's configured context window, response reserve, and input allowance (`window - reserve`). Instructions, conversation history and tool schemas share the input allowance. Admission uses a conservative UTF-8 estimate; these configuration ceilings are separate from provider-reported token counts and do not measure the next prompt's live occupancy. Primary chat automatically summarizes older exchanges near the configured threshold; progress notices show estimated input occupancy before and after compaction. Summary requests count toward session usage. `/compact` also remains available. Set `compaction.mode` to `manual` to disable automatic summary requests.
 
 Long provider/model values wrap in the detail view. Use arrows, PgUp/PgDn, Home/End and Esc to navigate and close it; page size follows the terminal height.
 

@@ -54,6 +54,14 @@ public class AppConfig {
                         .contains(id);
     }
 
+    private final CompactionPolicy compaction;
+
+    public record CompactionPolicy(boolean automatic, int threshold, int target) {}
+
+    public CompactionPolicy compaction() {
+        return compaction;
+    }
+
     private final int contextWindow;
     private final int responseTokens;
     private final URI endpoint;
@@ -95,6 +103,20 @@ public class AppConfig {
                     "SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
+        Object rawCompaction =
+                settings.containsKey("compaction") ? settings.get("compaction") : Map.of();
+        if (!(rawCompaction instanceof Map<?, ?> policy))
+            throw new IllegalArgumentException("compaction must be an object");
+        String mode =
+                environment.getOrDefault(
+                        "SYLEKS_COMPACTION", setting(policy, "mode", "automatic", file));
+        if (!mode.equals("automatic") && !mode.equals("manual"))
+            throw new IllegalArgumentException("compaction.mode must be automatic or manual");
+        int threshold = compactionPercentage(policy, "threshold", 85);
+        int target = compactionPercentage(policy, "target", 60);
+        if (target >= threshold)
+            throw new IllegalArgumentException("compaction.target must be smaller than threshold");
+        this.compaction = new CompactionPolicy(mode.equals("automatic"), threshold, target);
         var mcp = new LinkedHashMap<String, fr.openobject.ai.syleks.mcp.McpServerConfig>();
         mcp.putAll(
                 fr.openobject.ai.syleks.mcp.McpServerConfig.parse(
@@ -416,6 +438,17 @@ public class AppConfig {
         } catch (NumberFormatException ignored) {
         }
         throw new IllegalArgumentException(key + " must be a positive integer");
+    }
+
+    private static int compactionPercentage(Map<?, ?> settings, String key, int fallback) {
+        if (!settings.containsKey(key)) return fallback;
+        Object value = settings.get(key);
+        if (value instanceof Number number) {
+            double n = number.doubleValue();
+            if (n >= 1 && n <= 99 && n == Math.rint(n)) return (int) n;
+        }
+        throw new IllegalArgumentException(
+                "compaction." + key + " must be an integer from 1 to 99");
     }
 
     public int contextWindow(String model) {

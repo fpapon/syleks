@@ -69,6 +69,10 @@ public class ContextService {
         return reconstruct(session, agent, Integer.MAX_VALUE, true);
     }
 
+    public Context unbounded(Session session, String agent) {
+        return reconstruct(session, agent, Integer.MAX_VALUE, false);
+    }
+
     public Context summarySource(Session session, String agent, int through) {
         return reconstruct(session, agent, through, false);
     }

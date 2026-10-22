@@ -79,6 +79,67 @@ class ResponsesProviderTest {
     }
 
     @Test
+    void preparesContextWithToolCostBeforeAdmissionAndSendsReplacementHistory() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var account = f.login(null);
+            var provider = new ProviderFixture(f);
+            var received = new java.util.concurrent.atomic.AtomicReference<String>();
+            f.responsesHandler.set(
+                    ex -> {
+                        received.set(
+                                new String(
+                                        ex.getRequestBody().readAllBytes(),
+                                        StandardCharsets.UTF_8));
+                        AuthFixture.respond(ex, 200, "data: {\"type\":\"response.completed\"}\n\n");
+                    });
+            var base = request(account.account().id());
+            var calls = new AtomicInteger();
+            var observer =
+                    new fr.openobject.ai.syleks.ai.OllamaClient.Observer() {
+                        public List<Map<String, Object>> prepareContext(
+                                List<Map<String, Object>> history, int overhead) {
+                            calls.incrementAndGet();
+                            assertTrue(overhead > 2);
+                            assertTrue(history.toString().contains("prior answer"));
+                            return List.of(
+                                    history.getFirst(),
+                                    Map.of(
+                                            "role",
+                                            "user",
+                                            "content",
+                                            "replacement summary",
+                                            "contextSummary",
+                                            true),
+                                    history.getLast());
+                        }
+
+                        public void round(
+                                String content,
+                                String reasoning,
+                                List<fr.openobject.ai.syleks.ai.ToolCall> calls) {}
+
+                        public void toolResult(
+                                fr.openobject.ai.syleks.ai.ToolCall call, String result) {}
+
+                        public void nextRound() {}
+                    };
+            provider.chatgpt.chat(
+                    new ChatRequest(
+                            base.model(),
+                            base.agent(),
+                            base.accountId(),
+                            base.messages(),
+                            base.tools(),
+                            observer),
+                    event -> {});
+            assertEquals(1, calls.get());
+            assertTrue(received.get().contains("replacement summary"));
+            assertFalse(received.get().contains("prior answer"));
+            assertFalse(received.get().contains("contextSummary"));
+        }
+    }
+
+    @Test
     void routesBuiltInModelDiscoveryAndResponsesThroughConfiguredProxies() throws Exception {
         try (var f = new AuthFixture(root)) {
             var chatgpt = f.login(null);

@@ -29,7 +29,7 @@ If chat cannot start because of malformed configuration, standalone `syleks conf
 | Round limit reached | Tool results are saved. Send a follow-up to continue, or adjust global/per-agent `max_rounds` and restart. |
 | Context budget exceeded | Increase the model's supported context limit, shorten the message/instructions, select a suitable model, or start `/new`. |
 
-An “older context omitted” notice means the model request could not include every saved turn. Your stored history remains intact. Use `/compact` to generate a bounded summary for future requests, or reintroduce relevant details explicitly. Automatic compaction is not enabled.
+An “older context omitted” notice means the model request could not include every saved turn. Your stored history remains intact. Use `/compact` to generate a bounded summary for future requests, or reintroduce relevant details explicitly. Automatic compaction is enabled for primary chat, but omissions can still occur when manual mode is configured, summarization fails, or the retained context cannot fit. Chat reports compaction progress and failures. An oversized latest turn is kept intact and requires a larger-context model or `/new`.
 
 ## Tools are not running
 

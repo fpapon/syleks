@@ -482,6 +482,29 @@ public class ChatSession {
                                                                             .omittedMessages()
                                                                     + " older messages omitted; full history remains in SQLite.");
                                             }
+                                            if (!manual)
+                                                generation.automaticCompaction(
+                                                        (input, maximum) ->
+                                                                summarize(
+                                                                        selectedModel,
+                                                                        selectedAgent,
+                                                                        input,
+                                                                        maximum,
+                                                                        persistence
+                                                                                .summaryObserver()),
+                                                        notice -> {
+                                                            synchronized (ChatSession.this) {
+                                                                if (revision != id) return;
+                                                                executionState =
+                                                                        AgentState.THINKING;
+                                                                status =
+                                                                        notice.startsWith(
+                                                                                        "Summarizing")
+                                                                                ? "Summarizing"
+                                                                                : "Generating";
+                                                                info(notice);
+                                                            }
+                                                        });
                                             var persistentGeneration = generation;
                                             generation.onContextLimited(
                                                     count -> {
@@ -578,6 +601,28 @@ public class ChatSession {
         if (providers != null) model = configuredModel();
     }
 
+    private String summarize(
+            String model,
+            String actor,
+            List<java.util.Map<String, Object>> input,
+            int maximum,
+            OllamaClient.Observer observer)
+            throws Exception {
+        var summary = new StringBuilder();
+        streamPrepared(
+                model,
+                actor,
+                input,
+                delta -> {
+                    if (summary.length() + delta.length() > maximum)
+                        throw new IllegalStateException("Summary exceeds configured size");
+                    summary.append(delta);
+                },
+                ToolHandler.NONE,
+                observer);
+        return summary.toString();
+    }
+
     private void streamPrepared(
             String model,
             String agent,
@@ -620,6 +665,14 @@ public class ChatSession {
 
             public void usage(LlmUsageEvent value) {
                 if (downstream != null) downstream.usage(value);
+            }
+
+            public List<java.util.Map<String, Object>> prepareContext(
+                    List<java.util.Map<String, Object>> messages, int toolOverhead)
+                    throws Exception {
+                return downstream == null
+                        ? messages
+                        : downstream.prepareContext(messages, toolOverhead);
             }
 
             public void contextLimited(int count) {
@@ -1223,28 +1276,14 @@ public class ChatSession {
                                                         service.compact(
                                                                 actor,
                                                                 selectedModel,
-                                                                (input, maximum) -> {
-                                                                    var summary =
-                                                                            new StringBuilder();
-                                                                    streamPrepared(
-                                                                            selectedModel,
-                                                                            actor,
-                                                                            input,
-                                                                            delta -> {
-                                                                                if (summary.length()
-                                                                                                + delta
-                                                                                                        .length()
-                                                                                        > maximum)
-                                                                                    throw new IllegalStateException(
-                                                                                            "Summary exceeds configured size");
-                                                                                summary.append(
-                                                                                        delta);
-                                                                            },
-                                                                            ToolHandler.NONE,
-                                                                            service
-                                                                                    .summaryObserver());
-                                                                    return summary.toString();
-                                                                });
+                                                                (input, maximum) ->
+                                                                        summarize(
+                                                                                selectedModel,
+                                                                                actor,
+                                                                                input,
+                                                                                maximum,
+                                                                                service
+                                                                                        .summaryObserver()));
                                                         synchronized (ChatSession.this) {
                                                             checkActive(id);
                                                             info(

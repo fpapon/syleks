@@ -28,6 +28,12 @@ public interface AgentObserver {
 
     default void contextLimited(int count) {}
 
+    /** Called before admission, with the actual tool schema cost, on the generation worker. */
+    default List<java.util.Map<String, Object>> prepareContext(
+            List<java.util.Map<String, Object>> messages, int toolOverhead) throws Exception {
+        return messages;
+    }
+
     void round(String content, String reasoning, List<ToolCall> calls);
 
     void toolResult(ToolCall call, String result);

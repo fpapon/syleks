@@ -358,6 +358,9 @@ class AgentEngineParityTest {
                     config,
                     auth.json.toString(
                             Map.of(
+                                    // This fixture scripts exact agent/tool rounds and raw prompts.
+                                    "compaction",
+                                    Map.of("mode", "manual"),
                                     "model",
                                     provider + "/test-model",
                                     "ollama_url",

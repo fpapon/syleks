@@ -95,6 +95,20 @@ public class OllamaClient {
             String model,
             String agent,
             List<Map<String, Object>> messages) {
+        return payload(
+                connection,
+                model,
+                agent,
+                messages,
+                toolsEnabled.get() ? tools().forAgent(agent) : List.of());
+    }
+
+    private String payload(
+            AppConfig.ModelConnection connection,
+            String model,
+            String agent,
+            List<Map<String, Object>> messages,
+            List<Map<String, Object>> definitions) {
         var resolved = connection == null ? config.resolveModel(model) : connection;
         var request = new LinkedHashMap<String, Object>();
         request.put("model", resolved.model());
@@ -108,8 +122,6 @@ public class OllamaClient {
         } else if (temperature != null) {
             request.put("options", Map.of("temperature", temperature));
         }
-        var definitions =
-                toolsEnabled.get() ? tools().forAgent(agent) : List.<Map<String, Object>>of();
         if (!definitions.isEmpty()) request.put("tools", definitions);
         if (persistentRequest.get()) {
             int window = config.contextWindow(model);
@@ -194,15 +206,18 @@ public class OllamaClient {
             ToolHandler tools,
             Observer observer)
             throws Exception {
+        boolean previousPersistent = persistentRequest.get(), previousTools = toolsEnabled.get();
+        Observer previousObserver = this.observer.get();
         persistentRequest.set(true);
         toolsEnabled.set(tools.toolsEnabled());
         this.observer.set(observer);
         try {
             streamConversation(null, model, agent, history, receive, tools, observer);
         } finally {
-            persistentRequest.remove();
-            toolsEnabled.remove();
-            this.observer.remove();
+            persistentRequest.set(previousPersistent);
+            toolsEnabled.set(previousTools);
+            if (previousObserver == null) this.observer.remove();
+            else this.observer.set(previousObserver);
         }
     }
 
@@ -219,15 +234,18 @@ public class OllamaClient {
             ToolHandler tools,
             Observer observer)
             throws Exception {
+        boolean previousPersistent = persistentRequest.get(), previousTools = toolsEnabled.get();
+        Observer previousObserver = this.observer.get();
         persistentRequest.set(true);
         toolsEnabled.set(tools.toolsEnabled());
         this.observer.set(observer);
         try {
             streamConversation(connection, model, agent, history, receive, tools, observer);
         } finally {
-            persistentRequest.remove();
-            toolsEnabled.remove();
-            this.observer.remove();
+            persistentRequest.set(previousPersistent);
+            toolsEnabled.set(previousTools);
+            if (previousObserver == null) this.observer.remove();
+            else this.observer.set(previousObserver);
         }
     }
 
@@ -258,6 +276,16 @@ public class OllamaClient {
             List<Map<String, Object>> messages,
             Consumer<String> receive)
             throws Exception {
+        var definitions =
+                toolsEnabled.get() ? tools().forAgent(agent) : List.<Map<String, Object>>of();
+        if (persistentRequest.get() && observer.get() != null)
+            messages =
+                    observer.get()
+                            .prepareContext(
+                                    messages,
+                                    json.toString(definitions)
+                                            .getBytes(StandardCharsets.UTF_8)
+                                            .length);
         var builder =
                 HttpRequest.newBuilder(connection.endpoint())
                         .timeout(Duration.ofMinutes(10))
@@ -269,7 +297,7 @@ public class OllamaClient {
                                         : "application/x-ndjson")
                         .POST(
                                 HttpRequest.BodyPublishers.ofString(
-                                        payload(connection, model, agent, messages),
+                                        payload(connection, model, agent, messages, definitions),
                                         StandardCharsets.UTF_8));
         if (connection.openAiCompatible() && !connection.apiKey().isEmpty())
             builder.header("Authorization", "Bearer " + connection.apiKey());
