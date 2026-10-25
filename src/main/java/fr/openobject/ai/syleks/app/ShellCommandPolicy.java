@@ -98,6 +98,22 @@ public final class ShellCommandPolicy {
                 || command.length() > 12000
                 || command.indexOf(0) >= 0) return denied("Invalid shell command");
 
+        if (!policy.constraints().isEmpty()) {
+            var local =
+                    new PermissionPolicy(
+                            policy.rules(), List.of(), policy.fallback(), policy.source());
+            var assessment = assess(local, command);
+            for (var ceiling : policy.constraints()) {
+                var restriction = assess(ceiling, command);
+                if (restriction.decision().ordinal() > assessment.decision().ordinal())
+                    assessment =
+                            new Assessment(
+                                    restriction.decision(),
+                                    "Ceiling: " + ceiling.source() + ": " + restriction.reason());
+            }
+            return assessment;
+        }
+
         boolean granular = false;
         for (var rule : policy.rules()) {
             if (!rule.operation().equals("bash") && !rule.operation().equals("*")) continue;

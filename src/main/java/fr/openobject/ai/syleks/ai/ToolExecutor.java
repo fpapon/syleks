@@ -154,6 +154,9 @@ public class ToolExecutor {
                 (operation, target, details) -> {
                     if (Thread.currentThread().isInterrupted())
                         throw new InterruptedException("Tool cancelled");
+                    if (java.util.Set.of("write", "edit", "save", "apply_patch").contains(operation)
+                            && config.securityFile(config.workspace().resolve(target)))
+                        return false;
                     if (config.permissions(actor).evaluate(operation, target)
                             == PermissionPolicy.Decision.DENY) return false;
                     // An untrusted callback cannot relax DENY. ASK needs an explicit approval
@@ -172,7 +175,18 @@ public class ToolExecutor {
                             ? fileChanges.recording(session, call.id())
                             : FileMutation.DIRECT;
             var context =
-                    new ToolContext(config.workspace(), session, actor, gate, questions, mutations);
+                    new ToolContext(
+                            config.workspace(),
+                            session,
+                            actor,
+                            gate,
+                            questions,
+                            (path, before, after, effect) -> {
+                                if (config.securityFile(path))
+                                    throw new ToolPermissionDeniedException(
+                                            "User security configuration is protected");
+                                mutations.commit(path, before, after, effect);
+                            });
             if (AuxiliaryTools.NAMES.contains(call.name()))
                 return bounded(new AuxiliaryTools(config, todos).execute(call, context));
             if (extension != null) {
@@ -190,7 +204,7 @@ public class ToolExecutor {
                 return bounded(extension.execute(context, call.arguments()));
             }
             if (AgentTools.NAMES.contains(call.name()))
-                return bounded(ToolResult.success(files.execute(call, gate, mutations)));
+                return bounded(ToolResult.success(files.execute(call, gate, context.mutations())));
             if (!call.name().equals("bash"))
                 return ToolResult.failed("Tool error: unsupported tool " + call.name());
             var args = call.arguments();

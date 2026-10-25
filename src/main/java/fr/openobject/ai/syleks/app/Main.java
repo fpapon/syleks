@@ -71,6 +71,8 @@ public final class Main {
                         Syleks — persistent local AI sessions
                         Usage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]
                                syleks config init [--defaults]
+                               syleks trust inspect|revoke
+                               syleks trust grant <reviewed-sha256>
                                syleks session list
                                syleks session delete <id>
                                syleks session export <id>
@@ -96,7 +98,42 @@ public final class Main {
                         """);
                 return 0;
             }
-            if (args.length > 0 && args[0].equals("mcp")) {
+            if (args.length > 0 && args[0].equals("trust")) {
+                require(
+                        args.length == 2 && java.util.Set.of("inspect", "revoke").contains(args[1])
+                                || args.length == 3 && args[1].equals("grant"));
+                if (args[1].equals("revoke")) {
+                    ProjectTrust.revoke(
+                            ConfigInitializer.home(),
+                            java.nio.file.Path.of(System.getProperty("user.dir")));
+                    out.println("Project trust revoked. Restart active chats.");
+                    return 0;
+                }
+                var trust =
+                        new ProjectTrust(
+                                ConfigInitializer.home(),
+                                java.nio.file.Path.of(System.getProperty("user.dir")));
+                switch (args[1]) {
+                    case "grant" -> {
+                        trust.grant(args[2]);
+                        out.println("Project trust recorded. Restart active chats.");
+                    }
+                    default -> {
+                        out.println(safe(trust.state()));
+                        trust.files()
+                                .forEach(
+                                        (path, text) ->
+                                                out.println(
+                                                        "\n--- "
+                                                                + safe(path.toString())
+                                                                + " ---\n"
+                                                                + safeOutput(text)));
+                        out.println(
+                                "Review every definition above, then: syleks trust grant "
+                                        + trust.digest());
+                    }
+                }
+            } else if (args.length > 0 && args[0].equals("mcp")) {
                 require(
                         args.length == 2 && java.util.Set.of("list", "tools").contains(args[1])
                                 || args.length == 3

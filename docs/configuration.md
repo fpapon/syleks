@@ -175,7 +175,7 @@ The optional `subagents` object adds finite child execution ceilings: `max_depth
 
 ## MCP servers
 
-Configure stdio or Streamable HTTP servers in `mcp`. Project definitions require an exact workspace entry in the global `mcp_trusted_projects` list. MCP credentials and permissions are independent of model providers. See [MCP servers](mcp.md) for configuration, OAuth and limits.
+Configure stdio or Streamable HTTP servers in `mcp`. Project definitions require an explicit content pin using `syleks trust inspect` and `syleks trust grant <reviewed-sha256>`. MCP credentials and permissions are independent of model providers. See [MCP servers](mcp.md) for configuration, OAuth and limits.
 
 ## Complete configuration reference
 
@@ -196,7 +196,7 @@ Only the global `~/.config/syleks/agent-config.json` configures providers, agent
 | `agent` | Object, built-ins retained | Agent definitions/overrides keyed by filename-compatible name |
 | `subagents` | Object, finite defaults | Shared depth, parallelism, task, round and deadline limits; [ranges](subagents.md#limits-and-cancellation) |
 | `mcp` | Object, empty | At most 16 named stdio/HTTP servers; [server options](#mcp-server-fields) |
-| `mcp_trusted_projects` | Array, empty | Up to 128 exact absolute launch workspace paths allowed to supply project MCP overrides |
+| `mcp_trusted_projects` | Array, empty, deprecated | Legacy path list; ignored for authority. Use the local trust CLI to review and pin content |
 
 There are no `providers`, `tools`, `system_prompt`, `instructions` or `agents` top-level settings. Use singular `provider` / `agent`, `permission`, `AGENT_SYSTEM_PROMPT`, and instruction files. Unknown settings are rejected by the schema; use it for editor checks. Startup also checks semantic constraints that JSON Schema cannot resolve, including agent/model references and incompatible MCP authentication options.
 

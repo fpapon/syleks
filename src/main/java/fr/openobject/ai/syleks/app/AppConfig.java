@@ -73,6 +73,13 @@ public class AppConfig {
     private final String defaultAgent;
     private final int maxRounds;
     private final PermissionPolicy globalPermissions;
+    private final PermissionPolicy permissionCeiling;
+    private final ProjectTrust projectTrust;
+
+    public ProjectTrust projectTrust() {
+        return projectTrust;
+    }
+
     private final Path workspace;
     private final Path home;
     private final fr.openobject.ai.syleks.engineering.EngineeringBoundary engineering;
@@ -102,7 +109,8 @@ public class AppConfig {
 
     AppConfig(JsonMapper json, Path home, Map<String, String> environment, Path project) {
         this.home = home;
-        this.workspace = project.toAbsolutePath().normalize();
+        this.workspace = fr.openobject.ai.syleks.session.ProjectService.canonical(project);
+        this.projectTrust = new ProjectTrust(home, workspace);
         this.engineering =
                 new fr.openobject.ai.syleks.engineering.EngineeringBoundary(home, workspace);
         this.contextWindow = positiveEnvironment(environment, "SYLEKS_CONTEXT_WINDOW", 8192);
@@ -131,22 +139,8 @@ public class AppConfig {
                 fr.openobject.ai.syleks.mcp.McpServerConfig.parse(
                         settings.containsKey("mcp") ? settings.get("mcp") : Map.of(), file));
         var projectFile = workspace.resolve(".syleks/agent-config.json");
-        boolean trustedMcpProject = false;
-        if (settings.containsKey("mcp_trusted_projects")) {
-            if (!(settings.get("mcp_trusted_projects") instanceof List<?> trusted)
-                    || trusted.size() > 128)
-                throw new IllegalStateException("Invalid mcp_trusted_projects in " + file);
-            for (var path : trusted) {
-                if (!(path instanceof String text) || text.isBlank() || !Path.of(text).isAbsolute())
-                    throw new IllegalStateException(
-                            "mcp_trusted_projects requires absolute paths in " + file);
-                if (Path.of(text).normalize().equals(workspace)) trustedMcpProject = true;
-            }
-        }
-        String projectJson =
-                trustedMcpProject
-                        ? ConfigurationFiles.optional(projectFile, 1024 * 1024, workspace)
-                        : "";
+        // Legacy path-only mcp_trusted_projects never grants content trust.
+        String projectJson = projectTrust.trusted() ? projectTrust.content(projectFile) : "";
         if (!projectJson.isEmpty()) {
             var projectSettings = json.fromString(Object.class, projectJson);
             if (!(projectSettings instanceof Map<?, ?> pm))
@@ -192,6 +186,11 @@ public class AppConfig {
                                         + "Do not claim local access except through actual tool results. "
                                         + "Never claim to have executed an action you have not executed.")
                         + globalInstructions(home);
+        this.permissionCeiling =
+                (settings.containsKey("permission")
+                                ? PermissionPolicy.parse(settings.get("permission"), file)
+                                : PermissionPolicy.empty())
+                        .neutral();
         this.globalPermissions =
                 PermissionPolicy.defaults()
                         .overlay(
@@ -202,7 +201,9 @@ public class AppConfig {
                 settings.containsKey("max_rounds")
                         ? parseMaxRounds(settings.get("max_rounds"), file)
                         : 12;
-        this.agents = AgentCatalog.load(json, settings, file, home, project);
+        this.agents =
+                AgentCatalog.load(
+                        json, settings, file, home, workspace, projectTrust, globalPermissions);
         this.defaultAgent = setting(settings, "default_agent", "build", file);
         try {
             if (!agent(defaultAgent).mode().primary())
@@ -608,7 +609,43 @@ public class AppConfig {
     }
 
     public PermissionPolicy permissions(String name) {
-        return globalPermissions.overlay(agent(name).permissions());
+        var protectedRules = new java.util.ArrayList<PermissionPolicy.Rule>();
+        for (var operation : List.of("write", "edit", "save", "apply_patch")) {
+            String directory =
+                    fr.openobject.ai.syleks.session.ProjectService.canonical(
+                                    home.resolve(".config/syleks"))
+                            .toString();
+            protectedRules.add(
+                    new PermissionPolicy.Rule(
+                            operation, directory, PermissionPolicy.Decision.DENY));
+            protectedRules.add(
+                    new PermissionPolicy.Rule(
+                            operation, directory + "/*", PermissionPolicy.Decision.DENY));
+        }
+        return globalPermissions
+                .overlay(agent(name).permissions())
+                .intersect(permissionCeiling)
+                .intersect(
+                        new PermissionPolicy(
+                                protectedRules,
+                                List.of(),
+                                PermissionPolicy.Decision.ALLOW,
+                                "protected user security configuration"));
+    }
+
+    public boolean securityFile(Path path) {
+        path = path.toAbsolutePath().normalize();
+        var suffix = new java.util.ArrayDeque<Path>();
+        while (path != null && !java.nio.file.Files.exists(path)) {
+            suffix.addFirst(path.getFileName());
+            path = path.getParent();
+        }
+        if (path == null) return true;
+        path = fr.openobject.ai.syleks.session.ProjectService.canonical(path);
+        for (var part : suffix) path = path.resolve(part);
+        return path.startsWith(
+                fr.openobject.ai.syleks.session.ProjectService.canonical(
+                        home.resolve(".config/syleks")));
     }
 
     public Path home() {

@@ -24,7 +24,7 @@ Merge these entries into the existing `permission` object in `~/.config/syleks/a
 }
 ```
 
-This is a **configuration fragment**, not a replacement for your whole file. An agent's own rules can override these global values; check `/permissions` or `/permissions reviewer` to see its effective policy. You can place the same rules inside a JSON agent's `permission` object or Markdown frontmatter.
+This is a **configuration fragment**, not a replacement for your whole file. Explicit global values cap every agent. Agent rules may restrict them; check `/permissions` or `/permissions reviewer` for effective decisions, sources, ceilings and trust state. You can place the same rules inside a JSON agent's `permission` object or Markdown frontmatter.
 
 Now ask a concrete question, for example: “Find the Java entry point, read the relevant method, and explain it.” For changes, try: “Propose a fix, then run the relevant tests.” Review tool approvals as they appear.
 
@@ -39,13 +39,13 @@ The **generated starter configuration** changes these rules:
 | Operation | Global | Plan override | Build override |
 | --- | --- | --- | --- |
 | `chat` | Allow | Inherit | Inherit |
-| `task` | Deny except ask for `reviewer` | Deny | Allow |
+| `task` | Deny except ask for `reviewer` | Deny | Deny except ask for `reviewer` |
 | `save` | Ask | Deny | Ask |
 | `read` | Allow | Allow | Allow |
 | `edit` | Deny | Deny | Deny |
-| `bash` | Deny | Ask | Ask |
+| `bash` | Deny | Deny | Deny |
 
-Unlisted tools (`write`, `list`, `glob`, `grep`, `webfetch`, `websearch`, `apply_patch`, `skill`, `todoread`, `todowrite`, `question`) remain denied unless enabled. Build's `task: allow` overrides the global delegation rule, including for Reviewer. These are starter settings; customized agent files or configuration may change them.
+Unlisted tools (`write`, `list`, `glob`, `grep`, `webfetch`, `websearch`, `apply_patch`, `skill`, `todoread`, `todowrite`, `question`) remain denied unless enabled. Build's `task: allow` remains capped by the global delegation rule. Global `bash: deny` also caps both agents' `bash: ask` preferences. These are starter settings; customized agent files or configuration may change them.
 
 ## Respond to an approval request
 
@@ -162,3 +162,48 @@ The **last matching rule wins**. Put broad rules first and narrower exceptions a
 The [full JSON reference](../examples/agent-config.json) lists all native operations plus MCP and custom-tool examples. The [Build definition](../examples/agents/build.md) permits inspection and asks before edits, patches and commands; [Plan](../examples/agents/plan.md), [Explore](../examples/agents/explore.md) and [Reviewer](../examples/agents/reviewer.md) deny those effects. These policies are examples and differ from setup defaults. See the [installation guide](../examples/README.md) to reconcile existing Markdown overrides.
 
 For an approval-gated patch, permit `apply_patch` **and** `edit` for updates, or `write` for additions/deletions. For a delegated read/search task, the parent and child must both permit the necessary operations. A custom permission name only authorizes an already registered Java tool; it does not create one.
+
+## Project trust and permission ceilings
+
+Explicit user global `permission` entries in `~/.config/syleks/agent-config.json` are immutable constraints during an application instance. Missing global entries are neutral constraints, so built-in fallback denials do not block intentional user agent capabilities such as Explore's read/search permissions. Built-in fallback behavior still applies when no agent grants a capability. An explicit global `"*": "deny"` is a ceiling for all operations unless a later matching global rule provides an exception.
+
+Ordered matching happens separately within each layer. Independent constraints combine as follows:
+
+| Preference / ceiling | ALLOW | ASK | DENY |
+| --- | --- | --- | --- |
+| ALLOW | ALLOW | ASK | DENY |
+| ASK | ASK | ASK | DENY |
+| DENY | DENY | DENY | DENY |
+
+To enable commands for Build while denying them for Plan, deliberately grant authority globally and restrict Plan:
+
+```json
+{
+  "permission": { "bash": "ask" },
+  "agent": {
+    "build": { "permission": { "bash": "allow" } },
+    "plan": { "permission": { "bash": "deny" } }
+  }
+}
+```
+
+Build still asks. Use global `bash: allow` only if you intend to permit commands without that ceiling approval. Existing global denials are preserved; there is no automatic migration to a wider grant. The full examples retain their global edit/write/command denials: change those ceiling entries explicitly before expecting agent-level ASK preferences to enable those actions.
+
+Untrusted project agents can provide instructions and restrictions but cannot expand their inherited permissions or change the inherited model/provider. Trusted project agents may enable capabilities missing from defaults, while remaining capped by explicit global rules and inherited agent restrictions. Nested definitions cannot relax earlier agent constraints. `AGENTS.md` remains attributed repository guidance and never grants trust or execution authority.
+
+From the exact launch workspace, review the complete inherited agent definitions and project MCP configuration:
+
+```sh
+syleks trust inspect
+syleks trust grant <reviewed-sha256>
+syleks trust inspect
+syleks trust revoke
+```
+
+`inspect` prints the canonical workspace, trust state, SHA-256 digest and configuration contents without starting MCP or loading application services. Copy the digest only after reviewing all displayed definitions. Grant checks that digest against the current snapshot. Records live outside project authority in `~/.config/syleks/project-trust/`, keyed by canonical launch workspace. Symlink aliases share the same identity; different nested launch workspaces need their own review. The manifest covers file names and full contents of `.syleks/agent-config.json` and `.syleks/agents/*.md` at every inherited directory, including newly added files. Any content or file-set change invalidates the pin. Links escaping the project are rejected. Loaded definitions use the captured snapshot.
+
+Trust authorizes configured executable integrations and potential model/provider changes, so review commands and destinations carefully. Only the project JSON `mcp` section is supported; arbitrary project JSON provider/global permission settings remain ignored. Legacy `mcp_trusted_projects` entries are accepted for compatibility but grant no authority. Review and pin existing projects explicitly; previous launches never create trust.
+
+Configuration, trust and revocation take effect on `/restart` or a new process. Restart active chats after changing or revoking trust. `/permissions [AGENT]` shows decisions and their rule sources, ceiling constraints and trust snapshot. CLI, primary and child agents, custom and MCP tool calls share execution checks; ancestor constraints and DENY still apply to remembered approvals.
+
+Native mutation tools, patch operations and `/save` cannot modify user files under `~/.config/syleks/`, including global policy and trust records, even when the home directory is the workspace. Instrumented custom tool mutations receive the same protection. Installed executable extensions, MCP servers and unrestricted shell commands retain their OS process authority; this boundary does not isolate arbitrary code or defend against a same-user host attacker. SEC-03 tracks OS command isolation.

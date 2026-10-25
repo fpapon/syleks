@@ -23,7 +23,40 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /** Ordered permissions: later matching rules override earlier rules. */
-public record PermissionPolicy(List<Rule> rules) {
+public record PermissionPolicy(
+        List<Rule> rules, List<PermissionPolicy> constraints, Decision fallback, String source) {
+    public PermissionPolicy(List<Rule> rules) {
+        this(rules, List.of(), Decision.DENY, "built-in defaults");
+    }
+
+    /** Missing entries impose no constraint; ordered matching still applies within this layer. */
+    public PermissionPolicy neutral() {
+        return new PermissionPolicy(rules, constraints, Decision.ALLOW, source);
+    }
+
+    public PermissionPolicy intersect(PermissionPolicy ceiling) {
+        var layers = new ArrayList<>(constraints);
+        layers.add(ceiling);
+        return new PermissionPolicy(rules, layers, fallback, source);
+    }
+
+    public static Decision stricter(Decision first, Decision second) {
+        return first.ordinal() >= second.ordinal() ? first : second;
+    }
+
+    public String describe(String operation, String target) {
+        var rule = matchingRule(operation, target);
+        var result =
+                new StringBuilder(evaluate(operation, target).name())
+                        .append("; source: ")
+                        .append(rule == null ? source : rule.source())
+                        .append("; preference: ")
+                        .append(rule == null ? fallback : rule.decision());
+        for (var ceiling : constraints)
+            result.append("; ceiling [").append(ceiling.describe(operation, target)).append(']');
+        return result.toString();
+    }
+
     public static final List<String> OPERATIONS =
             List.of(
                     "chat",
@@ -56,10 +89,15 @@ public record PermissionPolicy(List<Rule> rules) {
         DENY
     }
 
-    public record Rule(String operation, String target, Decision decision) {}
+    public record Rule(String operation, String target, Decision decision, String source) {
+        public Rule(String operation, String target, Decision decision) {
+            this(operation, target, decision, "built-in defaults");
+        }
+    }
 
     public PermissionPolicy {
         rules = List.copyOf(rules);
+        constraints = List.copyOf(constraints);
     }
 
     public static PermissionPolicy empty() {
@@ -101,13 +139,31 @@ public record PermissionPolicy(List<Rule> rules) {
         } else {
             throw invalid(file, "expected allow, ask, deny, or an object of permission rules");
         }
-        return new PermissionPolicy(rules);
+        return new PermissionPolicy(
+                rules.stream()
+                        .map(
+                                r ->
+                                        new Rule(
+                                                r.operation(),
+                                                r.target(),
+                                                r.decision(),
+                                                file.toString()))
+                        .toList(),
+                List.of(),
+                Decision.DENY,
+                file.toString());
     }
 
     public PermissionPolicy overlay(PermissionPolicy overrides) {
         var combined = new ArrayList<>(rules);
         combined.addAll(overrides.rules());
-        return new PermissionPolicy(combined);
+        var layers = new ArrayList<>(constraints);
+        layers.addAll(overrides.constraints());
+        return new PermissionPolicy(
+                combined,
+                layers,
+                fallback,
+                overrides.rules().isEmpty() ? source : overrides.source());
     }
 
     public Decision evaluate(String operation, String target) {
@@ -120,7 +176,10 @@ public record PermissionPolicy(List<Rule> rules) {
 
     Decision evaluateTarget(String operation, String target) {
         var rule = matchingRule(operation, target);
-        return rule == null ? Decision.DENY : rule.decision();
+        var result = rule == null ? fallback : rule.decision();
+        for (var ceiling : constraints)
+            result = stricter(result, ceiling.evaluateTarget(operation, target));
+        return result;
     }
 
     Rule matchingRule(String operation, String target) {

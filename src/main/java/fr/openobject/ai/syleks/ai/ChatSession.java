@@ -325,6 +325,8 @@ public class ChatSession {
 
     public synchronized void save(Path path) {
         var output = path.toAbsolutePath().normalize();
+        if (config.securityFile(output))
+            throw new IllegalStateException("User security configuration is protected");
         authorize(
                 List.of(new Requirement(agent, "save", output.toString())),
                 "Export conversation to " + output,
@@ -362,15 +364,21 @@ public class ChatSession {
         var selected = name.isBlank() ? agent : name;
         var policy = config.permissions(selected);
         var result =
-                new StringBuilder("Permissions for " + selected + " (last matching rule wins)\n");
-        for (var operation : PermissionPolicy.OPERATIONS) {
+                new StringBuilder(
+                        "Permissions for "
+                                + selected
+                                + " (ordered within layers; DENY > ASK > ALLOW)\n"
+                                + config.projectTrust().state());
+        var operations = new java.util.LinkedHashSet<>(PermissionPolicy.OPERATIONS);
+        policy.rules().stream()
+                .map(PermissionPolicy.Rule::operation)
+                .filter(PermissionPolicy::validOperation)
+                .forEach(operations::add);
+        for (var operation : operations) {
             result.append("\n")
                     .append(operation)
                     .append(": ")
-                    .append(
-                            policy.evaluate(operation, "")
-                                    .name()
-                                    .toLowerCase(java.util.Locale.ROOT));
+                    .append(policy.describe(operation, ""));
         }
         for (var rule : policy.rules()) {
             if (!rule.target().equals("*"))
@@ -379,7 +387,10 @@ public class ChatSession {
                         .append(" [")
                         .append(rule.target())
                         .append("]: ")
-                        .append(rule.decision().name().toLowerCase(java.util.Locale.ROOT));
+                        .append(rule.decision())
+                        .append(" (declared preference; source: ")
+                        .append(rule.source())
+                        .append(")");
         }
         for (var grant : toolGrants) {
             if (grant.agent().equals(selected))

@@ -284,7 +284,7 @@ class SubagentExecutionTest {
     void enforcesAncestorDenialsAndDelegationPatternsEvenWithAPermissiveApprovalCallback()
             throws Exception {
         configure(
-                "{\"permission\":{\"write\":\"deny\",\"task\":{\"*\":\"deny\",\"worker-*\":\"allow\"}},\"agent\":{\"worker-a\":{\"mode\":\"subagent\",\"permission\":{\"write\":\"allow\"}},\"other\":{\"mode\":\"subagent\"}}}");
+                "{\"permission\":{\"write\":\"allow\",\"task\":{\"*\":\"deny\",\"worker-*\":\"allow\"}},\"agent\":{\"build\":{\"permission\":{\"write\":\"deny\"}},\"worker-a\":{\"mode\":\"subagent\",\"permission\":{\"write\":\"allow\"}},\"other\":{\"mode\":\"subagent\"}}}");
         try (var f = new SessionFixture(root)) {
             var requests = new AtomicInteger();
             var wire =

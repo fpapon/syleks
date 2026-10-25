@@ -114,10 +114,10 @@ class ConfigInitWizardTest {
                     PermissionPolicy.Decision.DENY,
                     config.permissions("plan").evaluate("save", "file.md"));
             assertEquals(
-                    PermissionPolicy.Decision.ASK,
+                    PermissionPolicy.Decision.DENY,
                     config.permissions("build").evaluate("bash", "ls"));
             assertEquals(
-                    PermissionPolicy.Decision.ALLOW,
+                    PermissionPolicy.Decision.ASK,
                     config.permissions("build").evaluate("task", "reviewer"));
             assertEquals("sk-local", config.resolveModel(config.defaultModel()).apiKey());
         }

@@ -79,7 +79,7 @@ class AgentConfigTest {
             assertEquals(AgentDefinition.Mode.SUBAGENT, configured.agent("reviewer").mode());
             assertEquals(30, configured.maxRounds("build"));
             assertEquals(
-                    PermissionPolicy.Decision.ASK,
+                    PermissionPolicy.Decision.DENY,
                     configured.permissions("build").evaluate("edit", "/workspace/Example.java"));
             assertEquals(
                     PermissionPolicy.Decision.DENY,
@@ -585,6 +585,8 @@ class AgentConfigTest {
                 write(
                         nested.resolve(".syleks/agents/reviewer.md"),
                         "---\nhidden: false\nmax_rounds: 2\n---\nNESTED_GUIDANCE");
+        var reviewed = new ProjectTrust(home, nested);
+        reviewed.grant(reviewed.digest());
         var config =
                 new AppConfig(
                         mapper.instance(),

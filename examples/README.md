@@ -11,7 +11,7 @@ These files document supported Syleks settings. Addresses, models, keys, proxy n
 | [mcp-project.json](mcp-project.json) | Project MCP example for `.syleks/agent-config.json`; requires global workspace trust |
 | [engineering/project-registry.json](engineering/project-registry.json) | Proposed Engineering v1 enrollment contract: private project, cloud disabled, token-budget declaration and no approved inference routes |
 
-The full reference includes mutually exclusive alternatives as **separate server entries**. All its MCP servers are disabled; enable only the ones you configure. Remove the example proxies unless you have such a proxy. `mcp_trusted_projects` is empty deliberately: add the exact absolute launch workspace only when you want to trust its project MCP file.
+The full reference includes mutually exclusive alternatives as **separate server entries**. All its MCP servers are disabled; enable only the ones you configure. Remove the example proxies unless you have such a proxy. `mcp_trusted_projects` is deprecated and grants no authority. Use `syleks trust inspect` and `syleks trust grant <reviewed-sha256>` after reviewing the project definitions.
 
 ## Engineering contract example
 
@@ -32,7 +32,7 @@ Replace `root_path` with an existing absolute project directory before using it 
 
 ## Install agent and subagent definitions
 
-Copy selected `.md` files from [agents/](agents/) into `~/.config/syleks/agents/` for global use, or `.syleks/agents/` in your project for project overrides. Both primary and subagent files go in **the same `agents/` directory**; there is no separate runtime `subagents/` directory. Keep the filenames: they define the names used in commands and permissions.
+Copy selected `.md` files from [agents/](agents/) into `~/.config/syleks/agents/` for global use, or `.syleks/agents/` in your project for project overrides. Project model overrides and capability expansions require the same content review. Explicit global denials remain ceilings; the full examples intentionally retain restrictive mutation and command ceilings. Both primary and subagent files go in **the same `agents/` directory**; there is no separate runtime `subagents/` directory. Keep the filenames: they define the names used in commands and permissions.
 
 | Definition | Mode | Behavior |
 | --- | --- | --- |

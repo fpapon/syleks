@@ -87,6 +87,10 @@ class McpConfigurationTest {
         Files.writeString(
                 project,
                 "{\"mcp\":{\"one\":{\"type\":\"stdio\",\"command\":[\"does-not-exist\"],\"enabled\":false}}}");
+        var reviewed =
+                new fr.openobject.ai.syleks.app.ProjectTrust(
+                        root.resolve("home"), root.resolve("project"));
+        reviewed.grant(reviewed.digest());
         try (var f = new SessionFixture(root);
                 var manager = new McpClientManager(f.config)) {
             assertEquals(2, f.config.mcpServers().size());

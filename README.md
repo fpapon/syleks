@@ -123,7 +123,7 @@ Primary agents, delegated specialists, hidden agents and disabled definitions us
 
 Complete examples include [Build](examples/agents/build.md), [Plan](examples/agents/plan.md), [Architect](examples/agents/architect.md), [Explore](examples/agents/explore.md), [Reviewer](examples/agents/reviewer.md), [Triage](examples/agents/triage.md) and [Retired](examples/agents/retired.md). Their model selections require matching JSON providers, or editing/removing the `model` line. Both agent types go in the same `agents/` directory.
 
-Precedence is built-ins → JSON → global Markdown → project Markdown from Git root to launch directory. Later supplied fields and prompt bodies override earlier definitions. Existing Markdown can therefore override freshly edited JSON. Restart to apply changes; inspect `/agents` and `/permissions NAME`.
+Precedence is built-ins → JSON → global Markdown → project Markdown from Git root to launch directory. Later supplied fields and prompt bodies override earlier definitions, subject to the global permission ceiling and project trust. Existing Markdown can therefore override freshly edited JSON. Restart to apply changes; inspect `/agents` and `/permissions NAME`.
 
 ```text
 /agent build
@@ -173,7 +173,7 @@ Review the supplied code and explain your findings.
 ```
 
 - Actions are `allow`, `ask`, or `deny`. A scalar such as `"permission": "deny"` applies to every operation. `"*"` can also be used as an operation key.
-- Effective rules combine defaults → global `permission` → agent JSON → global agent Markdown → project agent Markdown. The last matching rule wins, including target patterns. Agent overrides can explicitly grant an action denied globally.
+- Explicit global `permission` rules form a ceiling. Within each layer the last matching rule wins; independent layers combine using DENY > ASK > ALLOW. Agents and approvals cannot relax a global DENY or bypass a global ASK. Project expansions and model overrides require [content-bound local trust](docs/tools-and-permissions.md#project-trust-and-permission-ceilings).
 - Target patterns support `*` (any text) and `?` (one character), with case-sensitive matching. Targets are model IDs for `chat`, agent names for `task`, normalized absolute paths for `save`, and normalized literal commands/redirections for granular `bash` rules. List broad patterns before narrower exceptions; declaration order matters.
 - `ask` pauses the action until approval or rejection. `/approve` is shorthand for `/approve once`. Once permits only the pending action. For agent tools, always remembers approval for that agent and tool across targets and turns while the current session stays open; it only relaxes `ask`, so explicit `deny` rules still apply. It does not change the configuration file or grant access to other agents/tools. Restart and session actions (including new/open/resume/fork/rename) clear remembered approvals. Chat, delegation, and Markdown exports support once only. `/permissions [AGENT]` also lists remembered tool approvals. Esc/Ctrl+C cancel pending work. Session/agent/model changes are blocked while an approval is pending. See [Tools and approvals](docs/tools-and-permissions.md) for panel controls.
 - Subagent calls check the caller's `task` permission for the target agent and the callee's `chat` permission for its model. An explicit manual invocation does not bypass either check.

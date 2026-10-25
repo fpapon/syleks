@@ -46,13 +46,14 @@ A trusted workspace can override server definitions by ID in `.syleks/agent-conf
 { "mcp": { "local": { "type": "stdio", "command": ["/path/to/project-server"] } } }
 ```
 
-First authorize that exact absolute workspace path in the **global** configuration:
+Review and pin that launch workspace explicitly:
 
-```json
-{ "mcp_trusted_projects": ["/home/me/projects/example"] }
+```sh
+syleks trust inspect
+syleks trust grant <reviewed-sha256>
 ```
 
-Without that entry, the project file is ignored. Trust authorizes process launch and network connections from this file, including future edits, so review changes before restarting. Only its `mcp` section is read; global permissions remain the authority. Overrides replace the entire server definition. Config files resolving outside the workspace are rejected. The global and merged configurations permit at most 16 servers.
+Without a current content pin, the project file is ignored. Trust covers inherited project agents and MCP configuration together; changed files and new agent definitions require renewed review. Legacy `mcp_trusted_projects` path entries no longer grant authority. Only project JSON's `mcp` section is read; global permissions remain the ceiling. Overrides replace the entire server definition. Config files resolving outside the project are rejected. The global and merged configurations permit at most 16 servers. See [trust lifecycle and migration](tools-and-permissions.md#project-trust-and-permission-ceilings). Restart active chats after grant or revocation.
 
 ## Inspect connections and authorize tools
 
@@ -112,6 +113,6 @@ The transport follows the MCP [lifecycle](https://modelcontextprotocol.io/specif
 
 ## Full examples and option reference
 
-The [full configuration](../examples/agent-config.json) contains disabled stdio, bearer-authenticated HTTP and OAuth HTTP entries, covering every server field. The [project example](../examples/mcp-project.json) demonstrates the file copied into `.syleks/agent-config.json`; add the exact launch workspace to global `mcp_trusted_projects` before expecting it to load. Change the executable/URL, credentials and workspace arguments, then set `enabled: true` only on the entries you intend to connect.
+The [full configuration](../examples/agent-config.json) contains disabled stdio, bearer-authenticated HTTP and OAuth HTTP entries, covering every server field. The [project example](../examples/mcp-project.json) demonstrates the file copied into `.syleks/agent-config.json`; review the exact launch workspace using `syleks trust inspect` and pin its digest before expecting it to load. Change the executable/URL, credentials and workspace arguments, then set `enabled: true` only on the entries you intend to connect.
 
 See the [MCP field table](configuration.md#mcp-server-fields) and [copying guide](../examples/README.md). Server enablement permits discovery, but tool calls still need agent permissions, including ancestor permissions for delegated work. The sample `mcp_docs__t_search` rule only applies if that server actually advertises a tool named `search`.

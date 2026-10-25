@@ -1,6 +1,6 @@
 # Security implementation backlog
 
-Status: proposed implementation work. These documents do not assert that the improvements are implemented.
+Status: implementation backlog. SEC-01 is implemented with validation recorded in its task document; the remaining items are proposed work.
 
 Review baseline: 22 October 2026. This backlog follows a source review of permission enforcement, repository configuration, shell execution, filesystem access, network clients, credentials, and terminal handling. Reinspect current code before editing; paths and behavior can change. The earlier [shell security audit](../opencode-parity/shell-security.md) describes protections that must remain intact.
 
@@ -19,7 +19,7 @@ Assume repositories, model responses, fetched documents, tool output, and MCP se
 
 | ID | Task | Priority | Dependencies |
 | --- | --- | --- | --- |
-| SEC-01 | [Permission ceiling and project trust](01-permission-ceiling-and-project-trust.md) | High | None |
+| SEC-01 | [Permission ceiling and project trust](01-permission-ceiling-and-project-trust.md) — implemented 25 October 2026 | High | None |
 | SEC-02 | [Subprocess environment isolation](02-subprocess-environment.md) | High | None; coordinate with SEC-03 |
 | SEC-03 | [OS command sandbox](03-command-sandbox.md) | High, larger scope | SEC-01 and SEC-02 |
 | SEC-04 | [Credential transport security](04-credential-transport.md) | High for remote HTTP | None; share URL handling with SEC-06 |
@@ -31,7 +31,7 @@ Assume repositories, model responses, fetched documents, tool output, and MCP se
 | SEC-10 | [Prompt history privacy](10-prompt-history-privacy.md) | Hardening | None |
 | SEC-11 | [CI supply-chain checks](11-ci-supply-chain.md) | Hardening | None |
 
-Start with SEC-01, SEC-02, and SEC-04. Follow with SEC-05 and the supported sandbox backend. Network and filesystem enforcement need dedicated adversarial testing. Every task is initially **not started**; this table expresses dependencies, not authorization to delegate work.
+Start with SEC-01, SEC-02, and SEC-04. Follow with SEC-05 and the supported sandbox backend. Network and filesystem enforcement need dedicated adversarial testing. Tasks without an implementation record remain **not started**; this table expresses dependencies, not authorization to delegate work.
 
 ## Agent execution contract
 

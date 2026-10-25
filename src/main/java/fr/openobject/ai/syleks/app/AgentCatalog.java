@@ -42,7 +42,13 @@ final class AgentCatalog {
                     "hidden");
 
     static Map<String, AgentDefinition> load(
-            JsonMapper json, Map<?, ?> settings, Path configFile, Path home, Path project) {
+            JsonMapper json,
+            Map<?, ?> settings,
+            Path configFile,
+            Path home,
+            Path project,
+            ProjectTrust trust,
+            PermissionPolicy global) {
         var agents = new LinkedHashMap<String, AgentDefinition>();
         agents.put(
                 "build",
@@ -100,10 +106,12 @@ final class AgentCatalog {
             }
         }
         var budget = new int[2];
-        loadDirectory(json, agents, home.resolve(".config/syleks/agents"), null, budget);
+        loadDirectory(
+                json, agents, home.resolve(".config/syleks/agents"), null, budget, null, global);
         Path root = fr.openobject.ai.syleks.session.ProjectService.root(project);
         for (Path directory : ConfigurationFiles.hierarchy(root, project))
-            loadDirectory(json, agents, directory.resolve(".syleks/agents"), root, budget);
+            loadDirectory(
+                    json, agents, directory.resolve(".syleks/agents"), root, budget, trust, global);
         if (agents.size() > 128) throw invalid(configFile, "at most 128 agents are supported");
         return Collections.unmodifiableMap(agents);
     }
@@ -113,9 +121,15 @@ final class AgentCatalog {
             Map<String, AgentDefinition> agents,
             Path directory,
             Path boundary,
-            int[] budget) {
-        try (var files = Files.list(directory)) {
-            if (boundary != null && !directory.toRealPath().startsWith(boundary))
+            int[] budget,
+            ProjectTrust trust,
+            PermissionPolicy global) {
+        try (var files =
+                trust == null
+                        ? Files.list(directory)
+                        : trust.files().keySet().stream()
+                                .filter(path -> path.getParent().equals(directory))) {
+            if (trust == null && boundary != null && !directory.toRealPath().startsWith(boundary))
                 throw invalid(directory, "agent directory resolves outside the project");
             for (var file :
                     files.filter(path -> path.getFileName().toString().endsWith(".md"))
@@ -124,15 +138,56 @@ final class AgentCatalog {
                             .toList()) {
                 if (++budget[0] > 128)
                     throw invalid(directory, "at most 128 agent files are supported");
-                if (boundary != null && !file.toRealPath().startsWith(boundary))
+                if (trust == null && boundary != null && !file.toRealPath().startsWith(boundary))
                     throw invalid(file, "agent file resolves outside the project");
                 var filename = file.getFileName().toString();
                 var name = filename.substring(0, filename.length() - 3);
-                var content = ConfigurationFiles.read(file, ConfigurationFiles.TEXT_LIMIT);
+                var content =
+                        trust == null
+                                ? ConfigurationFiles.read(file, ConfigurationFiles.TEXT_LIMIT)
+                                : trust.content(file);
+                if (trust != null && !trust.files().containsKey(file)) continue;
                 budget[1] += content.getBytes(StandardCharsets.UTF_8).length;
                 if (budget[1] > 1024 * 1024)
                     throw invalid(directory, "agent files exceed 1 MiB in total");
-                agents.put(name, parse(json, name, content, agents.get(name), file));
+                var previous = agents.get(name);
+                var definition = parse(json, name, content, previous, file);
+                if (trust != null) {
+                    var inherited =
+                            previous == null ? PermissionPolicy.empty() : previous.permissions();
+                    // Previous constraints already belong to definition.permissions(). Keep each
+                    // inherited layer once, avoiding exponential evaluation in deep hierarchies.
+                    var local =
+                            new PermissionPolicy(
+                                    inherited.rules(),
+                                    java.util.List.of(),
+                                    PermissionPolicy.Decision.ALLOW,
+                                    inherited.source());
+                    var ceiling =
+                            trust.trusted()
+                                    ? local
+                                    : new PermissionPolicy(
+                                                    global.rules(),
+                                                    java.util.List.of(),
+                                                    global.fallback(),
+                                                    global.source())
+                                            .overlay(local);
+                    definition =
+                            new AgentDefinition(
+                                    definition.name(),
+                                    definition.description(),
+                                    definition.mode(),
+                                    trust.trusted()
+                                            ? definition.model()
+                                            : previous == null ? null : previous.model(),
+                                    definition.temperature(),
+                                    definition.prompt(),
+                                    definition.permissions().intersect(ceiling),
+                                    definition.maxRounds(),
+                                    definition.disable(),
+                                    definition.hidden());
+                }
+                agents.put(name, definition);
             }
         } catch (NoSuchFileException e) {
             if (e.getFile() == null

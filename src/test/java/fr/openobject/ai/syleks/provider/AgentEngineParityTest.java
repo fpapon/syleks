@@ -259,6 +259,10 @@ class AgentEngineParityTest {
                             + "/agent-model\ntemperature: 0.6\npermission:\n  write: deny\n---\nPROJECT_AGENT_PROMPT");
             Files.writeString(root.resolve("project/AGENTS.md"), "PROJECT_INSTRUCTIONS");
             Files.writeString(root.resolve("project/source.txt"), "fixture content");
+            var reviewed =
+                    new fr.openobject.ai.syleks.app.ProjectTrust(
+                            root.resolve("home"), root.resolve("project"));
+            reviewed.grant(reviewed.digest());
             try (var db = new SessionFixture(root)) {
                 var chat = chat(db, auth, provider, account);
                 try {

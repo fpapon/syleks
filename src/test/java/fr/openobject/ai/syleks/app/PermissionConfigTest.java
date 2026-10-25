@@ -114,9 +114,9 @@ class PermissionConfigTest {
         assertEquals(ASK, config.permissions("build").evaluate("save", "anywhere"));
         var policy = config.permissions("reviewer");
         assertEquals(ASK, policy.evaluate("chat", "model"));
-        assertEquals(ALLOW, policy.evaluate("read", "file"));
+        assertEquals(DENY, policy.evaluate("read", "file"));
         assertEquals(DENY, policy.evaluate("task", "other"));
-        assertEquals(ALLOW, policy.evaluate("task", "review-tests"));
+        assertEquals(DENY, policy.evaluate("task", "review-tests"));
         assertEquals(ASK, policy.evaluate("save", "/tmp/review-1.md"));
         assertEquals(DENY, policy.evaluate("save", "/tmp/review-12.md"));
     }
@@ -227,7 +227,7 @@ class PermissionConfigTest {
         assertTrue(requests.isEmpty());
         settings(
                 """
-                {"permission":{"task":"deny"},"agent":{"build":{"permission":{"task":{"reviewer":"ask"}}}}}
+                {"permission":{"task":{"*":"deny","reviewer":"ask"}},"agent":{"build":{"permission":{"task":{"reviewer":"allow"}}}}}
                 """);
         var allowed = session(config());
         assertTrue(allowed.subagent("reviewer", "Task"));

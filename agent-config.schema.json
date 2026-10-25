@@ -51,7 +51,8 @@
     "mcp_trusted_projects": {
       "type": "array", "maxItems": 128, "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 },
-      "description": "Absolute workspace paths whose .syleks/agent-config.json MCP definitions may launch processes or connect to servers. Global configuration only."
+      "deprecated": true,
+      "description": "Legacy path-only trust, ignored for authorization. Use syleks trust inspect and syleks trust grant <reviewed-sha256>."
     },
     "mcp": {
       "type": "object",

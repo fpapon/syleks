@@ -65,7 +65,7 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | `/parent` | Return to the parent session |
 | `/session ID` | Open a saved session, including a child history |
 | `@NAME TASK` | Alternative way to invoke a subagent |
-| `/permissions` | Show the active agent's effective permissions |
+| `/permissions` | Show effective decisions, sources, ceilings and project trust |
 | `/permissions NAME` | Show another agent's effective permissions |
 | `/approve`, `/approve once` | Allow the pending action once |
 | `/approve always` | Remember a tool approval for this agent while this session stays open |
@@ -114,3 +114,5 @@ syleks --new
 ```
 
 Then use `/restart` after edits, `/agents` to inspect definitions, `/permissions NAME` to inspect policy, and `/agent NAME` or `@NAME TASK` to use them. Exact paths, schema adjustments and model dependencies are in the [example installation guide](../examples/README.md); the [configuration reference](configuration.md#complete-configuration-reference) lists every supported field.
+
+Project trust CLI: `syleks trust inspect` displays current state and reviewed content; `syleks trust grant <reviewed-sha256>` pins it; `syleks trust revoke` removes the pin. Restart active chats after changes. See [trust controls](tools-and-permissions.md#project-trust-and-permission-ceilings).

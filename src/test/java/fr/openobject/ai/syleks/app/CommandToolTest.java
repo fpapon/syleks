@@ -645,6 +645,12 @@ class CommandToolTest {
 
     @Test
     void alwaysApprovesFutureCommandsButPreservesExplicitDenials() throws Exception {
+        var projectAgents = Files.createDirectories(project.resolve(".syleks/agents"));
+        Files.writeString(
+                projectAgents.resolve("build.md"),
+                "---\npermission:\n  bash: allow\n---\nSynthetic project agent");
+        var review = new ProjectTrust(home, project);
+        review.grant(review.digest());
         var config =
                 config(
                         false,

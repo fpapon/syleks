@@ -32,7 +32,7 @@ Create a UTF-8 Markdown file in either location:
 | `~/.config/syleks/agents/NAME.md` | Available globally |
 | `.syleks/agents/NAME.md` at the Git root and each directory down to the launch directory | Project overrides, from root to the most specific directory |
 
-Outside a Git project, only the launch directory supplies project definitions. Parent directories outside the project and sibling directories are not scanned. Project agent files/directories resolving outside the project through symlinks are rejected.
+Project model overrides and permission expansions require [explicit content-bound trust](tools-and-permissions.md#project-trust-and-permission-ceilings); global permission ceilings always apply. Outside a Git project, only the launch directory supplies project definitions. Parent directories outside the project and sibling directories are not scanned. Project agent files/directories resolving outside the project through symlinks are rejected.
 
 The filename is the agent name. Use letters, digits, hyphens, or underscores, up to 64 characters. Example `reviewer.md`:
 
