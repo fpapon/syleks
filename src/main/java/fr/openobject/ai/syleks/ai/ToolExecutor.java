@@ -70,7 +70,7 @@ public class ToolExecutor {
     public ToolExecutor(AppConfig config) {
         this.config = config;
         files = new AgentTools(config.workspace());
-        commands = new LocalCommandRunner(config.workspace());
+        commands = new LocalCommandRunner(config.workspace(), config.commandEnvironment());
     }
 
     @FunctionalInterface
@@ -243,7 +243,9 @@ public class ToolExecutor {
                             + config.workspace()
                             + "\nTimeout: "
                             + timeout
-                            + " seconds\n"
+                            + " seconds\nEnvironment names: "
+                            + new java.util.TreeSet<>(config.commandEnvironment().names())
+                            + "\n"
                             + command))
                 return ToolResult.denied(
                         "Permission refused by the user for bash command: " + command);

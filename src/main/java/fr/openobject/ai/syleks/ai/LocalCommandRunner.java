@@ -26,9 +26,21 @@ import java.util.concurrent.TimeoutException;
 public final class LocalCommandRunner {
     public static final int MAX_OUTPUT_CHARS = 32000;
     private final Path directory;
+    private final fr.openobject.ai.syleks.app.SubprocessEnvironment environment;
 
     public LocalCommandRunner(Path directory) {
+        this(
+                directory,
+                fr.openobject.ai.syleks.app.SubprocessEnvironment.commands(
+                        java.util.Map.of(),
+                        System.getenv(),
+                        Path.of(System.getProperty("user.home"))));
+    }
+
+    public LocalCommandRunner(
+            Path directory, fr.openobject.ai.syleks.app.SubprocessEnvironment environment) {
         this.directory = directory.toAbsolutePath().normalize();
+        this.environment = environment;
     }
 
     public record Result(int exitCode, String output, boolean timedOut, boolean truncated) {
@@ -58,17 +70,9 @@ public final class LocalCommandRunner {
                 new ProcessBuilder("/bin/bash", "--noprofile", "--norc", "-c", command)
                         .directory(directory.toFile())
                         .redirectErrorStream(true);
-        // Startup scripts, imported functions and shell options could execute or replace an
-        // approved literal command before the checked script even starts.
-        builder.environment()
-                .keySet()
-                .removeIf(
-                        name ->
-                                name.equals("BASH_ENV")
-                                        || name.equals("ENV")
-                                        || name.equals("SHELLOPTS")
-                                        || name.equals("BASHOPTS")
-                                        || name.startsWith("BASH_FUNC_"));
+        // Clear before launch: no exported functions, startup options, loader hooks or secrets.
+        builder.environment().clear();
+        builder.environment().putAll(environment.forWorkspace(directory));
         var process = builder.start();
         process.getOutputStream().close();
         var output = new CompletableFuture<String>();

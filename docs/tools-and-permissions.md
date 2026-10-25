@@ -103,7 +103,7 @@ Scans stop after 10,000 entries or 32 levels, and return up to 100 results by de
 
 ### Shell and web access
 
-Shell commands run through `/bin/bash --noprofile --norc -c` in the launch directory with closed standard input. Ordinary environment variables are inherited, but `BASH_ENV`, `ENV`, `SHELLOPTS`, `BASHOPTS`, and imported `BASH_FUNC_*` functions are removed so those shell hooks cannot run before the approved command. Use foreground, non-interactive commands. Cancelling stops the command and its descendants during cleanup.
+Shell commands run through `/bin/bash --noprofile --norc -c` in the launch directory with closed standard input. The inherited environment is cleared and replaced by a minimal allowlist; startup hooks, exported functions, unknown secrets, tokens and agent sockets are absent by default. The global-only `command_environment` setting supports explicit development opt-ins and trusted PATH directories. See the [environment policy matrix](configuration.md#subprocess-environments). Use foreground, non-interactive commands. Cancelling stops the command and its descendants during cleanup.
 
 **Shell execution uses your normal OS permissions.** Allowing a program can allow file changes or network access regardless of separate file/web rules. Command permissions govern shell invocations, not every action an allowed executable, script, interpreter, or child process can perform. Prefer an allowlist of trusted programs when using granular rules.
 

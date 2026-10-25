@@ -77,7 +77,7 @@ Type a command into the composer and press Enter. Internal commands are handled 
 
 When the approval panel has focus, use its keyboard controls to approve or reject; the commands above also describe the session's approval actions. See [Tools and approvals](tools-and-permissions.md) for approval scope and [Chat controls](chat.md) for shortcuts.
 
-Configuration and agent files are loaded at startup. After saving changes, choose **Restart chat** or use `/restart`. Restart applies the configured default model; ordinary session resume uses the session's saved model. Restarting does not send a message automatically.
+Configuration and agent files are loaded at startup. After saving changes, choose **Restart chat** or use `/restart`. Restart applies the configured default model; ordinary session resume uses the session's saved model. Restarting does not send a message automatically. Command environments use a minimal allowlist; configure global-only development variables and executable directories by hand as described in [subprocess environments](configuration.md#subprocess-environments). Approval details list variable names without values.
 
 ## Providers and accounts
 

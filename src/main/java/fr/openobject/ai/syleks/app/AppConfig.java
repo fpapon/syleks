@@ -62,6 +62,12 @@ public class AppConfig {
         return compaction;
     }
 
+    private final SubprocessEnvironment commandEnvironment;
+
+    public SubprocessEnvironment commandEnvironment() {
+        return commandEnvironment;
+    }
+
     private final int contextWindow;
     private final int responseTokens;
     private final URI endpoint;
@@ -120,6 +126,13 @@ public class AppConfig {
                     "SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
+        this.commandEnvironment =
+                SubprocessEnvironment.commands(
+                        settings.containsKey("command_environment")
+                                ? settings.get("command_environment")
+                                : Map.of(),
+                        environment,
+                        home);
         Object rawCompaction =
                 settings.containsKey("compaction") ? settings.get("compaction") : Map.of();
         if (!(rawCompaction instanceof Map<?, ?> policy))

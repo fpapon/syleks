@@ -54,6 +54,9 @@ class LocalCommandRunnerTest {
     void ignoresInheritedStartupCodeFunctionsAndShellOptions() throws Exception {
         var startup = directory.resolve("startup.sh");
         Files.writeString(startup, "touch startup-marker\n");
+        var impostor = directory.resolve("env");
+        Files.writeString(impostor, "#!/bin/sh\ntouch path-marker\n");
+        assertTrue(impostor.toFile().setExecutable(true));
         var builder =
                 new ProcessBuilder(
                         Path.of(System.getProperty("java.home"), "bin", "java").toString(),
@@ -61,23 +64,47 @@ class LocalCommandRunnerTest {
                         System.getProperty("java.class.path"),
                         ShellChild.class.getName(),
                         directory.toString());
+        builder.environment().clear();
+        builder.environment().put("HOME", directory.toString());
+        builder.environment().put("PATH", ".:" + directory + ":/usr/bin:/bin");
+        builder.environment().put("LANG", "C.UTF-8");
+        for (var key :
+                java.util.List.of(
+                        "OPENAI_API_KEY",
+                        "AWS_SECRET_ACCESS_KEY",
+                        "SSH_AUTH_SOCK",
+                        "GPG_AGENT_INFO",
+                        "PYTHONPATH",
+                        "PYTHONSTARTUP",
+                        "NODE_OPTIONS",
+                        "PERL5OPT",
+                        "RUBYOPT",
+                        "LD_LIBRARY_PATH",
+                        "DYLD_INSERT_LIBRARIES"))
+            builder.environment().put(key, "SEC02_FAKE_SECRET");
+        builder.environment().put("LD_PRELOAD", "");
+        builder.environment().put("JAVA_TOOL_OPTIONS", "-Dsec02.fake=true");
+        builder.environment().put("JDK_JAVA_OPTIONS", "-Dsec02.fake=true");
+        builder.environment().put("_JAVA_OPTIONS", "-Dsec02.fake=true");
+        builder.environment().put("JAVA_HOME", System.getProperty("java.home"));
         builder.environment().put("BASH_ENV", startup.toString());
         builder.environment().put("ENV", startup.toString());
         builder.environment().put("BASH_FUNC_printf%%", "() { touch function-marker; }");
         builder.environment().put("SHELLOPTS", "xtrace");
         builder.environment().put("BASHOPTS", "expand_aliases");
         builder.environment().put("SYLEKS_SHELL_TEST_VALUE", "ordinary-environment");
-        var process = builder.redirectErrorStream(true).start();
+        var process = builder.redirectError(ProcessBuilder.Redirect.DISCARD).start();
         try {
             assertTrue(process.waitFor(10, TimeUnit.SECONDS));
             assertEquals(0, process.exitValue());
             assertEquals(
-                    "ordinary-environment",
+                    "isolated",
                     new String(
                             process.getInputStream().readAllBytes(),
                             java.nio.charset.StandardCharsets.UTF_8));
             assertFalse(Files.exists(directory.resolve("startup-marker")));
             assertFalse(Files.exists(directory.resolve("function-marker")));
+            assertFalse(Files.exists(directory.resolve("path-marker")));
         } finally {
             process.destroyForcibly();
         }
@@ -85,9 +112,25 @@ class LocalCommandRunnerTest {
 
     public static class ShellChild {
         public static void main(String[] args) throws Exception {
-            var result =
-                    new LocalCommandRunner(Path.of(args[0]))
-                            .execute("printf '%s' \"$SYLEKS_SHELL_TEST_VALUE\"", 5);
+            var policy =
+                    fr.openobject.ai.syleks.app.SubprocessEnvironment.commands(
+                            java.util.Map.of("pass_env", java.util.List.of("JAVA_HOME")),
+                            System.getenv(),
+                            Path.of(args[0]));
+            var runner = new LocalCommandRunner(Path.of(args[0]), policy);
+            var result = runner.execute("env", 5);
+            if (result.output().contains("SEC02_FAKE_SECRET")
+                    || result.output().contains("SYLEKS_SHELL_TEST_VALUE=")
+                    || result.output().contains("BASH_FUNC_")
+                    || result.output().contains("LD_PRELOAD=")
+                    || result.output().contains("JAVA_TOOL_OPTIONS=")
+                    || result.output().contains("JDK_JAVA_OPTIONS=")
+                    || result.output().contains("_JAVA_OPTIONS=")
+                    || result.output().contains("BASH_ENV=")
+                    || result.output().contains("SHELLOPTS=")
+                    || !result.output().contains("JAVA_HOME=")
+                    || !result.output().contains("LANG=C.UTF-8")) System.exit(2);
+            result = runner.execute("printf isolated", 5);
             System.out.print(result.output());
             if (result.exitCode() != 0) System.exit(1);
         }

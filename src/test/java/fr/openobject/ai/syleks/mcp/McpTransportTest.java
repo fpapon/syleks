@@ -30,6 +30,60 @@ class McpTransportTest {
     @TempDir Path root;
 
     @Test
+    void stdioUsesSharedBaselineAndOnlyItsOwnExplicitEnvironment() throws Exception {
+        var output = root.resolve("child-env");
+        var config =
+                McpServerConfig.parse(
+                                Map.of(
+                                        "fixture",
+                                        Map.of(
+                                                "type",
+                                                "stdio",
+                                                "command",
+                                                List.of(
+                                                        "sh",
+                                                        "-c",
+                                                        "env > \"$1\"; touch \"$2\"",
+                                                        "fixture",
+                                                        output.toString(),
+                                                        root.resolve("done").toString()),
+                                                "environment",
+                                                Map.of("SERVER_ONLY_SECRET", "fake-server-token"))),
+                                root.resolve("config.json"))
+                        .get("fixture");
+        try (var connection =
+                new McpConnection(
+                        config,
+                        root,
+                        Map.of(
+                                "UNKNOWN_SECRET",
+                                "fake-host-token",
+                                "JAVA_HOME",
+                                "/fake/jdk",
+                                "BASH_ENV",
+                                "/fake/startup",
+                                "PATH",
+                                ".",
+                                "SSH_AUTH_SOCK",
+                                "/fake/socket"),
+                        root)) {
+            var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (!Files.exists(root.resolve("done")) && System.nanoTime() < deadline)
+                Thread.sleep(10);
+            assertTrue(Files.exists(root.resolve("done")));
+            var text = Files.readString(output);
+            assertTrue(text.contains("SERVER_ONLY_SECRET=fake-server-token"));
+            assertTrue(text.contains("PATH=/usr/bin:/bin"));
+            for (var name : List.of("UNKNOWN_SECRET", "JAVA_HOME", "BASH_ENV", "SSH_AUTH_SOCK"))
+                assertFalse(text.contains(name + "="));
+        }
+        var runner = new fr.openobject.ai.syleks.ai.LocalCommandRunner(root);
+        assertEquals(
+                "absent",
+                runner.execute("printf '%s' \"${SERVER_ONLY_SECRET-absent}\"", 5).output());
+    }
+
+    @Test
     void rejectsRedirectsMismatchedIdsUnsupportedVersionsAndLeakingRpcErrors() throws Exception {
         var mode = new AtomicReference<>("redirect");
         var authorization = new AtomicReference<String>();

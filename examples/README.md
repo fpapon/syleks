@@ -61,3 +61,8 @@ Example after installing the full reference and desired Markdown definitions:
 `/parent` applies after opening a child with `/children` or `/session ID`. A manual subagent answer returns to the parent automatically. Triage is hidden from lists and Tab but available explicitly. Retired cannot run. Parent permissions cap every child tool: a child `allow` cannot undo an ancestor `deny`.
 
 See the [configuration reference](../docs/configuration.md), [agent format and inheritance](../docs/agents.md), [subagent task protocol](../docs/subagents.md), [permission rules](../docs/tools-and-permissions.md), and [MCP setup](../docs/mcp.md) for defaults, limits and runtime behavior.
+
+Command examples use the [minimal subprocess environment](../docs/configuration.md#subprocess-environments).
+For a Java/Maven installation outside `/usr/bin` and `/bin`, add its absolute executable directories
+to global `command_environment.trusted_path` and opt into `JAVA_HOME` with `pass_env` if needed.
+Project and agent examples cannot enable environment passthrough.

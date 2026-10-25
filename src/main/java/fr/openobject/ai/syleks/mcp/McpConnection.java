@@ -77,17 +77,20 @@ final class McpConnection implements AutoCloseable {
                                 .build()
                         : null;
         if (http == null) {
+            var childEnvironment =
+                    fr.openobject.ai.syleks.app.SubprocessEnvironment.baseline(environment, home);
+            childEnvironment.putAll(config.environment());
+            var command = new java.util.ArrayList<>(config.command());
+            command.set(
+                    0,
+                    fr.openobject.ai.syleks.app.SubprocessEnvironment.executable(
+                            command.getFirst(), childEnvironment, workspace));
             var builder =
-                    new ProcessBuilder(config.command())
+                    new ProcessBuilder(command)
                             .directory(workspace.toFile())
                             .redirectError(ProcessBuilder.Redirect.DISCARD);
-            // Do not pass provider credentials or unrelated environment secrets to subprocesses.
             builder.environment().clear();
-            for (String key :
-                    List.of("PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", "SystemRoot"))
-                if (environment.containsKey(key))
-                    builder.environment().put(key, environment.get(key));
-            builder.environment().putAll(config.environment());
+            builder.environment().putAll(childEnvironment);
             process = builder.start();
             stdout = process.getInputStream();
             stdin = process.getOutputStream();

@@ -16,6 +16,7 @@
       }
     }
   },
+  "command_environment": { "pass_env": [], "trusted_path": ["/usr/bin", "/bin"] },
   "max_rounds": 20,
   "subagents": {
     "max_depth": 3,

@@ -172,6 +172,26 @@ class AppConfigTest {
         assertTrue(error.getMessage().contains(file.toString()));
     }
 
+    @Test
+    void onlyGlobalSettingsCanOptCommandsIntoSupportedEnvironmentVariables() throws Exception {
+        var workspace = Files.createDirectory(home.resolve("workspace"));
+        var project = workspace.resolve(".syleks/agent-config.json");
+        Files.createDirectories(project.getParent());
+        Files.writeString(project, "{\"command_environment\":{\"pass_env\":[\"JAVA_HOME\"]}}");
+        new ProjectTrust(home, workspace).grant(new ProjectTrust(home, workspace).digest());
+        var host = Map.of("JAVA_HOME", "/fake/jdk");
+        var config = new AppConfig(mapper.instance(), home, host, workspace);
+        assertFalse(config.commandEnvironment().forWorkspace(workspace).containsKey("JAVA_HOME"));
+        writeConfig("{\"command_environment\":{\"pass_env\":[\"JAVA_HOME\"]}}");
+        config = new AppConfig(mapper.instance(), home, host, workspace);
+        assertEquals(
+                "/fake/jdk", config.commandEnvironment().forWorkspace(workspace).get("JAVA_HOME"));
+        writeConfig("{\"command_environment\":{\"pass_env\":[\"NODE_OPTIONS\"]}}");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new AppConfig(mapper.instance(), home, host, workspace));
+    }
+
     private AppConfig config(Map<String, String> environment) {
         return new AppConfig(mapper.instance(), home, environment);
     }
