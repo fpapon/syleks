@@ -8,6 +8,7 @@ Syleks is a terminal assistant for working on code. Chat with a model, ask it to
 | --- | --- |
 | Install, connect a model, and send my first message | [Getting started](getting-started.md) |
 | Create or update settings without leaving chat | [Configuration](configuration.md) |
+| Enroll a private project, reference local technology packs and review inference routes | [Engineering project contracts](project-contracts.md) |
 | Copy complete JSON settings and primary/subagent Markdown definitions | [Example catalog](../examples/README.md) |
 | Select Ollama, ChatGPT or OpenAI API models | [Providers](providers.md) |
 | Sign in, switch accounts and protect credentials | [Authentication](authentication.md) |
@@ -35,3 +36,7 @@ Syleks is a terminal assistant for working on code. Chat with a model, ask it to
 Conversations are saved automatically on your machine. Your configured model server receives the context needed to answer, including permitted tool results. Web tools also contact external sites when enabled. See [Storage and privacy](storage-and-privacy.md) before using confidential code.
 
 The examples use `syleks` on your `PATH`. [Getting started](getting-started.md) explains how to set that up and how to launch the JAR directly. Replace example model names, addresses, paths, and session IDs with your own.
+
+## Engineering project contracts
+
+Opt in to Engineering restrictions with a user-owned `~/.config/syleks/engineering-projects.json`. The [project contract guide](project-contracts.md) explains setup from the [JSON example](../examples/engineering/project-registry.json), pinned external template packs, reviewed local inference routes and restart behavior. The v1 public contract remains proposed; the current implementation blocks cloud inference and external tools for enrolled projects and does not yet execute workflows or enforce aggregate token budgets.

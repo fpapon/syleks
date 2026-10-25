@@ -301,6 +301,11 @@ public class ProviderService {
             throw new IOException(
                     "Saved provider/account unavailable; explicitly select an account, model or provider");
         String provider = registry.providerId(request.model());
+        config.engineering()
+                .checkInference(
+                        provider,
+                        config.resolveModel(request.model()).endpoint(),
+                        config.proxy(provider));
         checkCloud(provider);
         String model = registry.modelId(request.model());
         if (registry.get(provider).requiresAccount()

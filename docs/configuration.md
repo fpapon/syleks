@@ -252,6 +252,7 @@ Fields live at `mcp.SERVER`. IDs start with a lowercase letter and contain up to
 | --- | --- |
 | Provider selection `config.json` | Active provider/model/account references; sidebar and context color preferences |
 | `.syleks/project.json` | Project cloud policy, for example `{"allow_cloud": false}` |
+| `~/.config/syleks/engineering-projects.json` | Optional [Engineering project enrollment](project-contracts.md), pinned local pack references, reviewed local inference routes and proposed budget declarations; edited separately from setup |
 | Global/project `AGENTS.md` | Shared instructions loaded separately from agent definitions |
 | Global/project `agents/NAME.md` | Agent metadata and prompt overrides |
 | Global/project `skills/NAME/SKILL.md` | On-demand skill reference documents |

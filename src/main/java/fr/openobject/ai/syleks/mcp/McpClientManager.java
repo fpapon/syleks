@@ -49,6 +49,14 @@ public final class McpClientManager implements AutoCloseable {
     }
 
     public List<CustomTool> catalogue() throws InterruptedException {
+        try {
+            config.engineering().checkTool("mcp_discovery");
+        } catch (java.io.IOException blocked) {
+            synchronized (this) {
+                for (var server : servers.values()) server.status = "Blocked by Engineering policy";
+            }
+            return List.of();
+        }
         discovery.lockInterruptibly();
         try {
             var result = new ArrayList<CustomTool>();
@@ -349,6 +357,7 @@ public final class McpClientManager implements AutoCloseable {
 
     public void login(String id, java.util.function.Consumer<java.net.URI> display)
             throws Exception {
+        config.engineering().checkTool("mcp_auth");
         var server = servers.get(id);
         if (server == null || !server.config.oauth())
             throw new IllegalArgumentException("Select an MCP server configured with oauth: true");

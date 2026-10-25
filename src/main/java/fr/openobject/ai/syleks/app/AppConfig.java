@@ -75,6 +75,13 @@ public class AppConfig {
     private final PermissionPolicy globalPermissions;
     private final Path workspace;
     private final Path home;
+    private final fr.openobject.ai.syleks.engineering.EngineeringBoundary engineering;
+
+    /** Internal enforcement seam; Engineering public contracts remain proposed. */
+    public fr.openobject.ai.syleks.engineering.EngineeringBoundary engineering() {
+        return engineering;
+    }
+
     private final SubagentLimits subagentLimits;
     private final Map<String, fr.openobject.ai.syleks.mcp.McpServerConfig> mcpServers;
 
@@ -96,6 +103,8 @@ public class AppConfig {
     AppConfig(JsonMapper json, Path home, Map<String, String> environment, Path project) {
         this.home = home;
         this.workspace = project.toAbsolutePath().normalize();
+        this.engineering =
+                new fr.openobject.ai.syleks.engineering.EngineeringBoundary(home, workspace);
         this.contextWindow = positiveEnvironment(environment, "SYLEKS_CONTEXT_WINDOW", 8192);
         this.responseTokens = positiveEnvironment(environment, "SYLEKS_RESPONSE_TOKENS", 2048);
         if (responseTokens >= contextWindow)
@@ -310,6 +319,18 @@ public class AppConfig {
                     java.net.ProxySelector.of(
                             java.net.InetSocketAddress.createUnresolved(
                                     proxy.getHost(), proxy.getPort())));
+        } else if (engineering.active()) {
+            builder.proxy(
+                    new java.net.ProxySelector() {
+                        public java.util.List<java.net.Proxy> select(URI uri) {
+                            return java.util.List.of(java.net.Proxy.NO_PROXY);
+                        }
+
+                        public void connectFailed(
+                                URI uri,
+                                java.net.SocketAddress address,
+                                java.io.IOException error) {}
+                    });
         }
         return builder;
     }

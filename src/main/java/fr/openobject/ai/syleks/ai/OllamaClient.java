@@ -66,7 +66,10 @@ public class OllamaClient {
 
     public OllamaClient(final AppConfig config, final JsonMapper json) {
         this.config = config;
-        this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
+        this.http =
+                config.configureProxy(
+                                "", HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)))
+                        .build();
         this.json = json;
     }
 
@@ -276,6 +279,11 @@ public class OllamaClient {
             List<Map<String, Object>> messages,
             Consumer<String> receive)
             throws Exception {
+        String selectedProvider =
+                model.contains("/") ? model.substring(0, model.indexOf('/')) : "ollama";
+        config.engineering()
+                .checkInference(
+                        selectedProvider, connection.endpoint(), config.proxy(selectedProvider));
         var definitions =
                 toolsEnabled.get() ? tools().forAgent(agent) : List.<Map<String, Object>>of();
         if (persistentRequest.get() && observer.get() != null)
@@ -391,6 +399,7 @@ public class OllamaClient {
 
     private HttpResponse<InputStream> send(String provider, HttpRequest request)
             throws IOException, InterruptedException {
+        config.engineering().checkInference(provider, request.uri(), config.proxy(provider));
         if (config.proxy(provider) == null) return send(request);
         var client =
                 proxyClients.computeIfAbsent(

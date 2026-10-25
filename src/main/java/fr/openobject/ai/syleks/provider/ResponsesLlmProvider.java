@@ -212,6 +212,7 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     }
 
     public void chat(ChatRequest request, ChatEventListener listener) throws Exception {
+        config.engineering().checkInference(id(), base.resolve("responses"), config.proxy(id()));
         var c = credentials(request.accountId());
         var engine = runtime();
         try {
@@ -258,6 +259,11 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                                                 : configuredCapacity.longValue())) {
                             final HttpResponse<InputStream> response;
                             try {
+                                config.engineering()
+                                        .checkInference(
+                                                id(),
+                                                base.resolve("responses"),
+                                                config.proxy(id()));
                                 invocation.sent();
                                 response =
                                         http().send(

@@ -9,10 +9,17 @@ These files document supported Syleks settings. Addresses, models, keys, proxy n
 | [agent-config-ollama.json](agent-config-ollama.json) | Ollama with the same tool workflow and bounded delegation; no custom provider required |
 | [permissions.json](permissions.json) | Permission **fragment** to merge into an existing configuration |
 | [mcp-project.json](mcp-project.json) | Project MCP example for `.syleks/agent-config.json`; requires global workspace trust |
+| [engineering/project-registry.json](engineering/project-registry.json) | Proposed Engineering v1 enrollment contract: private project, cloud disabled, token-budget declaration and no approved inference routes |
 
 The full reference includes mutually exclusive alternatives as **separate server entries**. All its MCP servers are disabled; enable only the ones you configure. Remove the example proxies unless you have such a proxy. `mcp_trusted_projects` is empty deliberately: add the exact absolute launch workspace only when you want to trust its project MCP file.
 
-## Install a JSON example
+## Engineering contract example
+
+[engineering/project-registry.json](engineering/project-registry.json) uses the separate [Engineering contract schema](../src/main/resources/engineering/contracts-v1.schema.json), rather than the agent configuration schema. The public contract remains proposed pending [ADR 0001](../docs/engineering/adr/0001-engineering-contracts.md) approval.
+
+Replace `root_path` with an existing absolute project directory before using it as `~/.config/syleks/engineering-projects.json`. Keep this user-owned file outside the enrolled project and restart after changes. Empty `technology_packs` and `local_routes` are intentional: the example installs no template content and authorizes no inference endpoint. The token budget is a validated contract declaration; P01 does not implement its aggregate spending ledger. See [Engineering contracts](../docs/engineering/CONTRACTS.md) for pinned external template paths and reviewed local routing.
+
+## Install a JSON configuration example
 
 1. Run `syleks config init --defaults` to create the user directory, local schema and starter agents.
 2. Back up any existing `~/.config/syleks/agent-config.json` privately. Choose **one** JSON configuration above and copy its content into that file. Merge settings instead if you want to retain an existing configuration.

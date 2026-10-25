@@ -94,7 +94,12 @@ public class ToolExecutor {
             throws InterruptedException {
         final ToolRegistry.Invocation invocation;
         try {
+            config.engineering().checkTool(call.name());
             invocation = registry().resolve(call);
+        } catch (java.io.IOException e) {
+            if (Thread.currentThread().isInterrupted())
+                throw new InterruptedException("Tool cancelled");
+            return ToolResult.denied(e.getMessage());
         } catch (Exception e) {
             if (Thread.currentThread().isInterrupted())
                 throw new InterruptedException("Tool cancelled");
@@ -139,6 +144,11 @@ public class ToolExecutor {
             throws InterruptedException {
         if (Thread.currentThread().isInterrupted())
             throw new InterruptedException("Tool cancelled");
+        try {
+            config.engineering().checkTool(call.name());
+        } catch (java.io.IOException e) {
+            return ToolResult.denied(e.getMessage());
+        }
         var began = new AtomicBoolean();
         AgentTools.Gate gate =
                 (operation, target, details) -> {
