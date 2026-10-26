@@ -128,10 +128,16 @@ public class ProviderService {
         // Every ancestor may restrict use; a child cannot relax its parent's project policy.
         for (Path dir = config.workspace(); dir != null; dir = dir.getParent()) {
             Path file = dir.resolve(".syleks/project.json");
-            if (Files.exists(file)) {
+            if (Files.exists(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 Map<?, ?> policy;
                 try {
-                    policy = json.fromString(Map.class, Files.readString(file));
+                    policy =
+                            json.fromString(
+                                    Map.class,
+                                    fr.openobject.ai.syleks.app.ConfigurationFiles.read(
+                                            file,
+                                            fr.openobject.ai.syleks.app.ConfigurationFiles
+                                                    .TEXT_LIMIT));
                 } catch (RuntimeException e) {
                     throw new IOException("Invalid project cloud policy");
                 }

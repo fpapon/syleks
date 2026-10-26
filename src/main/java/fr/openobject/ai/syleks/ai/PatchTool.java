@@ -15,6 +15,7 @@
  */
 package fr.openobject.ai.syleks.ai;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -110,16 +111,12 @@ final class PatchTool {
                                     ? null
                                     : change.after().getBytes(StandardCharsets.UTF_8),
                             () -> {
-                                files.path(change.path().toString());
-                                if (change.after() == null) Files.delete(change.path());
-                                else
-                                    Files.writeString(
-                                            change.path(),
-                                            change.after(),
-                                            StandardCharsets.UTF_8,
-                                            change.before() == null
-                                                    ? StandardOpenOption.CREATE_NEW
-                                                    : StandardOpenOption.TRUNCATE_EXISTING);
+                                SecureFiles.commit(
+                                        change.path(),
+                                        change.before(),
+                                        change.after() == null
+                                                ? null
+                                                : change.after().getBytes(StandardCharsets.UTF_8));
                             });
         }
         return "Applied patch to " + changes.size() + " file(s)";

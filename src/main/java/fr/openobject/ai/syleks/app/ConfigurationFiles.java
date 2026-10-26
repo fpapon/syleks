@@ -15,6 +15,7 @@
  */
 package fr.openobject.ai.syleks.app;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CodingErrorAction;
@@ -31,10 +32,8 @@ public final class ConfigurationFiles {
     private ConfigurationFiles() {}
 
     public static String read(Path file, int limit) {
-        if (!Files.isRegularFile(file))
-            throw new IllegalStateException("Configuration is not a regular file: " + file);
-        try (var input = Files.newInputStream(file)) {
-            byte[] bytes = input.readNBytes(limit + 1);
+        try {
+            byte[] bytes = SecureFiles.read(file, limit);
             if (bytes.length > limit)
                 throw new IllegalStateException(
                         "Configuration exceeds " + limit + " bytes: " + file);
@@ -65,13 +64,11 @@ public final class ConfigurationFiles {
         } catch (IOException e) {
             throw new IllegalStateException("Unable to inspect configuration: " + file, e);
         }
-        try {
-            if (boundary != null && !file.toRealPath().startsWith(boundary.toRealPath()))
-                throw new IllegalStateException(
-                        "Configuration resolves outside the project: " + file);
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to resolve configuration: " + file, e);
-        }
+        if (boundary != null
+                && !file.toAbsolutePath()
+                        .normalize()
+                        .startsWith(boundary.toAbsolutePath().normalize()))
+            throw new IllegalStateException("Configuration resolves outside the project: " + file);
         return read(file, limit);
     }
 

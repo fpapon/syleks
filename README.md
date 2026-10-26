@@ -225,7 +225,7 @@ Merge these entries into your existing configuration and restart. All provider a
 | `webfetch` | `url` | HTTP(S) GET; HTML becomes plain text, JSON/text remains text. |
 | `websearch` | `query`, optional `limit` | DuckDuckGo HTML search, returning titles and URLs; default 10, max 50 results. |
 
-File paths are normalized absolute paths for permission matching; relative paths start at the launch directory. Dedicated file tools reject workspace escapes and symlink paths. `edit` includes reading its target to perform the replacement; it checks `edit` permission. `write` checks `write`, including when overwriting. Approval displays the exact replacement or new content. These tools use normal filesystem writes, not transactions or an OS sandbox; avoid concurrent external writers.
+File paths are normalized absolute paths for permission matching; relative paths start at the launch directory. Dedicated file tools reject workspace escapes and symlink paths. `edit` includes reading its target to perform the replacement; it checks `edit` permission. `write` checks `write`, including when overwriting. Approval displays the exact replacement or new content. Reads and mutations use verified directory handles with no-follow traversal. Existing-file writes stage an atomic replacement, preserve POSIX mode bits, and detach hard-link aliases. Identity and content checks detect intervening changes; avoid concurrent external writers because Java does not provide an atomic compare-and-replace operation. These operations require `SecureDirectoryStream`; writes and private storage also require POSIX permissions. See the [filesystem guarantees and platform limits](docs/audits/security/07-filesystem-races.md#enforcement-and-limits).
 
 `list`, `glob`, and `grep` check permission on the search root and each returned/inspected entry. `grep` additionally requires `read` for every inspected file. Denied entries are omitted; `ask` may request approval for individual entries. Use broad allow rules followed by sensitive-path deny patterns to avoid repeated prompts. Scans do not follow symlinks, visit at most 10,000 entries and 32 levels, and return at most 100 results by default (max 500). Text files are limited to 1 MB; tool output is capped at 32,000 characters. Binary and malformed UTF-8 files are rejected or skipped.
 
@@ -334,7 +334,7 @@ The app supports streaming conversations, persisted root/child sessions, declare
 - Avoid using plain HTTP Ollama connections across untrusted networks; secure remote deployments with TLS and authentication.
 - Do not enter client code if the chosen Ollama server is operated by an untrusted party.
 - Conversations are persisted automatically in the local SQLite database. The app reads configuration and declared agent Markdown files at startup; permitted shell commands can access project files and their output is included in model requests. See [Storage and privacy](docs/storage-and-privacy.md).
-- `/save` may export sensitive text in plaintext at the location you choose.
+- `/save` may export sensitive text in plaintext at the location you choose. It uses a private, non-overwriting `CREATE_NEW` open relative to a verified directory handle. Configuration and credential file access rejects symlinked ancestors; unsupported filesystem providers fail closed.
 - Model identifiers must match `[A-Za-z0-9._:/-]{1,240}`. Provider models must be declared in the configuration and available on the selected server.
 
 ## Suggested next increments

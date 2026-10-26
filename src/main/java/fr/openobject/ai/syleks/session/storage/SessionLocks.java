@@ -15,12 +15,12 @@
  */
 package fr.openobject.ai.syleks.session.storage;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-import java.nio.file.StandardOpenOption;
 import java.util.UUID;
 
 /** OS locks are per session, shared across processes, and released automatically after a crash. */
@@ -49,8 +49,7 @@ public class SessionLocks {
         try {
             if (java.nio.file.Files.isSymbolicLink(file))
                 throw new IOException("Unsafe session lock symlink");
-            channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-            DataPaths.protect(file, false);
+            channel = SecureFiles.lockChannel(file);
             FileLock lock;
             try {
                 lock = channel.tryLock();

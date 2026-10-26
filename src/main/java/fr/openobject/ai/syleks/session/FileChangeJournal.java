@@ -16,9 +16,9 @@
 package fr.openobject.ai.syleks.session;
 
 import fr.openobject.ai.syleks.ai.*;
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import fr.openobject.ai.syleks.session.storage.SqliteDatabase;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.MessageDigest;
@@ -268,10 +268,7 @@ public class FileChangeJournal {
                             throw new IOException("File changed during restoration: " + path);
                         state(c.id(), redo ? "PENDING_REDO" : "PENDING_UNDO");
                         var target = redo ? c.after() : c.before();
-                        if (target == null) Files.delete(path);
-                        else if (Files.exists(path, LinkOption.NOFOLLOW_LINKS))
-                            Files.write(path, target, StandardOpenOption.TRUNCATE_EXISTING);
-                        else Files.write(path, target, StandardOpenOption.CREATE_NEW);
+                        SecureFiles.commit(path, redo ? c.before() : c.after(), target);
                         state(c.id(), redo ? "APPLIED" : "UNDONE");
                     }
                     return (redo ? "Restored" : "Reverted")
@@ -330,14 +327,7 @@ public class FileChangeJournal {
     }
 
     private byte[] bytes(Path path) throws IOException {
-        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) return null;
-        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-            throw new IOException("Expected a regular file");
-        try (var input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
-            byte[] result = input.readNBytes(LIMIT + 1);
-            if (result.length > LIMIT) throw new IOException("File exceeds snapshot limit");
-            return result;
-        }
+        return SecureFiles.optional(path, LIMIT);
     }
 
     private interface Work<T> {
@@ -360,12 +350,7 @@ public class FileChangeJournal {
         mutex.lockInterruptibly();
         try {
             if (Files.isSymbolicLink(file)) throw new IOException("Unsafe workspace lock");
-            try (var channel =
-                    FileChannel.open(
-                            file,
-                            StandardOpenOption.CREATE,
-                            StandardOpenOption.WRITE,
-                            LinkOption.NOFOLLOW_LINKS)) {
+            try (var channel = SecureFiles.lockChannel(file)) {
                 var lease = channel.tryLock();
                 if (lease == null)
                     throw new IOException("Workspace is in use by another file operation");

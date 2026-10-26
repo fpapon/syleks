@@ -28,8 +28,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -221,18 +219,9 @@ final class EngineeringDocuments {
     static byte[] read(Path path, int maximum) throws IOException {
         if (Thread.currentThread().isInterrupted())
             throw new java.io.InterruptedIOException("Engineering: CANCELLED");
-        // Reject symlinks in every component, including dangling links and the file itself.
-        Path current = path.toAbsolutePath().getRoot();
-        for (Path part : path.toAbsolutePath()) {
-            current = current.resolve(part);
-            if (Files.isSymbolicLink(current)) throw error("UNTRUSTED_PATH");
-        }
-        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) throw error("UNTRUSTED_PATH");
-        try (var in = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
-            var bytes = in.readNBytes(maximum + 1);
-            if (bytes.length > maximum) throw error("DOCUMENT_TOO_LARGE");
-            return bytes;
-        }
+        var bytes = fr.openobject.ai.syleks.fs.SecureFiles.read(path, maximum + 1);
+        if (bytes.length > maximum) throw error("DOCUMENT_TOO_LARGE");
+        return bytes;
     }
 
     static String hash(byte[] bytes) {

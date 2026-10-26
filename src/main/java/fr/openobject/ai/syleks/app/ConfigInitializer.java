@@ -15,19 +15,17 @@
  */
 package fr.openobject.ai.syleks.app;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /** Generates editable defaults without loading existing configuration or opening the session database. */
 @DefaultScoped
@@ -113,12 +111,7 @@ public class ConfigInitializer {
         Files.createDirectories(directory, directories);
         Path target = directory.resolve("agent-config.json");
         Path lockPath = directory.resolve(".agent-config.lock");
-        if (Files.isSymbolicLink(lockPath)) throw new IOException("Unsafe configuration lock path");
-        try (var channel =
-                java.nio.channels.FileChannel.open(
-                        lockPath,
-                        Set.of(StandardOpenOption.CREATE, StandardOpenOption.WRITE),
-                        attributes)) {
+        try (var channel = SecureFiles.lockChannel(lockPath)) {
             java.nio.channels.FileLock lock;
             try {
                 lock = channel.tryLock();
@@ -132,7 +125,8 @@ public class ConfigInitializer {
                     throw new IOException("Configuration destination is not a regular file");
                 String actual =
                         exists
-                                ? Files.readString(target, java.nio.charset.StandardCharsets.UTF_8)
+                                ? SecureFiles.utf8(
+                                        SecureFiles.read(target, ConfigurationFiles.TEXT_LIMIT))
                                 : null;
                 if (!java.util.Objects.equals(actual, form.original()))
                     throw new IOException(
@@ -149,19 +143,12 @@ public class ConfigInitializer {
                             directory.resolve("agents/" + name + ".md"),
                             attributes);
                 }
-                Path temporary =
-                        Files.createTempFile(directory, ".agent-config-", ".tmp", attributes);
-                try {
-                    Files.writeString(
-                            temporary, configuration, java.nio.charset.StandardCharsets.UTF_8);
-                    Files.move(
-                            temporary,
-                            target,
-                            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                } finally {
-                    Files.deleteIfExists(temporary);
-                }
+                SecureFiles.commitPrivate(
+                        target,
+                        actual == null
+                                ? null
+                                : actual.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        configuration.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
         }
     }
@@ -179,13 +166,8 @@ public class ConfigInitializer {
 
     private Result create(byte[] content, Path target, FileAttribute<?>[] attributes)
             throws IOException {
-        try (var channel =
-                Files.newByteChannel(
-                        target,
-                        Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE),
-                        attributes)) {
-            var buffer = ByteBuffer.wrap(content);
-            while (buffer.hasRemaining()) channel.write(buffer);
+        try {
+            SecureFiles.commitPrivate(target, null, content);
         } catch (FileAlreadyExistsException existing) {
             if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException(

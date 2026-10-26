@@ -15,6 +15,7 @@
  */
 package fr.openobject.ai.syleks.app;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import java.io.BufferedReader;
@@ -63,7 +64,7 @@ public class ConfigInitWizard {
         if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) return form(null);
         if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
             throw new IOException("Configuration is not a regular file: " + path);
-        return form(Files.readString(path, StandardCharsets.UTF_8));
+        return form(SecureFiles.utf8(SecureFiles.read(path, ConfigurationFiles.TEXT_LIMIT)));
     }
 
     public Form form(String original) throws IOException {

@@ -15,10 +15,10 @@
  */
 package fr.openobject.ai.syleks.auth;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
@@ -115,22 +115,17 @@ public class CredentialStore {
 
     static void protect(Path path, boolean directory) throws IOException {
         if (Files.isSymbolicLink(path)) throw new IOException("Unsafe credential symlink");
-        try {
-            Files.setPosixFilePermissions(
-                    path, PosixFilePermissions.fromString(directory ? "rwx------" : "rw-------"));
-        } catch (UnsupportedOperationException ignored) {
-            /* OS ACLs must protect this directory. */
-        }
+        SecureFiles.protect(path, directory);
     }
 
     public Map<String, Object> read(Path file) throws IOException {
-        if (!Files.exists(file, LinkOption.NOFOLLOW_LINKS)) return Map.of();
+        byte[] content = SecureFiles.optional(file, SecureFiles.LIMIT);
+        if (content == null) return Map.of();
         directory(file.getParent());
         if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
             throw new IOException("Unsafe credential file");
-        protect(file, false);
         try {
-            Map<?, ?> map = json.fromString(Map.class, Files.readString(file));
+            Map<?, ?> map = json.fromString(Map.class, SecureFiles.utf8(content));
             var result = new LinkedHashMap<String, Object>();
             map.forEach((k, v) -> result.put(String.valueOf(k), v));
             return result;
@@ -141,33 +136,10 @@ public class CredentialStore {
 
     public void write(Path file, Map<String, Object> value) throws IOException {
         directory(file.getParent());
-        if (Files.isSymbolicLink(file)) throw new IOException("Unsafe credential symlink");
-        Path temp;
-        try {
-            temp =
-                    Files.createTempFile(
-                            file.getParent(),
-                            ".write-",
-                            ".tmp",
-                            PosixFilePermissions.asFileAttribute(
-                                    PosixFilePermissions.fromString("rw-------")));
-        } catch (UnsupportedOperationException e) {
-            temp = Files.createTempFile(file.getParent(), ".write-", ".tmp");
-        }
-        try {
-            protect(temp, false);
-            Files.writeString(temp, json.toString(value));
-            try (var channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
-                channel.force(true);
-            }
-            Files.move(
-                    temp,
-                    file,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+        SecureFiles.commitPrivate(
+                file,
+                SecureFiles.optional(file, SecureFiles.LIMIT),
+                json.toString(value).getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     @FunctionalInterface
@@ -184,18 +156,7 @@ public class CredentialStore {
         var mutex = LOCKS.computeIfAbsent(file, ignored -> new ReentrantLock());
         mutex.lockInterruptibly();
         try {
-            if (Files.isSymbolicLink(file)) throw new IOException("Unsafe credential lock");
-            try {
-                Files.createFile(
-                        file,
-                        PosixFilePermissions.asFileAttribute(
-                                PosixFilePermissions.fromString("rw-------")));
-            } catch (UnsupportedOperationException e) {
-                if (!Files.exists(file)) Files.createFile(file);
-            } catch (FileAlreadyExistsException ignored) {
-            }
-            protect(file, false);
-            try (var channel = FileChannel.open(file, StandardOpenOption.WRITE);
+            try (var channel = SecureFiles.lockChannel(file);
                     var lock = channel.lock()) {
                 return operation.run();
             }
@@ -236,7 +197,9 @@ public class CredentialStore {
     }
 
     void clearRefresh(String id) throws IOException {
-        Files.deleteIfExists(renewalPath(id));
+        var path = renewalPath(id);
+        var before = SecureFiles.optional(path, SecureFiles.LIMIT);
+        if (before != null) SecureFiles.commit(path, before, null);
     }
 
     public Credentials load(String id) throws IOException {

@@ -15,6 +15,7 @@
  */
 package fr.openobject.ai.syleks.app;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import fr.openobject.ai.syleks.session.ProjectService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -100,17 +101,10 @@ public final class ProjectTrust {
             throw new IllegalArgumentException(
                     "Project changed or digest does not match; inspect again");
         Files.createDirectories(record.getParent());
-        Path temp = Files.createTempFile(record.getParent(), ".trust-", ".tmp");
-        try {
-            Files.writeString(temp, digest + "\n");
-            Files.move(
-                    temp,
-                    record,
-                    StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE);
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+        SecureFiles.commitPrivate(
+                record,
+                SecureFiles.optional(record, 1024),
+                (digest + "\n").getBytes(StandardCharsets.UTF_8));
     }
 
     private static Path recordPath(Path home, Path workspace) {
@@ -120,11 +114,16 @@ public final class ProjectTrust {
 
     /** Revocation must work even when changed project definitions are malformed or unreadable. */
     public static void revoke(Path home, Path workspace) throws IOException {
-        Files.deleteIfExists(recordPath(home, workspace));
+        revokeRecord(recordPath(home, workspace));
     }
 
     public void revoke() throws IOException {
-        Files.deleteIfExists(record);
+        revokeRecord(record);
+    }
+
+    private static void revokeRecord(Path path) throws IOException {
+        var before = SecureFiles.optional(path, 1024);
+        if (before != null) SecureFiles.commit(path, before, null);
     }
 
     private static String hash(String value) {

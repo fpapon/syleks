@@ -1,6 +1,6 @@
 # Security implementation backlog
 
-Status: implementation backlog. SEC-01, SEC-02, SEC-04, SEC-05 and SEC-06 are implemented with validation recorded in their task documents. SEC-03 is implementation ready with local Linux evidence and required CI checks configured; hosted CI execution remains pending. The remaining items are proposed work.
+Status: implementation backlog. SEC-01, SEC-02, SEC-04, SEC-05, SEC-06 and SEC-07 are implemented with validation recorded in their task documents. SEC-03 is implementation ready with local Linux evidence and required CI checks configured; hosted CI execution remains pending. The remaining items are proposed work.
 
 Review baseline: 22 October 2026. This backlog follows a source review of permission enforcement, repository configuration, shell execution, filesystem access, network clients, credentials, and terminal handling. Reinspect current code before editing; paths and behavior can change. The earlier [shell security audit](../opencode-parity/shell-security.md) describes protections that must remain intact.
 
@@ -11,7 +11,7 @@ Two isolated runtime probes against the packaged application confirmed:
 1. With global `permission.bash: deny`, adding project `.syleks/agents/build.md` with `permission:\n  bash: allow` changed the effective Build decision from DENY to ALLOW after configuration reload. This demonstrates policy expansion; the probe did not execute an attacker command.
 2. `LocalCommandRunner` inherited a non-secret sentinel environment variable. No real credential was read or transmitted.
 
-Other findings are based on source inspection. Broad remembered approvals, remote HTTP support, and private-network web fetch are existing design choices with conditional security consequences. The filesystem race is a potential local concurrency issue, not a reproduced exploit. This is not a dependency vulnerability assessment or a complete penetration test.
+Other findings are based on source inspection. Broad remembered approvals, remote HTTP support, and private-network web fetch are existing design choices with conditional security consequences. At review time the filesystem race was a hypothesis; SEC-07 now records a deterministic synthetic reproduction of the earlier path-write behavior and its regression tests. This is not evidence of exploitation against a live user workspace. This is not a dependency vulnerability assessment or a complete penetration test.
 
 Assume repositories, model responses, fetched documents, tool output, and MCP server content can be hostile. The user and their explicit global security choices are trusted. Project text, agent definitions, and model-generated configuration changes cannot grant themselves authority. Approved executables and installed extensions can perform arbitrary actions within their process authority. Protect against accidental secret disclosure and malicious project content; OS isolation must state its limitations against a same-user host attacker.
 
@@ -25,7 +25,7 @@ Assume repositories, model responses, fetched documents, tool output, and MCP se
 | SEC-04 | [Credential transport security](04-credential-transport.md) — implemented 25 October 2026 | High for remote HTTP | None; share URL handling with SEC-06 |
 | SEC-05 | [Scoped remembered approvals](05-scoped-approvals.md) — implemented 26 October 2026 | Medium–High | SEC-01 |
 | SEC-06 | [Network destination controls](06-network-destinations.md) — implemented 26 October 2026 | Medium, deployment dependent | SEC-01; coordinate with SEC-03/04 |
-| SEC-07 | [Race-resistant file access](07-filesystem-races.md) | Medium, potential issue | None |
+| SEC-07 | [Race-resistant file access](07-filesystem-races.md) — implemented 26 October 2026 | Medium, potential issue | None |
 | SEC-08 | [Secret storage and redaction](08-secret-storage.md) | Hardening | SEC-04; coordinate with SEC-02 |
 | SEC-09 | [Approval display integrity](09-approval-display.md) | Hardening | Coordinate with SEC-05 |
 | SEC-10 | [Prompt history privacy](10-prompt-history-privacy.md) | Hardening | None |

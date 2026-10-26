@@ -15,6 +15,7 @@
  */
 package fr.openobject.ai.syleks.ai;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
@@ -27,7 +28,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -225,7 +225,12 @@ public class AgentTools {
         if (before != null && before.length > MAX_BYTES) throw new IOException("File exceeds 1 MB");
         if (edit) {
             if (!exists) throw new IOException("File does not exist");
-            var original = text(path);
+            var original =
+                    StandardCharsets.UTF_8
+                            .newDecoder()
+                            .decode(java.nio.ByteBuffer.wrap(before))
+                            .toString();
+            if (original.indexOf(0) >= 0) throw new IOException("Binary files are not supported");
             int first = original.indexOf(old);
             if (first < 0) throw new IOException("old_text was not found");
             if (!flag && original.indexOf(old, first + 1) >= 0)
@@ -250,13 +255,7 @@ public class AgentTools {
                 before,
                 after,
                 () -> {
-                    path(path.toString());
-                    if (before == null) Files.write(path, after, StandardOpenOption.CREATE_NEW);
-                    else {
-                        if (!java.util.Arrays.equals(before, bytes(path)))
-                            throw new IOException("File changed during edit; retry");
-                        Files.write(path, after, StandardOpenOption.TRUNCATE_EXISTING);
-                    }
+                    SecureFiles.commit(path, before, after);
                 });
         return "Updated "
                 + path
@@ -305,6 +304,8 @@ public class AgentTools {
                     try {
                         content = text(entry);
                     } catch (IOException e) {
+                        if (Thread.currentThread().isInterrupted())
+                            throw new InterruptedException();
                         continue;
                     }
                     if (content.length() > 8_000_000 - budget.text)
@@ -426,20 +427,9 @@ public class AgentTools {
         return path;
     }
 
-    private Path checkedFile(Path path) throws IOException {
-        path(path.toString());
-        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) || Files.size(path) > MAX_BYTES)
-            throw new IOException("Expected regular file of at most 1 MB");
-        return path;
-    }
-
     byte[] bytes(Path path) throws IOException {
-        checkedFile(path);
-        try (var input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
-            var value = input.readNBytes(MAX_BYTES + 1);
-            if (value.length > MAX_BYTES) throw new IOException("File exceeds 1 MB");
-            return value;
-        }
+        path(path.toString());
+        return SecureFiles.read(path, MAX_BYTES);
     }
 
     String text(Path path) throws IOException {

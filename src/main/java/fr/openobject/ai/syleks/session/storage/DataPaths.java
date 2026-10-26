@@ -15,11 +15,11 @@
  */
 package fr.openobject.ai.syleks.session.storage;
 
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
 
 @DefaultScoped
@@ -83,11 +83,6 @@ public class DataPaths {
     }
 
     public static void protect(Path path, boolean directory) throws IOException {
-        try {
-            Files.setPosixFilePermissions(
-                    path, PosixFilePermissions.fromString(directory ? "rwx------" : "rw-------"));
-        } catch (UnsupportedOperationException ignored) {
-            /* Non-POSIX filesystem uses its own ACLs. */
-        }
+        SecureFiles.protect(path, directory);
     }
 }

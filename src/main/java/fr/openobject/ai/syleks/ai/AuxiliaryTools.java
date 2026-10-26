@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.openobject.ai.syleks.app.AppConfig;
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import fr.openobject.ai.syleks.session.repository.TodoRepository;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -204,8 +205,8 @@ final class AuxiliaryTools {
                 context.require(
                         "read", file.toAbsolutePath().normalize().toString(), "Read skill " + name);
                 String content;
-                try (var input = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-                    var bytes = input.readNBytes(30001);
+                {
+                    var bytes = SecureFiles.read(file, 30000);
                     if (bytes.length > 30000) throw new IOException("Skill exceeds 30000 bytes");
                     content =
                             StandardCharsets.UTF_8

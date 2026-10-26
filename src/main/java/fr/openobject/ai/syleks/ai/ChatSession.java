@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.ai;
 
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.app.PermissionPolicy;
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.model.PermissionRequest;
@@ -30,9 +31,7 @@ import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.scanning.Injection;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -387,12 +386,8 @@ public class ChatSession {
                                 .append("\n\n");
                     }
                     try {
-                        Files.writeString(
-                                output,
-                                markdown.toString(),
-                                StandardCharsets.UTF_8,
-                                StandardOpenOption.CREATE_NEW,
-                                StandardOpenOption.WRITE);
+                        SecureFiles.commit(
+                                output, null, markdown.toString().getBytes(StandardCharsets.UTF_8));
                     } catch (IOException e) {
                         throw new IllegalStateException(
                                 "Unable to export conversation to "

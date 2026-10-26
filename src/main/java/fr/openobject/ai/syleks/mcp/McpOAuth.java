@@ -17,10 +17,10 @@ package fr.openobject.ai.syleks.mcp;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.net.httpserver.HttpServer;
+import fr.openobject.ai.syleks.fs.SecureFiles;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
-import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -201,7 +201,9 @@ public final class McpOAuth implements AutoCloseable {
     public void logout() throws Exception {
         locked(
                 () -> {
-                    Files.deleteIfExists(directory.resolve(key + ".json"));
+                    var path = directory.resolve(key + ".json");
+                    var before = SecureFiles.optional(path, 65536);
+                    if (before != null) SecureFiles.commit(path, before, null);
                     return null;
                 });
     }
@@ -345,16 +347,7 @@ public final class McpOAuth implements AutoCloseable {
             protectDirectory(directory);
             protect(directory, true);
             Path file = directory.resolve(key + ".lock");
-            if (Files.isSymbolicLink(file)) throw new IOException("Unsafe MCP credential lock");
-            if (!Files.exists(file))
-                try {
-                    Files.createFile(file, permissions(file, false));
-                } catch (FileAlreadyExistsException ignored) {
-                }
-            protect(file, false);
-            try (var channel =
-                            FileChannel.open(
-                                    file, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
+            try (var channel = SecureFiles.lockChannel(file);
                     var ignored = channel.lock()) {
                 return operation.run();
             }
@@ -381,39 +374,16 @@ public final class McpOAuth implements AutoCloseable {
 
     private JsonNode read() throws IOException {
         Path path = directory.resolve(key + ".json");
-        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) return null;
-        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-            throw new IOException("Unsafe MCP credential file");
-        protect(path, false);
-        try (var input = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS)) {
-            var bytes = input.readNBytes(65537);
-            if (bytes.length > 65536) throw new IOException("MCP credential file exceeds limit");
-            return McpConnection.JSON.readTree(bytes);
-        }
+        var bytes = SecureFiles.optional(path, 65536);
+        return bytes == null ? null : McpConnection.JSON.readTree(bytes);
     }
 
     private void write(JsonNode value) throws Exception {
         Path path = directory.resolve(key + ".json");
-        if (Files.isSymbolicLink(path)) throw new IOException("Unsafe MCP credential file");
-        Path temp =
-                Files.createTempFile(
-                        directory,
-                        ".oauth-",
-                        ".tmp",
-                        permissions(directory.resolve("placeholder"), false));
-        try {
-            Files.writeString(temp, McpConnection.JSON.writeValueAsString(value));
-            try (var channel = FileChannel.open(temp, StandardOpenOption.WRITE)) {
-                channel.force(true);
-            }
-            Files.move(
-                    temp,
-                    path,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+        SecureFiles.commitPrivate(
+                path,
+                SecureFiles.optional(path, 65536),
+                McpConnection.JSON.writeValueAsBytes(value));
     }
 
     private static java.nio.file.attribute.FileAttribute<?>[] permissions(
@@ -427,13 +397,7 @@ public final class McpOAuth implements AutoCloseable {
     }
 
     private static void protect(Path path, boolean directory) throws IOException {
-        if (Files.isSymbolicLink(path)) throw new IOException("Unsafe MCP credential path");
-        try {
-            Files.setPosixFilePermissions(
-                    path, PosixFilePermissions.fromString(directory ? "rwx------" : "rw-------"));
-        } catch (UnsupportedOperationException ignored) {
-            /* Use the platform's user ACLs. */
-        }
+        SecureFiles.protect(path, directory);
     }
 
     private static String random() {

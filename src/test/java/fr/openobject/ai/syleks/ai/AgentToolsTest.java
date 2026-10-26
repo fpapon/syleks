@@ -100,6 +100,13 @@ class AgentToolsTest {
     @Test
     void rejectsEscapesSymlinksBinaryFilesAndMalformedArguments() throws Exception {
         Files.writeString(workspace.resolve("binary"), "a\u0000b");
+        assertThrows(
+                Exception.class,
+                () ->
+                        execute(
+                                "edit",
+                                Map.of("path", "binary", "old_text", "a", "new_text", "changed")));
+        assertEquals("a\u0000b", Files.readString(workspace.resolve("binary")));
         Files.createSymbolicLink(workspace.resolve("link"), workspace.resolve("binary"));
         for (var name : List.of("../outside", "link", "binary"))
             assertThrows(Exception.class, () -> execute("read", Map.of("path", name)));
