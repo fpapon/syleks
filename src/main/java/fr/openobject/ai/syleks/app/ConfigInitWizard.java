@@ -48,7 +48,7 @@ public class ConfigInitWizard {
                     new Field("Provider ID", false),
                     new Field("Provider display name", false),
                     new Field("Base URL", false),
-                    new Field("API key (optional)", true),
+                    new Field("API key or secret reference (optional)", true),
                     new Field("Model ID", false),
                     new Field("Model display name", false),
                     new Field("Context token limit", false),

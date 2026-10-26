@@ -171,6 +171,7 @@
           "description": "HTTPS required for remote endpoints, even without credentials. HTTP allowed only for exact localhost, canonical 127/8 IPv4 literals or IPv6 ::1. Runtime validates ports (1-65535), authority and loopback classification. Remote HTTP requires membership in global insecure_http_origins, checked at runtime."
         },
         "environment": {
+          "description": "Explicit stdio values or destination-bound syleks-secret:UUID references, resolved only for this server command. Use secrets migrate to protect literal values.",
           "type": "object",
           "maxProperties": 64,
           "propertyNames": {
@@ -183,6 +184,7 @@
           }
         },
         "headers": {
+          "description": "HTTP header values or destination-bound syleks-secret:UUID references, resolved only for this server URL. Use secrets migrate to protect literal values.",
           "type": "object",
           "maxProperties": 64,
           "propertyNames": {
@@ -364,7 +366,7 @@
                   "$ref": "#/$defs/nonBlank"
                 }
               ],
-              "description": "Optional Bearer token; omit when authentication is unnecessary."
+              "description": "Optional Bearer token or destination-bound syleks-secret:UUID reference. Use secrets migrate to move plaintext into the keyring; omit when authentication is unnecessary."
             }
           },
           "additionalProperties": false,

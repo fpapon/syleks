@@ -123,3 +123,5 @@ The [full example](../examples/agent-config.json) separates three mechanisms: a 
 MCP authentication is separate: `bearer_token_env` reads an explicitly named environment variable, while `oauth: true` uses `syleks mcp auth SERVER`. See [MCP authentication](mcp.md#oauth) and [configuration locations](configuration.md#files-that-are-separate-from-agent-configjson). Agent prompts and shared `AGENTS.md` instructions should contain no credentials.
 
 OAuth HTTP requests also enforce the [transport policy](providers.md#transport-security) before sending codes, refresh tokens or other form credentials. The global `insecure_http_origins` setting does not apply to OAuth. Production OpenAI identity endpoints remain fixed HTTPS; MCP OAuth keeps its narrower exact loopback fixtures and existing issuer/PKCE/state checks.
+
+Custom provider keys and MCP header/environment values support destination-bound secret references. See [explicit migration, rotation and storage limits](secret-storage.md).

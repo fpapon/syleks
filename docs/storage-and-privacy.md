@@ -6,7 +6,7 @@
 
 | Data | Default location |
 | --- | --- |
-| Configuration and API keys | `~/.config/syleks/agent-config.json` |
+| Configuration, literal keys or secret references | `~/.config/syleks/agent-config.json` |
 | Global agent definitions | `~/.config/syleks/agents/` |
 | Project agent definitions | `.syleks/agents/` from Git root down to launch directory |
 | Local JSON schema | `~/.config/syleks/agent-config.schema.json` |
@@ -14,6 +14,7 @@
 | Skill references | `~/.config/syleks/skills/NAME/SKILL.md` or launch workspace `.syleks/skills/NAME/SKILL.md` |
 | Trusted project MCP overrides | Launch workspace `.syleks/agent-config.json` |
 | Project cloud policy | `.syleks/project.json` in the project ancestry |
+| Configuration secret records | `~/.config/syleks/auth/config-secrets/` (HOME with Java user-home fallback) |
 | MCP OAuth credentials | `~/.config/syleks/mcp-auth/` |
 | Provider preferences and credentials | `$XDG_CONFIG_HOME/syleks/config.json` and `auth/`, otherwise `~/.config/syleks/` |
 | Shared project instructions | `AGENTS.md` from Git root down to launch directory |
@@ -39,9 +40,9 @@ SQLite schema 4 adds subagent task correlations and durable execution budgets. C
 
 Data stays local unless you explicitly send it through a configured service or export it. Syleks has no implicit cloud synchronization or configured telemetry service. Your chosen model endpoint receives chat context and tool results needed for a response. A remote endpoint is still a remote service, even though the database is local. Enabled web tools contact websites and send search queries to DuckDuckGo.
 
-API keys are stored in the private configuration file, not automatically copied into session metadata. Prompts, read files, command output, or tool arguments can nevertheless contain secrets and become part of the session and model requests. Use a trusted endpoint and protect your device and backups. Syleks does not encrypt the database or exports; use filesystem/device encryption if needed.
+Custom API keys can remain literal in private configuration or use [destination-bound secret references](secret-storage.md). Resolved transport credentials are not automatically copied into session metadata. Prompts, read files, command output, or tool arguments can nevertheless contain secrets and become part of the session and model requests. Use a trusted endpoint and protect your device and backups. Syleks does not encrypt the database or exports; use filesystem/device encryption if needed.
 
-Model/server connections can use HTTP or HTTPS. Plain HTTP to a remote server does not provide confidentiality; use a trusted private connection or HTTPS with appropriate server authentication. Shell tools inherit the process environment and normal OS access rights.
+Model/server connections can use HTTP or HTTPS. Plain HTTP to a remote server does not provide confidentiality; use a trusted private connection or HTTPS with appropriate server authentication. Shell tools use the configured minimal subprocess environment and command sandbox policy.
 
 ## Back up or move sessions
 

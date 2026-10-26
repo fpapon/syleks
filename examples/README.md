@@ -72,3 +72,5 @@ Provider and MCP examples require HTTPS for remote endpoints by default. [The in
 [The restricted command example](agent-config-sandbox.json) shows the global-only Linux sandbox policy, including its separate network capability and resource limits. Merge it into global settings and restart; see [dependencies and migration](../docs/command-sandbox.md). PATH additions do not expose SDKs outside restricted runtime mounts.
 
 For native web tools, merge `"web_private_origins": ["https://intranet.example:8443"]` into global settings only when you intend to expose that internal service to model-directed requests. URL permissions still apply, and metadata/reserved addresses remain denied. The full reference defaults to no private grants. See the [destination matrix and migration guide](../docs/tools-and-permissions.md#web-destination-policy); provider/MCP and command network settings are separate.
+
+Custom provider keys and MCP header/environment values support destination-bound secret references. See [explicit migration, rotation and storage limits](../docs/secret-storage.md).

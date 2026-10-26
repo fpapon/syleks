@@ -71,6 +71,8 @@ public final class Main {
                         Syleks — persistent local AI sessions
                         Usage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]
                                syleks config init [--defaults]
+                               syleks secrets migrate
+                               syleks secrets rotate|revoke <syleks-secret:uuid>
                                syleks trust inspect|revoke
                                syleks trust grant <reviewed-sha256>
                                syleks session list
@@ -92,6 +94,10 @@ public final class Main {
                         config init: open the configuration TUI to create/update provider and model settings.
                         In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
                         Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
+                        Secrets: migrate global provider keys/MCP headers and environment to destination-bound references.
+                        rotate reads a replacement from the console (masked) or one line on stdin; revoke is local removal.
+                        Keyring required for new references unless SYLEKS_CREDENTIAL_BACKEND=file explicitly permits unencrypted files.
+                        Restart chats after migration/rotation/revocation. See docs/secret-storage.md.
                         Remote HTTP: review insecure_http_origins in global agent-config.json; restart to apply/revoke.
                         Web tools: public destinations by default; global web_private_origins grants private services.
                         Commands: restricted Linux isolation by default; global command_sandbox controls mode/network.
@@ -103,7 +109,46 @@ public final class Main {
                         """);
                 return 0;
             }
-            if (args.length > 0 && args[0].equals("trust")) {
+            if (args.length > 0 && args[0].equals("secrets")) {
+                require(
+                        args.length == 2 && args[1].equals("migrate")
+                                || args.length == 3
+                                        && java.util.Set.of("rotate", "revoke").contains(args[1]));
+                var secrets = fr.openobject.ai.syleks.auth.ConfigSecrets.open();
+                var migration = new fr.openobject.ai.syleks.auth.SecretConfiguration(secrets);
+                var file = ConfigInitializer.home().resolve(".config/syleks/agent-config.json");
+                if (args[1].equals("revoke")) {
+                    secrets.revoke(args[2]);
+                    out.println(
+                            "Secret reference revoked. Restart chats; revoke the remote credential separately.");
+                } else if (args[1].equals("rotate")) {
+                    String value;
+                    if (System.console() != null) {
+                        char[] password = System.console().readPassword("Replacement secret: ");
+                        if (password == null)
+                            throw new java.io.IOException("Secret input cancelled");
+                        try {
+                            value = new String(password);
+                        } finally {
+                            java.util.Arrays.fill(password, '\0');
+                        }
+                    } else {
+                        var bytes = new java.io.ByteArrayOutputStream();
+                        for (int b; (b = System.in.read()) != -1 && b != '\n'; ) {
+                            if (bytes.size() >= 8192)
+                                throw new java.io.IOException("Secret input exceeds limit");
+                            bytes.write(b);
+                        }
+                        value = bytes.toString(java.nio.charset.StandardCharsets.UTF_8);
+                    }
+                    migration.rotate(file, args[2], value);
+                    out.println("Secret rotated. Restart active chats.");
+                } else
+                    out.println(
+                            "Migrated "
+                                    + migration.migrate(file)
+                                    + " values. Restart active chats.");
+            } else if (args.length > 0 && args[0].equals("trust")) {
                 require(
                         args.length == 2 && java.util.Set.of("inspect", "revoke").contains(args[1])
                                 || args.length == 3 && args[1].equals("grant"));

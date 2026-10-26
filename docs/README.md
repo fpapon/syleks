@@ -40,3 +40,5 @@ The examples use `syleks` on your `PATH`. [Getting started](getting-started.md) 
 ## Engineering project contracts
 
 Opt in to Engineering restrictions with a user-owned `~/.config/syleks/engineering-projects.json`. The [project contract guide](project-contracts.md) explains setup from the [JSON example](../examples/engineering/project-registry.json), pinned external template packs, reviewed local inference routes and restart behavior. The v1 public contract remains proposed; the current implementation blocks cloud inference and external tools for enrolled projects and does not yet execute workflows or enforce aggregate token budgets.
+
+[Secret references and explicit migration](secret-storage.md) cover custom-provider keys and MCP header/environment values.

@@ -63,8 +63,15 @@ public class OllamaClient {
     private final Map<String, HttpClient> proxyClients =
             new java.util.concurrent.ConcurrentHashMap<>();
     private final JsonMapper json;
+    private final fr.openobject.ai.syleks.auth.ConfigSecrets secrets;
 
     public OllamaClient(final AppConfig config, final JsonMapper json) {
+        this(config, json, null);
+    }
+
+    OllamaClient(
+            AppConfig config, JsonMapper json, fr.openobject.ai.syleks.auth.ConfigSecrets secrets) {
+        this.secrets = secrets;
         this.config = config;
         this.http =
                 config.configureProxy(
@@ -308,8 +315,21 @@ public class OllamaClient {
                                 HttpRequest.BodyPublishers.ofString(
                                         payload(connection, model, agent, messages, definitions),
                                         StandardCharsets.UTF_8));
-        if (connection.openAiCompatible() && !connection.apiKey().isEmpty())
-            builder.header("Authorization", "Bearer " + connection.apiKey());
+        String apiKey = connection.apiKey();
+        if (fr.openobject.ai.syleks.auth.ConfigSecrets.reference(apiKey))
+            apiKey =
+                    (secrets == null ? fr.openobject.ai.syleks.auth.ConfigSecrets.open() : secrets)
+                            .resolve(
+                                    apiKey,
+                                    fr.openobject.ai.syleks.auth.ConfigSecrets.providerScope(
+                                            selectedProvider, connection.endpoint()));
+        if (connection.openAiCompatible() && !apiKey.isEmpty()) {
+            try {
+                builder.header("Authorization", "Bearer " + apiKey);
+            } catch (IllegalArgumentException invalid) {
+                throw new IOException("Invalid provider authorization header");
+            }
+        }
         String provider = model.contains("/") ? model.substring(0, model.indexOf('/')) : "ollama";
         String modelId =
                 model.startsWith(provider + "/") ? model.substring(provider.length() + 1) : model;
@@ -334,9 +354,14 @@ public class OllamaClient {
             }
             try (var body = response.body()) {
                 if (response.statusCode() != 200) {
-                    var message = new String(body.readNBytes(2048), StandardCharsets.UTF_8);
-                    if (!connection.apiKey().isEmpty())
-                        message = message.replace(connection.apiKey(), "[redacted]");
+                    byte[] diagnostic = body.readNBytes(65537);
+                    var message =
+                            diagnostic.length > 65536
+                                    ? "Provider error body omitted"
+                                    : new String(diagnostic, StandardCharsets.UTF_8);
+                    message =
+                            fr.openobject.ai.syleks.auth.SecretRedaction.diagnostic(
+                                    message, apiKey);
                     throw new IOException(
                             connection.providerName()
                                     + " HTTP "
@@ -357,6 +382,11 @@ public class OllamaClient {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw e;
+        } catch (IOException | RuntimeException e) {
+            // Drop parser/HTTP causes: they may contain raw response bodies or headers.
+            throw new IOException(
+                    fr.openobject.ai.syleks.auth.SecretRedaction.diagnostic(
+                            e.getMessage(), apiKey));
         }
     }
 

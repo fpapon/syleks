@@ -296,4 +296,35 @@ class CredentialStoreTest {
                     f.store.load(first.account().id()).account().clientId());
         }
     }
+
+    @Test
+    void refusesToDowngradeExistingVaultAccountWhenBackendDisappears() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var values = new HashMap<String, String>();
+            CredentialVault vault =
+                    new CredentialVault() {
+                        public void put(String id, String secret) {
+                            values.put(id, secret);
+                        }
+
+                        public String get(String id) {
+                            return values.get(id);
+                        }
+
+                        public void delete(String id) {
+                            values.remove(id);
+                        }
+                    };
+            var store = new CredentialStore(f.json, root.resolve("vault-store"), vault);
+            var credentials = f.login(null);
+            store.save(credentials);
+            var file =
+                    store.root().resolve("auth/accounts/" + credentials.account().id() + ".json");
+            String before = Files.readString(file);
+            var missing = new CredentialStore(f.json, store.root());
+            assertThrows(java.io.IOException.class, () -> missing.save(credentials));
+            assertEquals(before, Files.readString(file));
+            assertEquals(credentials, store.load(credentials.account().id()));
+        }
+    }
 }

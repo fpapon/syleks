@@ -343,3 +343,5 @@ installation contents must remain under user control: checks do not prevent repl
 a same-user host attacker. Unrestricted commands may read files, execute scripts and access the
 network under the user's OS permissions. [Restricted command isolation](command-sandbox.md)
 adds the separate OS boundary. Windows command isolation is not claimed or tested.
+
+Custom provider keys and MCP header/environment values support destination-bound secret references. See [explicit migration, rotation and storage limits](secret-storage.md).

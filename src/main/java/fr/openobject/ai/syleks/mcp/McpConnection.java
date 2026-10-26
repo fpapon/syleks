@@ -32,6 +32,8 @@ final class McpConnection implements AutoCloseable {
     private static final int LIMIT = 1024 * 1024;
     private final McpServerConfig config;
     private final HttpClient http;
+    private final fr.openobject.ai.syleks.auth.ConfigSecrets secrets;
+    private final java.nio.file.Path workspace;
     private final McpOAuth oauth;
     private final Process process;
     private final InputStream stdout;
@@ -72,10 +74,25 @@ final class McpConnection implements AutoCloseable {
             java.nio.file.Path home,
             fr.openobject.ai.syleks.net.TransportSecurity.Policy transport)
             throws IOException {
+        this(config, workspace, environment, home, transport, null);
+    }
+
+    McpConnection(
+            McpServerConfig config,
+            java.nio.file.Path workspace,
+            Map<String, String> environment,
+            java.nio.file.Path home,
+            fr.openobject.ai.syleks.net.TransportSecurity.Policy transport,
+            fr.openobject.ai.syleks.auth.ConfigSecrets secrets)
+            throws IOException {
+        this.secrets = secrets;
+        this.workspace = workspace;
         if (config.type().equals("http")) transport.requireAllowed(config.url());
         this.config = config;
         oauth = config.oauth() ? new McpOAuth(config, home) : null;
-        var resolved = new LinkedHashMap<String, String>(config.headers());
+        var resolved = new LinkedHashMap<String, String>();
+        for (var entry : config.headers().entrySet())
+            resolved.put(entry.getKey(), resolve(entry.getValue(), "headers", entry.getKey()));
         if (!config.bearerTokenEnv().isEmpty()) {
             var token = environment.get(config.bearerTokenEnv());
             if (token == null
@@ -95,7 +112,9 @@ final class McpConnection implements AutoCloseable {
         if (http == null) {
             var childEnvironment =
                     fr.openobject.ai.syleks.app.SubprocessEnvironment.baseline(environment, home);
-            childEnvironment.putAll(config.environment());
+            for (var entry : config.environment().entrySet())
+                childEnvironment.put(
+                        entry.getKey(), resolve(entry.getValue(), "environment", entry.getKey()));
             var command = new java.util.ArrayList<>(config.command());
             command.set(
                     0,
@@ -131,6 +150,16 @@ final class McpConnection implements AutoCloseable {
             stdout = null;
             stdin = null;
         }
+    }
+
+    private String resolve(String value, String field, String name) throws IOException {
+        return fr.openobject.ai.syleks.auth.ConfigSecrets.reference(value)
+                ? (secrets == null ? fr.openobject.ai.syleks.auth.ConfigSecrets.open() : secrets)
+                        .resolve(
+                                value,
+                                fr.openobject.ai.syleks.auth.ConfigSecrets.mcpScope(
+                                        config, field, name, workspace))
+                : value;
     }
 
     JsonNode initialize() throws Exception {

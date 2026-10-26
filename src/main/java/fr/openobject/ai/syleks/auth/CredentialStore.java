@@ -214,8 +214,8 @@ public class CredentialStore {
                 Map<?, ?> secrets = json.fromString(Map.class, vault.get(reference));
                 for (String field : List.of("access_token", "refresh_token", "id_token"))
                     value.put(field, secrets.get(field));
-            } catch (RuntimeException e) {
-                throw new IOException("Invalid system keyring record");
+            } catch (IOException | RuntimeException e) {
+                throw new IOException("System keyring record unavailable or invalid");
             }
         }
         var account =
@@ -260,13 +260,24 @@ public class CredentialStore {
         value.put("expires_at", c.expiresAt().toString());
         value.put("earliest_refresh_at", c.earliestRefreshAt().toString());
         String previous = str(read(accountPath(a.id())), "vault_ref");
+        if (previous != null && vault == null && c.connected())
+            throw new IOException(
+                    "Existing account requires an available, unlocked system keyring");
         String reference = null;
         if (vault != null && c.connected()) {
             reference = UUID.randomUUID().toString();
             var secrets = new LinkedHashMap<String, Object>();
             for (String field : List.of("access_token", "refresh_token", "id_token"))
                 secrets.put(field, value.remove(field));
-            vault.put(reference, json.toString(secrets));
+            try {
+                vault.put(reference, json.toString(secrets));
+            } catch (IOException | RuntimeException e) {
+                try {
+                    vault.delete(reference);
+                } catch (IOException ignored) {
+                }
+                throw new IOException("System keyring write failed; existing credentials retained");
+            }
             value.put("vault_ref", reference);
         }
         try {

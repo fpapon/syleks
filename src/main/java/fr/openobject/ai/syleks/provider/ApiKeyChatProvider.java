@@ -127,7 +127,10 @@ abstract class ApiKeyChatProvider implements LlmProvider {
                                         .build(),
                                 HttpResponse.BodyHandlers.ofInputStream());
         try (InputStream body = response.body()) {
-            var value = new String(body.readNBytes(1024 * 1024), StandardCharsets.UTF_8);
+            byte[] bytes = body.readNBytes(1024 * 1024 + 1);
+            if (bytes.length > 1024 * 1024)
+                throw new IOException("Provider model catalog exceeds limit");
+            var value = new String(bytes, StandardCharsets.UTF_8);
             if (response.statusCode() != 200)
                 throw new IOException(
                         displayName()
@@ -152,7 +155,7 @@ abstract class ApiKeyChatProvider implements LlmProvider {
     }
 
     private static String redact(String body, String token) {
-        return token == null || token.isEmpty() ? body : body.replace(token, "[redacted]");
+        return fr.openobject.ai.syleks.auth.SecretRedaction.diagnostic(body, token);
     }
 
     private static String safe(String message) {
