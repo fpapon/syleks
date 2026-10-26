@@ -98,6 +98,10 @@ final class HelpModal {
                     new Entry("↑/↓", "Recall older/newer prompts; Down restores your draft."),
                     new Entry("Ctrl+X", "Clear input recall; keep visible text and cursor."),
                     new Entry("PgUp/PgDn", "Scroll the conversation."),
+                    new Entry(
+                            "Mouse wheel · Shift/Ctrl+↑/↓",
+                            "Scroll response lines; keep your draft."),
+                    new Entry("Ctrl+Home/End", "Jump to the start/latest response."),
                     new Entry("Tab", "Cycle primary agents while idle."),
                     new Entry("Ctrl+P", "Open or close this help popup; keep your draft."),
                     new Entry("Ctrl+G", "Open configuration; keep your draft."),

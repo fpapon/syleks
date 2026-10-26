@@ -148,7 +148,8 @@ public class TerminalApp implements AutoCloseable {
         TerminalHandle(org.jline.terminal.Terminal terminal) {
             this.terminal = terminal;
             attributes = terminal.enterRawMode();
-            terminal.writer().print("\u001b[?1049h\u001b[?2004h\u001b[?7l");
+            terminal.writer()
+                    .print("\u001b[?1049h\u001b[?2004h\u001b[?1000h\u001b[?1006h\u001b[?7l");
             terminal.flush();
         }
 
@@ -157,7 +158,9 @@ public class TerminalApp implements AutoCloseable {
             if (closed) return;
             closed = true;
             try {
-                terminal.writer().print("\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h");
+                terminal.writer()
+                        .print(
+                                "\u001b[?1006l\u001b[?1000l\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h");
                 terminal.flush();
                 terminal.setAttributes(attributes);
             } finally {
@@ -482,14 +485,29 @@ public class TerminalApp implements AutoCloseable {
         }
         var sequence = new StringBuilder();
         int end;
-        for (int i = 0; i < 18; i++) {
+        for (int i = 0; i < 64; i++) {
             end = reader.read(25);
             if (end < 0) break;
             sequence.append((char) end);
             if (end >= 0x40 && end <= 0x7e) break;
         }
+        // Consume mouse reports before modal keys: legacy coordinates must never become
+        // draft text or approval keystrokes.
+        if (second == '[' && sequence.toString().equals("M")) {
+            int button = reader.read(25), x = reader.read(25), y = reader.read(25);
+            if (!paste && button >= 32 && x >= 33 && y >= 33) mouseButton(button - 32);
+            return;
+        }
+        if (second == '[' && sequence.toString().startsWith("<")) {
+            var report = sequence.toString();
+            if (!paste && report.matches("<\\d{1,3};\\d{1,6};\\d{1,6}M"))
+                mouseButton(Integer.parseInt(report.substring(1, report.indexOf(';'))));
+            return;
+        }
+        var navigation = sequence.toString();
+        if (navigation.matches("[56];[2-8]~")) navigation = navigation.charAt(0) + "~";
         if (usageModal != null) {
-            switch (sequence.toString()) {
+            switch (navigation) {
                 case "A" -> usageModal.move(-1);
                 case "B" -> usageModal.move(1);
                 case "5~" -> usageModal.page(-1);
@@ -503,11 +521,11 @@ public class TerminalApp implements AutoCloseable {
         if (palette) {
             if (sequence.toString().equals("200~")) paste = true;
             else if (sequence.toString().equals("201~")) paste = false;
-            else if (!paste) helpModal.sequence(sequence.toString());
+            else if (!paste) helpModal.sequence(navigation);
             return;
         }
         if (providerModal != null) {
-            switch (sequence.toString()) {
+            switch (navigation) {
                 case "A" -> providerModal.move(-1);
                 case "B" -> providerModal.move(1);
                 case "5~" -> providerModal.move(-8);
@@ -519,11 +537,11 @@ public class TerminalApp implements AutoCloseable {
             return;
         }
         if (configurationModal != null) {
-            configurationAction(configurationModal.sequence(sequence.toString()));
+            configurationAction(configurationModal.sequence(navigation));
             return;
         }
         if (sessionPicker.isOpen()) {
-            switch (sequence.toString()) {
+            switch (navigation) {
                 case "3~" -> {
                     if (!paste) sessionPicker.requestDelete();
                 }
@@ -543,7 +561,7 @@ public class TerminalApp implements AutoCloseable {
             if (sequence.toString().equals("200~")) paste = true;
             else if (sequence.toString().equals("201~")) paste = false;
             else if (!paste)
-                switch (sequence.toString()) {
+                switch (navigation) {
                     case "C", "Z" ->
                             permissionPrompt.move(sequence.toString().equals("Z") ? -1 : 1);
                     case "D" -> permissionPrompt.move(-1);
@@ -556,13 +574,17 @@ public class TerminalApp implements AutoCloseable {
             return;
         }
         if (paste && !sequence.toString().equals("201~")) return;
-        switch (sequence.toString()) {
+        switch (navigation) {
             case "A" -> editor.previousPrompt();
             case "B" -> editor.nextPrompt();
             case "C" -> editor.right();
             case "D" -> editor.left();
             case "5~" -> scrollUp(8);
             case "6~" -> scrollDown(8);
+            case "1;2A", "1;5A" -> scrollUp(1);
+            case "1;2B", "1;5B" -> scrollDown(1);
+            case "1;5H", "1;5~", "7;5~" -> scrollUp(Integer.MAX_VALUE);
+            case "1;5F", "4;5~", "8;5~" -> sessionViews.scroll(0);
             case "3~" -> editor.delete();
             case "200~" -> paste = true;
             case "201~" -> paste = false;
@@ -573,22 +595,40 @@ public class TerminalApp implements AutoCloseable {
         }
     }
 
+    private void mouseButton(int button) {
+        // Ignore clicks, releases, drags and horizontal wheel events, including modifiers.
+        int wheel = button & ~28;
+        if (wheel != 64 && wheel != 65) return;
+        int delta = wheel == 64 ? -3 : 3;
+        if (usageModal != null) usageModal.move(delta);
+        else if (palette) {
+            for (int i = 0; i < 3; i++) helpModal.sequence(delta < 0 ? "A" : "B");
+        } else if (providerModal != null) providerModal.move(delta);
+        else if (configurationModal != null || sessionLoading) return;
+        else if (sessionPicker.isOpen()) sessionPicker.move(delta);
+        else if (permissionPrompt.request() != null) permissionPrompt.scroll(delta);
+        else if (delta < 0) scrollUp(-delta);
+        else scrollDown(delta);
+    }
+
     private void scrollUp(int n) {
         sessionViews.scroll(
-                Math.min(
-                        sessionViews.scroll() + n,
-                        renderer.maxScroll(
-                                session.snapshot(),
-                                TokenUsageSidebar.visible(
-                                                terminalWidth,
-                                                terminalHeight,
-                                                usagePreferences == null
-                                                        ? fr.openobject.ai.syleks.usage
-                                                                .UsagePreferences.Visibility.AUTO
-                                                        : usagePreferences.visibility())
-                                        ? terminalWidth - TokenUsageSidebar.WIDTH
-                                        : terminalWidth,
-                                terminalHeight)));
+                (int)
+                        Math.min(
+                                (long) sessionViews.scroll() + n,
+                                renderer.maxScroll(
+                                        session.snapshot(),
+                                        TokenUsageSidebar.visible(
+                                                        terminalWidth,
+                                                        terminalHeight,
+                                                        usagePreferences == null
+                                                                ? fr.openobject.ai.syleks.usage
+                                                                        .UsagePreferences.Visibility
+                                                                        .AUTO
+                                                                : usagePreferences.visibility())
+                                                ? terminalWidth - TokenUsageSidebar.WIDTH
+                                                : terminalWidth,
+                                        terminalHeight)));
     }
 
     private void scrollDown(int n) {

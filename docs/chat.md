@@ -22,6 +22,9 @@ The header identifies the project, session, and model. The composer shows the se
 | Backspace / Delete | Delete before / after the caret |
 | Up / Down | Recall older/newer input; restore the draft |
 | Page Up / Page Down | Scroll by eight lines |
+| Mouse wheel | Scroll by three lines; scroll the focused popup when open |
+| Shift+Up / Shift+Down or Ctrl+Up / Ctrl+Down | Scroll the conversation by one line |
+| Ctrl+Home / Ctrl+End | Jump to the start / latest output |
 | Tab | Cycle primary agents while idle |
 | Ctrl+P | Open or close the help popup, keeping the draft |
 | Ctrl+X | Clear input recall, preserving visible text and cursor |
