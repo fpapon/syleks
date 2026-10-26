@@ -415,7 +415,9 @@ public class ChatSession {
                                 + " (ordered within layers; DENY > ASK > ALLOW)\n"
                                 + config.projectTrust().state()
                                 + "\n"
-                                + config.commandSandbox().description());
+                                + config.commandSandbox().description()
+                                + "\n"
+                                + config.webDestinations().description());
         var operations = new java.util.LinkedHashSet<>(PermissionPolicy.OPERATIONS);
         policy.rules().stream()
                 .map(PermissionPolicy.Rule::operation)

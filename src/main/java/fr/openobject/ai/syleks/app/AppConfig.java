@@ -101,6 +101,12 @@ public class AppConfig {
         return approvalPolicyRevision;
     }
 
+    private final fr.openobject.ai.syleks.net.WebDestinationPolicy webDestinations;
+
+    public fr.openobject.ai.syleks.net.WebDestinationPolicy webDestinations() {
+        return webDestinations;
+    }
+
     private final fr.openobject.ai.syleks.net.TransportSecurity.Policy transport;
 
     public fr.openobject.ai.syleks.net.TransportSecurity.Policy transport() {
@@ -152,6 +158,11 @@ public class AppConfig {
                         settings.containsKey("command_sandbox")
                                 ? settings.get("command_sandbox")
                                 : Map.of());
+        this.webDestinations =
+                fr.openobject.ai.syleks.net.WebDestinationPolicy.parse(
+                        settings.containsKey("web_private_origins")
+                                ? settings.get("web_private_origins")
+                                : java.util.List.of());
         this.transport =
                 fr.openobject.ai.syleks.net.TransportSecurity.Policy.parse(
                         settings.containsKey("insecure_http_origins")

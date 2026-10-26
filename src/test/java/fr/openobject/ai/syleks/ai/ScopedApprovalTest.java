@@ -430,6 +430,22 @@ class ScopedApprovalTest {
         try {
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/one";
             String otherUrl = "http://127.0.0.1:" + second.getAddress().getPort() + "/one";
+            // Network grants authorize both fixture services; this test isolates URL approval
+            // scope, including remembered approvals and changes to path or origin.
+            chat.shutdown();
+            Path settings = root.resolve("home/.config/syleks/agent-config.json");
+            String original = Files.readString(settings);
+            Files.writeString(
+                    settings,
+                    original.replaceFirst(
+                            "\\{",
+                            "{\"web_private_origins\":[\""
+                                    + url.replace("/one", "")
+                                    + "\",\""
+                                    + otherUrl.replace("/one", "")
+                                    + "\"],"));
+            config = AppConfigFixtures.defaults(mapper.instance(), root);
+            chat = new ChatSession(client, config);
             send(
                     new ToolCall("one", "webfetch", Map.of("url", url)),
                     new ToolCall("repeat", "webfetch", Map.of("url", url)),

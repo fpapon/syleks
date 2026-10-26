@@ -261,6 +261,14 @@ Fields live at `mcp.SERVER`. IDs start with a lowercase letter and contain up to
 
 Provider preferences and credentials honor an absolute `XDG_CONFIG_HOME`; legacy agent configuration and MCP credentials remain under `~/.config/syleks`. See [Storage and privacy](storage-and-privacy.md) for exact paths. Additional environment switches are `SYLEKS_ALLOW_CLOUD=false` ([cloud policy](providers.md#sessions-and-confidentiality)), `SYLEKS_CREDENTIAL_BACKEND=auto|secret-service|file` and `SYLEKS_AUTH_TIMEOUT_SECONDS` ([authentication](authentication.md)).
 
+## Web destinations
+
+`web_private_origins` is a global-only array (default `[]`, maximum 64) of exact HTTP(S)
+origins for private/loopback web tool services. Project settings and agent definitions cannot
+grant access. URL permissions still apply; metadata, link-local and reserved ranges remain
+blocked. Restart after changes. Web tools connect directly and do not use provider, JVM or
+environment proxies. See the [policy matrix, scope inventory and migration examples](tools-and-permissions.md#web-destination-policy).
+
 ## Command sandbox
 
 `command_sandbox` is global-only and defaults to restricted Linux isolation with no network.

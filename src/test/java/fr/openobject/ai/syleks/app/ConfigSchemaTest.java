@@ -60,6 +60,25 @@ class ConfigSchemaTest {
     }
 
     @Test
+    void validatesWebServiceGrantsAndRejectsWildcardsPathsAndCredentials() throws Exception {
+        assertTrue(
+                schema.validate(
+                                json.readTree(
+                                        "{\"web_private_origins\":[\"https://intranet.example:8443\",\"http://[::1]:8000\"]}"))
+                        .isEmpty());
+        for (String value :
+                List.of(
+                        "*",
+                        "http://*.example",
+                        "http://user:fake@localhost",
+                        "http://localhost/path")) {
+            var settings = json.createObjectNode();
+            settings.putArray("web_private_origins").add(value);
+            assertFalse(schema.validate(settings).isEmpty(), value);
+        }
+    }
+
+    @Test
     void acceptsExplicitGlobalOriginDeclarationsAndRejectsBroadOrSecretBearingValues()
             throws Exception {
         var config =

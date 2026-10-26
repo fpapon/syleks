@@ -190,6 +190,52 @@ class AgentToolsTest {
     }
 
     @Test
+    void publicRedirectToPrivateIsBlockedByNetworkPolicyDespiteUrlApproval() throws Exception {
+        var hits = new java.util.concurrent.atomic.AtomicInteger();
+        var server =
+                com.sun.net.httpserver.HttpServer.create(
+                        new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext(
+                "/",
+                exchange -> {
+                    hits.incrementAndGet();
+                    exchange.sendResponseHeaders(500, -1);
+                    exchange.close();
+                });
+        server.start();
+        try {
+            String destination = "http://127.0.0.1:" + server.getAddress().getPort();
+            var tools =
+                    new AgentTools(workspace) {
+                        @Override
+                        protected HttpResponse<InputStream> send(HttpRequest request)
+                                throws java.io.IOException, InterruptedException {
+                            if (request.uri().getHost().equals("public.example"))
+                                return response(
+                                        request,
+                                        302,
+                                        "text/plain",
+                                        Map.of("location", List.of(destination)),
+                                        "");
+                            return super.send(request);
+                        }
+                    };
+            assertThrows(
+                    java.io.IOException.class,
+                    () ->
+                            tools.execute(
+                                    new ToolCall(
+                                            "1",
+                                            "webfetch",
+                                            Map.of("url", "https://public.example")),
+                                    allow));
+            assertEquals(0, hits.get());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void webSearchEncodesQueryAndExtractsResultTitlesAndUrls() throws Exception {
         var requests = new ArrayList<URI>();
         var tools =

@@ -69,7 +69,7 @@ public class ToolExecutor {
 
     public ToolExecutor(AppConfig config) {
         this.config = config;
-        files = new AgentTools(config.workspace());
+        files = new AgentTools(config.workspace(), config.webDestinations());
         commands =
                 new LocalCommandRunner(
                         config.workspace(),
@@ -261,7 +261,8 @@ public class ToolExecutor {
             return ToolResult.command(commands.execute(command, timeout));
         } catch (InterruptedException e) {
             throw e;
-        } catch (ToolPermissionDeniedException e) {
+        } catch (ToolPermissionDeniedException
+                | fr.openobject.ai.syleks.net.WebDestinationPolicy.Denied e) {
             return ToolResult.denied(e.getMessage());
         } catch (Exception e) {
             return ToolResult.failed(e);

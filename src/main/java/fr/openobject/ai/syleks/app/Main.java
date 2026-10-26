@@ -93,6 +93,7 @@ public final class Main {
                         In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
                         Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
                         Remote HTTP: review insecure_http_origins in global agent-config.json; restart to apply/revoke.
+                        Web tools: public destinations by default; global web_private_origins grants private services.
                         Commands: restricted Linux isolation by default; global command_sandbox controls mode/network.
                         Approvals: /approve remember grants the exact action for 15 minutes; /approvals lists/revokes grants.
                         Unavailable sandbox enforcement refuses commands; unrestricted mode is an explicit global choice.

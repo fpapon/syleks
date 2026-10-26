@@ -128,7 +128,47 @@ Here `printf ok; touch marker` is refused before either command runs. `printf ok
 
 Granular policies accept a conservative literal subset of Bash. Variable/arithmetic/command/process substitutions, unquoted glob/brace/tilde expansion, comments, assignments, groups, control structures, here documents/strings, indirect shell commands, shell-state builtins and `printf` variable assignments are refused when they cannot be checked safely. This restriction also applies after exact remembered approval. For full shell scripts, use a uniform `"bash": "ask"` permission policy and review each request (or consciously grant `"bash": "allow"`). These uniform policies retain whole-shell syntax within the selected OS sandbox mode. A later unconditional `*` rule overrides earlier granular rules, following the usual precedence.
 
-Web fetch follows at most five redirects, checking permission for each destination. Permitted URLs can include private/local servers. Search sends your query to DuckDuckGo's HTML search service, requires no API key, and may fail if that service blocks requests or changes its page. Search redirects require `webfetch` permission for the destination. Web content is untrusted material supplied to the model.
+Web fetch follows at most five redirects, checking permission for each destination. Public web destinations are enabled subject to URL permissions. Private/local services also require an exact global `web_private_origins` grant; metadata and other reserved destinations remain denied. See the [destination policy and migration guide](#web-destination-policy). Search sends your query to DuckDuckGo's HTML search service, requires no API key, and may fail if that service blocks requests or changes its page. Search redirects require `webfetch` permission for the destination. Web content is untrusted material supplied to the model.
+
+## Web destination policy
+
+`webfetch` and `websearch` apply the global network destination policy in addition to tool permissions. An approval, remembered grant, project setting, or child agent cannot bypass it. `/permissions` shows the active policy. Edit `~/.config/syleks/agent-config.json` yourself and restart to apply or revoke grants:
+
+```json
+{
+  "web_private_origins": ["https://intranet.example:8443", "http://127.0.0.1:8080"],
+  "permission": {"webfetch": {"https://intranet.example:8443/*": "ask", "http://127.0.0.1:8080/*": "ask"}}
+}
+```
+
+Previously a broad URL allow also reached internal services. The default now has no internal grants. Add only the exact services you intend to expose to model-directed GET requests. Grants include scheme, normalized host, and effective port; changing any requires another grant. Granting one origin covers all its paths and ordinary private/loopback DNS answers, so retain narrow URL permissions. Hostnames are lowercased and a final DNS dot is removed; IPv6 literals (including mapped IPv4) are normalized. Use ASCII/punycode hostnames. Userinfo, fragments, scoped IPv6, invalid ports, wildcard grants, and grants with paths or queries are refused. HTTP and HTTPS remain supported for credential-free web retrieval; prefer HTTPS for sensitive data. The transport sends only fixed GET headers, with no cookies or authorization forwarding.
+
+| Address class | Default | With an exact service grant |
+| --- | --- | --- |
+| Public IPv4 and ordinary IPv6 global unicast | Allowed subject to URL permission | Same |
+| RFC1918 IPv4, IPv6 unique-local, IPv4/IPv6 loopback | Denied | Allowed subject to URL permission |
+| Link-local (including `169.254.169.254`), unspecified, multicast, broadcast | Denied | Denied |
+| Shared address space, documentation, benchmarking, reserved IPv4 and conservative IPv6 special-purpose/translation/transition exclusions | Denied | Denied |
+| Known metadata/platform virtual addresses `fd00:ec2::254` and `168.63.129.16` | Denied | Denied |
+
+The classifier conservatively excludes IPv6 special-purpose allocations, including some globally reachable special-purpose services. Ordinary globally reachable IPv4 special-purpose allocations are treated as public. The reference ranges are recorded in the [IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/) and [IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/) registries. The extra platform exclusions follow the documented [AWS metadata endpoint](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/retrieve-iid.html) and [Azure virtual platform address](https://learn.microsoft.com/en-us/azure/virtual-network/what-is-ip-address-168-63-129-16). This static classifier requires maintenance as allocations change; it cannot discover arbitrary public-address services that an operator routes internally.
+
+Every DNS answer must pass the policy before a connection is opened. Each hop resolves once; the socket connects to the authorized numeric address, and checks its connected peer. There is no independent hostname resolution at connect time. The original hostname remains the HTTP Host and HTTPS certificate/SNI identity. Every redirect repeats normalization, URL permission, resolution, and destination checks, including port changes. Rejected endpoints receive no HTTP request; their response bodies cannot enter diagnostics. Fetched content remains untrusted.
+
+Web tools use **direct connections only**. JVM/environment proxies and the default `ProxySelector` are intentionally ignored. There is no tool proxy configuration or fallback to a proxy that resolves destinations remotely. Deployments requiring a proxy must provide a reviewed connection-enforcing transport before enabling that route. Host routing, transparent proxies, custom NAT64 prefixes, and a same-user host attacker remain outside this application boundary; use the OS/network boundary to enforce such deployment constraints.
+
+The direct transport uses HTTP/1.1, normal JVM TLS trust, a 15-second connect limit, a 25-second deadline per hop including DNS/TLS/body, at most five redirects, 1 MB response data, 64 KiB combined headers/chunk framing, and interruptible socket cancellation. It supports fixed-length, chunked, and connection-close bodies. Unsupported content encoding/framing fails closed; there is no retry using a weaker transport. It selects the first authorized DNS answer, without address fallback or HTTP/2. A stalled platform resolver may outlive caller cancellation, but its result cannot initiate a connection after cancellation.
+
+| Network path | Governing policy |
+| --- | --- |
+| Native `webfetch`/`websearch`, including children | This destination policy plus effective tool/ancestor permissions |
+| Model providers and provider discovery | Configured provider origins, provider proxy settings, SEC-04 transport policy; local Ollama remains supported |
+| MCP HTTP and MCP OAuth discovery/registration/token exchange | Configured MCP origin, SEC-04 transport/OAuth rules and tool permissions; intentional local MCP remains supported |
+| Provider OAuth and account discovery | Authentication transport rules; no web service grants |
+| Shell commands | `bash` permission and separate `command_sandbox.network` capability; this is not an HTTP destination filter |
+| Stdio MCP/custom installed extensions | Trusted installed executable/extension authority and configured command isolation where applicable; arbitrary extension networking is not filtered by native web policy |
+
+`insecure_http_origins` permits reviewed provider/MCP plaintext transport and does not grant web tool access. Conversely, `web_private_origins` cannot authorize a model provider, MCP origin, OAuth HTTP exception, or command network access.
 
 ## Write targeted rules
 

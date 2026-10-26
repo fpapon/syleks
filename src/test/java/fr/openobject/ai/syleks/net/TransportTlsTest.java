@@ -99,6 +99,24 @@ class TransportTlsTest {
         plaintextTrap.createContext("/", trap);
         String httpsTarget = "https://localhost:" + tlsTrap.getAddress().getPort() + "/trap";
         String httpTarget = "http://127.0.0.1:" + plaintextTrap.getAddress().getPort() + "/trap";
+        var webHits = new AtomicInteger();
+        source.createContext(
+                "/web",
+                exchange -> {
+                    try (exchange) {
+                        webHits.incrementAndGet();
+                        var sslSession =
+                                (ExtendedSSLSession) ((HttpsExchange) exchange).getSSLSession();
+                        assertEquals(
+                                java.util.List.of(new SNIHostName("localhost")),
+                                sslSession.getRequestedServerNames());
+                        exchange.getResponseHeaders().add("Content-Type", "text/plain");
+                        byte[] bytes =
+                                "web fixture".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        exchange.sendResponseHeaders(200, bytes.length);
+                        exchange.getResponseBody().write(bytes);
+                    }
+                });
         source.createContext(
                 "/",
                 exchange -> {
@@ -167,6 +185,27 @@ class TransportTlsTest {
                         delivered.get(),
                         "Neither redirect target may receive any request or credential");
             }
+            String webOrigin = "https://localhost:" + source.getAddress().getPort();
+            String wrongOrigin = "https://wrong.invalid:" + source.getAddress().getPort();
+            var web =
+                    new PinnedWebTransport(
+                            new WebDestinationPolicy(java.util.Set.of(webOrigin, wrongOrigin)),
+                            host -> new InetAddress[] {InetAddress.getByName("127.0.0.1")},
+                            tls.getSocketFactory());
+            try (var body =
+                    web.send(HttpRequest.newBuilder(URI.create(webOrigin + "/web")).build())
+                            .body()) {
+                assertEquals(
+                        "web fixture",
+                        new String(body.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            }
+            assertThrows(
+                    SSLHandshakeException.class,
+                    () ->
+                            web.send(
+                                    HttpRequest.newBuilder(URI.create(wrongOrigin + "/web"))
+                                            .build()));
+            assertEquals(1, webHits.get(), "Wrong TLS hostname must fail before an HTTP request");
         } finally {
             source.stop(0);
             tlsTrap.stop(0);

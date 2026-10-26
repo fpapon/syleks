@@ -329,6 +329,7 @@ The app supports streaming conversations, persisted root/child sessions, declare
 
 ## Security notes
 
+- Web tools default to public destinations. Private/loopback access requires an exact global `web_private_origins` grant; metadata and reserved destinations remain denied. See [network destination controls](docs/tools-and-permissions.md#web-destination-policy).
 - The model endpoint defaults to loopback (`127.0.0.1`). Remote provider and MCP endpoints require HTTPS by default; remote HTTP requires an exact global `insecure_http_origins` grant and displays a warning. See the [transport policy and migration guide](docs/providers.md#transport-security).
 - Avoid using plain HTTP Ollama connections across untrusted networks; secure remote deployments with TLS and authentication.
 - Do not enter client code if the chosen Ollama server is operated by an untrusted party.
