@@ -80,7 +80,7 @@ The bundled starter address and model are examples for a particular local deploy
 
 ## Send your first message
 
-Type a question and press **Enter**. Responses appear as they arrive. Use **Ctrl+O** to insert a newline, and paste code directly into the composer. Press **Esc** to stop a response. Use **Up/Down** to recall and edit earlier prompts or commands, and **Page Up/Page Down** to scroll the conversation. Down past the newest entry restores your unsent draft and cursor. The last 500 submissions are kept in memory across chat session switches and `/restart`; closing Syleks clears this input history. Consecutive duplicates are stored once.
+Type a question and press **Enter**. Responses appear as they arrive. Use **Ctrl+O** to insert a newline, and paste code directly into the composer. Press **Esc** to stop a response. Use **Up/Down** to recall and edit earlier prompts or commands, and **Page Up/Page Down** to scroll the conversation. Down past the newest entry restores your unsent draft and cursor. The last 500 submissions are kept in memory across chat session switches and `/restart`; closing Syleks clears this input history. Consecutive duplicates are stored once. Use `/history clear` or Ctrl+X to clear recall, `/history off` to disable and clear it, or a leading space to exclude one submission. These controls do not prevent conversation storage or provider requests; see [input recall privacy](chat.md#input-recall-privacy).
 
 Try these steps:
 

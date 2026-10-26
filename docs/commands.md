@@ -44,6 +44,7 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | `/usage` | Open token/performance details and configured context/response budgets |
 | `/help` | Open the scrollable command and keyboard reference popup |
 | `/config`, `/config init`, `/config edit` | Open the same configuration form |
+| `/history [clear\|on\|off]` | Show recall setting, clear recall, or save collection preference; off clears existing entries. Leading space excludes one submission; conversation storage and provider requests still apply. |
 | `/restart` | Reload configuration and reopen this session, preserving history and drafts |
 | `/new` | Open a new persistent session |
 | `/clear` | Same as `/new`; the previous session is retained |

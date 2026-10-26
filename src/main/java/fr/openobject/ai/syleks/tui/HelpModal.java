@@ -85,11 +85,18 @@ final class HelpModal {
                     new Entry("/help", "Open this reference."),
                     new Entry("/demo", "Preview tool cards and code highlighting."),
                     new Entry("/quit · /exit", "Close Syleks."),
+                    new Entry(
+                            "/history [clear|on|off]",
+                            "Clear recall or save collection preference; off clears existing entries."),
+                    new Entry(
+                            "Leading space",
+                            "Exclude a submission from recall; prompts can still be saved and sent to providers."),
                     new Entry("Keyboard shortcuts", ""),
                     new Entry("Enter", "Send a message or run a command."),
                     new Entry("Ctrl+O", "Insert a newline."),
                     new Entry("←/→ · Backspace · Delete", "Move the cursor or edit your draft."),
                     new Entry("↑/↓", "Recall older/newer prompts; Down restores your draft."),
+                    new Entry("Ctrl+X", "Clear input recall; keep visible text and cursor."),
                     new Entry("PgUp/PgDn", "Scroll the conversation."),
                     new Entry("Tab", "Cycle primary agents while idle."),
                     new Entry("Ctrl+P", "Open or close this help popup; keep your draft."),

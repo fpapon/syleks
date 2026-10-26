@@ -41,6 +41,15 @@ public class TerminalApp implements AutoCloseable {
 
     @io.yupiik.fusion.framework.build.api.scanning.Injection UsagePreferences usagePreferences;
 
+    @io.yupiik.fusion.framework.build.api.scanning.Injection
+    PromptHistoryPreferences promptHistoryPreferences;
+
+    @io.yupiik.fusion.framework.build.api.lifecycle.Init
+    public void initializePromptHistory() {
+        if (promptHistoryPreferences != null)
+            editor.historyEnabled(promptHistoryPreferences.enabled());
+    }
+
     private UsageModal usageModal;
     private ProviderModal providerModal;
     private java.util.concurrent.Future<?> providerTask;
@@ -105,6 +114,7 @@ public class TerminalApp implements AutoCloseable {
     }
 
     public void restoreAfterRestart(RestartRequest request) {
+        initializePromptHistory();
         if (!session.childHistory()) session.model(session.configuredModel());
         editor.restorePromptHistory(request.promptHistory());
         editor.setText(request.draft());
@@ -417,6 +427,12 @@ public class TerminalApp implements AutoCloseable {
             editor.insertCodepoint(key == '\r' ? '\n' : key);
             return;
         }
+        if (key == 24) {
+            editor.clearPromptHistory();
+            session.info(
+                    "Input recall cleared; saved conversations and provider requests are unchanged.");
+            return;
+        } // Ctrl+X
         if (key == 9) {
             session.toggleAgent();
             return;
@@ -583,7 +599,9 @@ public class TerminalApp implements AutoCloseable {
         var value = editor.text().strip();
         if (value.isBlank()) return;
         if (value.startsWith("/")) {
-            editor.remember(editor.text());
+            // Privacy commands never enter recall, including invalid arguments.
+            if (!value.split("\\s+", 2)[0].equalsIgnoreCase("/history"))
+                editor.remember(editor.text());
             editor.clear();
             command(value);
             sessionViews.scroll(0);
@@ -626,6 +644,34 @@ public class TerminalApp implements AutoCloseable {
                     if (!arg.isBlank() && !arg.equals("init") && !arg.equals("edit"))
                         session.info("Usage: /config [init|edit]");
                     else openConfiguration();
+                }
+                case "/history" -> {
+                    switch (arg) {
+                        case "clear" -> editor.clearPromptHistory();
+                        case "on", "off" -> {
+                            if (promptHistoryPreferences == null)
+                                throw new IllegalStateException(
+                                        "Input history settings unavailable");
+                            try {
+                                promptHistoryPreferences.select(arg.equals("on"));
+                            } catch (Exception e) {
+                                throw new IllegalStateException(
+                                        "Cannot save input history preference", e);
+                            }
+                            editor.historyEnabled(promptHistoryPreferences.enabled());
+                        }
+                        case "" -> {}
+                        default ->
+                                throw new IllegalArgumentException(
+                                        "Usage: /history [clear|on|off]");
+                    }
+                    session.info(
+                            "Input recall "
+                                    + (promptHistoryPreferences == null
+                                                    || promptHistoryPreferences.enabled()
+                                            ? "on"
+                                            : "off")
+                                    + "; leading space excludes one entry. Saved conversations and provider requests are unchanged.");
                 }
                 case "/restart" -> restartChat();
                 case "/new", "/clear" -> changeSession("new", "");

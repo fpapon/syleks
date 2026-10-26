@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import fr.openobject.ai.syleks.ai.ChatSession;
 import fr.openobject.ai.syleks.ai.OllamaClient;
+import fr.openobject.ai.syleks.ai.ToolHandler;
 import fr.openobject.ai.syleks.app.*;
 import fr.openobject.ai.syleks.session.SessionFixture;
 import java.io.StringReader;
@@ -92,6 +93,159 @@ class PromptHistoryTest {
                 escape(app, "OA"); // Application-mode arrow sequence.
                 app.restartChat();
                 assertEquals("/help", app.restartRequest().draft());
+            }
+        }
+    }
+
+    @Test
+    void excludesRawLeadingSpaceAndClearsAcrossRestartWhileOffKeepsSending() throws Exception {
+        try (var f = new SessionFixture(root)) {
+            var sent = new ArrayList<String>();
+            var chat =
+                    new ChatSession(new OllamaClient(f.config, f.mapper.instance()), f.config) {
+                        @Override
+                        public synchronized boolean send(String text) {
+                            if (text.equals("rejected")) return false;
+                            sent.add(text);
+                            return true;
+                        }
+                    };
+            chat.persistence(f.agent);
+            var preferences =
+                    new PromptHistoryPreferences(null) {
+                        private boolean enabled = true;
+
+                        @Override
+                        public boolean enabled() {
+                            return enabled;
+                        }
+
+                        @Override
+                        public void select(boolean next) {
+                            enabled = next;
+                        }
+                    };
+            try (var app =
+                    new TerminalApp(
+                            chat,
+                            new ConfigInitializer(),
+                            new ConfigInitWizard(f.mapper.instance()))) {
+                app.promptHistoryPreferences = preferences;
+                app.initializePromptHistory();
+                type(app, "ordinary\r private 🧪");
+                app.handle(15, null);
+                type(app, "second line\r");
+                type(app, " /help\r");
+                app.handle('\r', null); // Close help.
+                type(app, "rejected\r");
+                escape(app, "[A");
+                app.handle(24, null); // Clear while browsing; preserve displayed input.
+                app.restartChat();
+                assertEquals("ordinary", app.restartRequest().draft());
+                assertTrue(app.restartRequest().promptHistory().isEmpty());
+                assertEquals(List.of("ordinary", "private 🧪\nsecond line"), sent);
+            }
+            try (var app =
+                    new TerminalApp(
+                            chat,
+                            new ConfigInitializer(),
+                            new ConfigInitWizard(f.mapper.instance()))) {
+                app.promptHistoryPreferences = preferences;
+                app.initializePromptHistory();
+                type(app, "/help\r");
+                app.handle('\r', null);
+                type(app, "/history clear\r");
+                type(app, "/history off\rdisabled 🧪\r");
+                app.handle(7, null); // Configuration loads asynchronously, as in the event loop.
+                long modalDeadline =
+                        System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+                while (app.configurationModal() == null && System.nanoTime() < modalDeadline) {
+                    app.drainCompletions();
+                    Thread.sleep(5);
+                }
+                assertNotNull(app.configurationModal());
+                type(app, "synthetic-modal-secret");
+                escape(app, "");
+                app.restartChat();
+                assertTrue(app.restartRequest().promptHistory().isEmpty());
+                assertEquals("disabled 🧪", sent.getLast());
+                // A stale restart list must also be rejected while collection is disabled.
+                app.restoreAfterRestart(
+                        new TerminalApp.RestartRequest(
+                                null, "draft", java.util.Map.of(), List.of("old")));
+                app.restartChat();
+                assertTrue(app.restartRequest().promptHistory().isEmpty());
+                type(app, "\u007f\u007f\u007f\u007f\u007f/history on\r");
+                assertTrue(preferences.enabled());
+                type(app, "accepted again\r");
+                app.restartChat();
+                assertEquals(List.of("accepted again"), app.restartRequest().promptHistory());
+            }
+        }
+    }
+
+    @Test
+    void sessionSwitchesRetainOrdinaryRecallAndCannotResurrectClearedEntries() {
+        var editor = new Editor();
+        var views = new SessionViewState();
+        editor.remember("accepted");
+        editor.remember(" excluded");
+        editor.setText("draft 🧪");
+        views.switchTo("second", editor);
+        editor.previousPrompt();
+        assertEquals("accepted", editor.text());
+        editor.clearPromptHistory();
+        views.switchTo("", editor);
+        assertEquals("draft 🧪", editor.text());
+        editor.previousPrompt();
+        assertEquals("draft 🧪", editor.text());
+        assertTrue(editor.promptHistory().isEmpty());
+    }
+
+    @Test
+    void excludedRecallStillReachesProviderAndPersistsInConversation() throws Exception {
+        try (var f = new SessionFixture(root)) {
+            var received = new java.util.concurrent.LinkedBlockingQueue<String>();
+            var client =
+                    new OllamaClient(f.config, f.mapper.instance()) {
+                        @Override
+                        public void streamPrepared(
+                                String model,
+                                String agent,
+                                List<java.util.Map<String, Object>> messages,
+                                java.util.function.Consumer<String> receive,
+                                ToolHandler tools,
+                                Observer observer) {
+                            received.add(messages.toString());
+                            receive.accept("synthetic response");
+                        }
+                    };
+            var chat = new ChatSession(client, f.config);
+            chat.persistence(f.agent);
+            try (var app =
+                    new TerminalApp(
+                            chat,
+                            new ConfigInitializer(),
+                            new ConfigInitWizard(f.mapper.instance()))) {
+                type(app, " private 🧪");
+                app.handle(15, null);
+                type(app, "second line\r");
+                String providerRequest = received.poll(5, java.util.concurrent.TimeUnit.SECONDS);
+                assertNotNull(providerRequest);
+                assertTrue(providerRequest.contains("private 🧪\nsecond line"));
+                long end = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+                while (chat.snapshot().busy() && System.nanoTime() < end) Thread.sleep(5);
+                assertFalse(chat.snapshot().busy());
+                app.restartChat();
+                assertNotNull(app.restartRequest());
+                assertTrue(app.restartRequest().promptHistory().isEmpty());
+                assertEquals(
+                        "private 🧪\nsecond line",
+                        f.conversation.history(f.agent.current().id()).stream()
+                                .filter(message -> message.role().equals("user"))
+                                .findFirst()
+                                .orElseThrow()
+                                .content());
             }
         }
     }

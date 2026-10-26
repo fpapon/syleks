@@ -8,7 +8,7 @@ Type in the composer at the bottom of the screen. **Enter** sends the message; *
 
 Use Left/Right to move the caret, Backspace to remove the preceding character, and Delete to remove the next character. Bracketed paste lets you paste multiline text or code without sending each line as a separate message.
 
-**Up/Down scroll the conversation**, rather than moving through input history. Page Up/Page Down scroll farther. The layout adapts when you resize the terminal; enlarge it if you see a minimum-size notice.
+**Up/Down recall older/newer accepted input**, and Down past the newest entry restores your draft and cursor. Page Up/Page Down scroll the conversation. The layout adapts when you resize the terminal; enlarge it if you see a minimum-size notice.
 
 The header identifies the project, session, and model. The composer shows the selected agent, and an animated status indicator appears during generation or tool execution. It pauses while an approval is waiting.
 
@@ -20,10 +20,11 @@ The header identifies the project, session, and model. The composer shows the se
 | Ctrl+O | Insert a newline |
 | Left / Right | Move the input caret |
 | Backspace / Delete | Delete before / after the caret |
-| Up / Down | Scroll the conversation by two lines |
+| Up / Down | Recall older/newer input; restore the draft |
 | Page Up / Page Down | Scroll by eight lines |
 | Tab | Cycle primary agents while idle |
 | Ctrl+P | Open or close the help popup, keeping the draft |
+| Ctrl+X | Clear input recall, preserving visible text and cursor |
 | Ctrl+G | Open configuration, keeping the draft |
 | Ctrl+R | Open the session picker, keeping the draft |
 | Esc | Cancel active work or dismiss an overlay |
@@ -61,3 +62,13 @@ For a complete structured export, use [session JSON export](sessions.md). Both f
 ## Try a specialist workflow
 
 With the [example configuration and agent definitions](../examples/README.md) installed, select `/agent build`, then send `@explore Find the configuration loader and explain its inputs, with file references`. A child runs with its explicit task and returns an answer. Use `/children` to open its history and `/parent` to return. `/permissions reviewer` shows another specialist's policy before invocation. Hidden agents such as the example Triage require their explicit name.
+
+## Input recall privacy
+
+Recall holds at most 500 accepted prompts and commands in memory, suppressing consecutive duplicates. It survives session switches and `/restart`, and is never saved to disk. Provider/configuration dialog input and rejected prompt submissions do not enter recall.
+
+Start a submission with an ASCII space to exclude that entry from recall, including commands and multiline input. The exclusion is checked before submission whitespace is stripped. This is deliberate exclusion, without secret detection.
+
+Use `/history clear` or **Ctrl+X** in the composer to forget recalled entries and navigation snapshots. Ctrl+X preserves the currently visible text and cursor, including a recalled entry you are editing; erase that text separately if needed. `/history off` clears existing recall and saves a preference to disable further collection; `/history on` enables collection again without restoring old entries. `/history` reports the setting. Privacy commands never enter recall themselves. Clear and disable also prevent old recall entries from transferring through a later restart.
+
+These controls affect input recall only. Submitted prompts can still be sent to the provider and stored in the SQLite conversation, and conversation exports remain available through `/save`. Unsent drafts still survive session switches and restart. Clearing recall does not delete conversations, drafts or provider data, and Java immutable strings do not permit a memory-zeroization guarantee. See [configuration](configuration.md#input-recall) for the saved preference.

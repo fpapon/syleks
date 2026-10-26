@@ -171,6 +171,12 @@ A round is one model response and any tool calls it requests. It is not a user m
 
 The optional `subagents` object adds finite child execution ceilings: `max_depth` (3), `max_parallel` (4), `max_tasks` (32), `max_rounds` (16), `max_session_rounds` (128), and `timeout_seconds` (120). The values in parentheses are defaults. Task/round counters are durable per root session and include nested tasks; an agent's `max_rounds: -1` cannot remove the common child ceiling. See [Subagents](subagents.md) for ranges, batch syntax and deadline behavior. The existing setup form preserves these numeric settings when saved.
 
+## Input recall
+
+`/history off` saves `"input_history": false` in the global provider-selection `config.json` under `$XDG_CONFIG_HOME/syleks` (when absolute), otherwise `${user.home}/.config/syleks`. `/history on` saves `true`. Missing values default to `true`; other types are rejected at startup. This setting is separate from `agent-config.json` and its schema, and project configuration cannot override it. No migration is needed. The limit stays fixed at 500 entries.
+
+Disabling clears current recall; enabling starts empty. `/history clear` and Ctrl+X clear recall without changing the saved preference. A leading ASCII space excludes one submission. These settings do not prevent submitted prompts from being persisted in conversations or sent to providers. Input text is never persisted in this preference file. See [input recall privacy](chat.md#input-recall-privacy).
+
 ## Token sidebar
 
 `/sidebar [auto|show|hide]` saves visibility in the existing provider-selection `config.json`. Context color thresholds are configured with `context_warning_percent` and `context_critical_percent` in that file. See [Token usage](token-usage.md) for the exact location, defaults and precision limits.
@@ -252,7 +258,7 @@ Fields live at `mcp.SERVER`. IDs start with a lowercase letter and contain up to
 
 | File | Settings |
 | --- | --- |
-| Provider selection `config.json` | Active provider/model/account references; sidebar and context color preferences |
+| Provider selection `config.json` | Active provider/model/account references; sidebar, context color and input recall preferences |
 | `.syleks/project.json` | Project cloud policy, for example `{"allow_cloud": false}` |
 | `~/.config/syleks/engineering-projects.json` | Optional [Engineering project enrollment](project-contracts.md), pinned local pack references, reviewed local inference routes and proposed budget declarations; edited separately from setup |
 | Global/project `AGENTS.md` | Shared instructions loaded separately from agent definitions |

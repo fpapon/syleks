@@ -281,6 +281,8 @@ Highlighting preserves source whitespace and carries multiline comment/string st
 | Ctrl+D | Exit |
 | Left / Right | Edit the text |
 | Up / Down | Recall older/newer prompts and commands; Down past the newest restores the draft |
+| Ctrl+X | Clear input recall; keep visible draft and cursor |
+| `/history [clear\|on\|off]` | Clear recall or save collection preference; leading space excludes one entry. Conversation storage and provider requests still apply. |
 | PageUp / PageDown | Scroll conversation |
 | Bracketed paste | Paste code without sending it |
 | `/help` | Open command and keyboard help popup |

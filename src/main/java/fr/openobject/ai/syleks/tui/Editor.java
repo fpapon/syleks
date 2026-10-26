@@ -23,6 +23,7 @@ public final class Editor {
     private int caret;
     private static final int HISTORY_LIMIT = 500;
     private final java.util.List<String> history = new java.util.ArrayList<>();
+    private boolean historyEnabled = true;
     private int historyIndex;
     private String draft = "";
     private int draftCaret;
@@ -49,13 +50,26 @@ public final class Editor {
 
     /** Record only accepted submissions, never modal input or unsent drafts. */
     public void remember(String text) {
-        if (text.isBlank()) return;
+        if (!historyEnabled || text.isBlank() || text.startsWith(" ")) return;
         if (history.isEmpty() || !history.getLast().equals(text)) {
             history.add(text);
             if (history.size() > HISTORY_LIMIT) history.removeFirst();
         }
         historyIndex = history.size();
         draft = "";
+    }
+
+    /** Clears recall and navigation snapshots, preserving the visible text and cursor. */
+    public void clearPromptHistory() {
+        history.clear();
+        historyIndex = 0;
+        draft = "";
+        draftCaret = 0;
+    }
+
+    public void historyEnabled(boolean enabled) {
+        historyEnabled = enabled;
+        if (!enabled) clearPromptHistory();
     }
 
     public void previousPrompt() {
@@ -81,7 +95,7 @@ public final class Editor {
     }
 
     public void restorePromptHistory(java.util.List<String> entries) {
-        history.clear();
+        clearPromptHistory();
         for (var entry : entries) remember(entry);
         historyIndex = history.size();
     }

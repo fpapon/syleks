@@ -1,0 +1,23 @@
+SEC-10 packaged PTY smoke — 26 October 2026
+Debian 13 / Linux 6.12.113+deb13-amd64 / Zulu OpenJDK 25+36-LTS.
+Command: JAVA_HOME=/home/fpa/.sdkman/candidates/java/25-zulu python3 scripts/sec10-history-smoke.py
+Packaged target/syleks-0.1.0-SNAPSHOT.jar; temporary home/workspace/data; synthetic values only.
+Terminal sizes: 120x36 -> 40x14 -> 120x36.
+Commands are synchronized with SQLite rename effects and terminal worker completions.
+Effects checked: session title, persisted input_history=false, unchanged conversation message count.
+Masking checked: synthetic API key absent from emitted plaintext; masking bullets emitted.
+Raw terminal capture: ignored target/sec10/terminal-output.bin (not included here).
+No live provider or real credential was used.
+
+{
+  "status": "PASS",
+  "checks": [
+    "leading-space command excluded; ordinary Unicode command recalled",
+    "clear does not reinsert itself",
+    "disabled collection persists across fresh runtime restart",
+    "reenabling collects only new entries",
+    "clear then restart cannot resurrect recall",
+    "masked modal key excluded from recall; help paging and resize",
+    "no unintended submitted messages; clean exit without terminal exceptions"
+  ]
+}

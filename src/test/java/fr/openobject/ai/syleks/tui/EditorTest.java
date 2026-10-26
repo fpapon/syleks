@@ -102,4 +102,38 @@ class EditorTest {
         restarted.previousPrompt();
         assertEquals("prompt 500", restarted.text());
     }
+
+    @Test
+    void privacyControlsClearSnapshotsKeepVisibleUnicodeCursorAndNeverRestoreExcludedEntries() {
+        var editor = new Editor();
+        editor.remember("ordinary 🧪\nline");
+        editor.remember(" private 🧪\nsecret");
+        editor.remember(" /answer private-command");
+        assertEquals(java.util.List.of("ordinary 🧪\nline"), editor.promptHistory());
+        editor.setText("unsent draft");
+        editor.previousPrompt();
+        editor.left();
+        int caret = editor.caret();
+        editor.clearPromptHistory();
+        editor.clearPromptHistory();
+        editor.nextPrompt();
+        editor.previousPrompt();
+        assertEquals("ordinary 🧪\nline", editor.text());
+        assertEquals(caret, editor.caret());
+        assertTrue(editor.promptHistory().isEmpty());
+        editor.clear();
+        editor.nextPrompt();
+        assertEquals("", editor.text(), "The old navigation draft must be forgotten");
+        for (int i = 0; i < 3; i++) {
+            editor.remember("old");
+            editor.historyEnabled(false);
+            editor.remember("disabled secret");
+            editor.restorePromptHistory(java.util.List.of("restart secret"));
+            assertTrue(editor.promptHistory().isEmpty());
+            editor.historyEnabled(true);
+            assertTrue(editor.promptHistory().isEmpty());
+        }
+        editor.restorePromptHistory(java.util.List.of(" excluded", "accepted"));
+        assertEquals(java.util.List.of("accepted"), editor.promptHistory());
+    }
 }
