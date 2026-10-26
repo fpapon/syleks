@@ -281,6 +281,7 @@ public class OllamaClient {
             throws Exception {
         String selectedProvider =
                 model.contains("/") ? model.substring(0, model.indexOf('/')) : "ollama";
+        config.transport().requireAllowed(connection.endpoint());
         config.engineering()
                 .checkInference(
                         selectedProvider, connection.endpoint(), config.proxy(selectedProvider));

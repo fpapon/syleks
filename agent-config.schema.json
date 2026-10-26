@@ -34,6 +34,11 @@
       "default": "build",
       "description": "Must resolve to an enabled primary or all-mode agent, including Markdown definitions."
     },
+    "insecure_http_origins": {
+      "type": "array", "maxItems": 64, "uniqueItems": true, "default": [],
+      "items": { "type": "string", "pattern": "^http://(?:\\[[0-9A-Fa-f:.]+\\]|[A-Za-z0-9.-]+)(?::[0-9]+)?/?$" },
+      "description": "Global-only reviewed plaintext HTTP origins. Exact host and effective port; no paths, credentials, query or fragment. Runtime enforces membership/ports, emits warnings and keeps OAuth strict. Remove entries and restart to revoke."
+    },
     "command_environment": {
       "type": "object", "additionalProperties": false,
       "description": "Global-only command environment. Project/agent configuration cannot override this policy. Values are read from the host only for explicitly selected supported names.",
@@ -103,7 +108,20 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [{
+    "if": {"required": ["insecure_http_origins"], "properties": {"insecure_http_origins": {"minItems": 1}}},
+    "then": {},
+    "else": {"properties": {
+      "provider": {"additionalProperties": {"properties": {"options": {"properties": {"baseURL": {"$ref": "#/$defs/secureEndpoint"}}}}}},
+      "mcp": {"additionalProperties": {"properties": {"url": {"$ref": "#/$defs/secureEndpoint"}}}}
+    }}
+  }],
   "$defs": {
+    "secureEndpoint": {
+      "type": "string",
+      "pattern": "^(?:https://|http://(?:[lL][oO][cC][aA][lL][hH][oO][sS][tT]|127(?:\\.(?:0|[1-9][0-9]{0,2})){3}|\\[[0:]*1\\])(?=[:/]|$))",
+      "description": "Remote HTTPS or loopback HTTP. Runtime additionally validates canonical address syntax and port range."
+    },
     "mcpServer": {
       "type": "object",
       "additionalProperties": false,
@@ -133,7 +151,8 @@
         },
         "url": {
           "type": "string",
-          "pattern": "^https?://[^?#@]+$"
+          "pattern": "^https?://[^?#@]+$",
+          "description": "HTTPS required for remote endpoints, even without credentials. HTTP allowed only for exact localhost, canonical 127/8 IPv4 literals or IPv6 ::1. Runtime validates ports (1-65535), authority and loopback classification. Remote HTTP requires membership in global insecure_http_origins, checked at runtime."
         },
         "environment": {
           "type": "object",
@@ -268,7 +287,7 @@
         "options": {
           "type": "object",
           "properties": {
-            "baseURL": {"type": "string", "pattern": "^https?://[^\\s/?#@]+(?:/[^\\s?#]*)?$", "default": "http://127.0.0.1:11434"},
+            "baseURL": {"type": "string", "pattern": "^https?://[^\\s/?#@]+(?:/[^\\s?#]*)?$", "default": "http://127.0.0.1:11434", "description": "HTTPS required except exact localhost, canonical 127/8 IPv4 or IPv6 ::1. Runtime validates ports and authority; remote HTTP requires global insecure_http_origins membership."},
             "proxy": {"$ref": "#/$defs/httpProxy"}
           },
           "additionalProperties": false
@@ -316,7 +335,7 @@
               "type": "string",
               "format": "uri",
               "pattern": "^https?://(?:\\[[0-9A-Fa-f:.]+\\]|[^\\s/?#@:]+)(?::[0-9]+)?(?:/[^\\s?#]*)?$",
-              "description": "HTTP(S) base URL, without credentials, query or fragment. /chat/completions is appended."
+              "description": "HTTPS base URL (HTTP only on exact localhost, canonical 127/8 IPv4 or IPv6 ::1), without credentials, query or fragment. Port must be 1-65535 when present. /chat/completions is appended. Remote HTTP requires global insecure_http_origins membership."
             },
             "proxy": {
               "$ref": "#/$defs/httpProxy"

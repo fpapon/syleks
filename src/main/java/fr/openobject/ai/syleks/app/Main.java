@@ -92,6 +92,7 @@ public final class Main {
                         config init: open the configuration TUI to create/update provider and model settings.
                         In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
                         Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
+                        Remote HTTP: review insecure_http_origins in global agent-config.json; restart to apply/revoke.
                         --defaults: skip questions and use the bundled provider/model settings without an API key.
                         Exports are JSON on stdout and may contain confidential content. Redirect explicitly.
                         Session IDs are restricted to the current project. Use --help for this message.
@@ -141,6 +142,7 @@ public final class Main {
                 try (var container = ConfiguringContainer.of().start();
                         var instance =
                                 container.lookup(fr.openobject.ai.syleks.ai.ToolRegistry.class)) {
+                    transportWarnings(container, error);
                     var registry = instance.instance();
                     if (args[1].equals("auth")) {
                         registry.mcp()
@@ -173,6 +175,7 @@ public final class Main {
             } else if (ProviderCommands.handles(args)) {
                 try (var container = ConfiguringContainer.of().start();
                         var instance = container.lookup(ProviderCommands.class)) {
+                    transportWarnings(container, error);
                     instance.instance().run(args, out);
                 }
             } else if (args.length > 0 && args[0].equals("config")) {
@@ -289,6 +292,13 @@ public final class Main {
         } catch (Exception e) {
             error.println("Syleks: " + safe(e.getMessage()));
             return 1;
+        }
+    }
+
+    private static void transportWarnings(
+            io.yupiik.fusion.framework.api.RuntimeContainer container, PrintStream error) {
+        try (var config = container.lookup(AppConfig.class)) {
+            config.instance().transport().warnings().forEach(error::println);
         }
     }
 

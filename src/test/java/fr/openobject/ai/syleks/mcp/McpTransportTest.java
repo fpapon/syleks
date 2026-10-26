@@ -30,6 +30,95 @@ class McpTransportTest {
     @TempDir Path root;
 
     @Test
+    void globalExceptionsAllowBearerAndHeaderConnectionsButNeverOAuthAndCanBeRevoked()
+            throws Exception {
+        var policy =
+                fr.openobject.ai.syleks.net.TransportSecurity.Policy.parse(
+                        List.of("http://remote.example:8000"));
+        for (var auth :
+                List.of(
+                        Map.of("bearer_token_env", "FIXTURE_TOKEN"),
+                        Map.of("headers", Map.of("X-Api-Key", "fake-key")))) {
+            var definition = new java.util.LinkedHashMap<String, Object>(auth);
+            definition.put("type", "http");
+            definition.put("url", "http://remote.example:8000/mcp");
+            var server =
+                    McpServerConfig.parse(Map.of("fixture", definition), root, policy)
+                            .get("fixture");
+            try (var connection =
+                    new McpConnection(
+                            server, root, Map.of("FIXTURE_TOKEN", "fake-token"), root, policy)) {
+                assertNotNull(connection);
+            }
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            new McpConnection(
+                                    server, root, Map.of("FIXTURE_TOKEN", "fake-token"), root));
+            definition.put("url", "http://remote.example:8001/mcp");
+            assertThrows(
+                    IllegalStateException.class,
+                    () -> McpServerConfig.parse(Map.of("fixture", definition), root, policy));
+        }
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        McpServerConfig.parse(
+                                Map.of(
+                                        "fixture",
+                                        Map.of(
+                                                "type",
+                                                "http",
+                                                "url",
+                                                "http://remote.example:8000/mcp",
+                                                "oauth",
+                                                true)),
+                                root,
+                                policy));
+    }
+
+    @Test
+    void rejectsRemoteHttpBeforeResolvingBearerOrCustomHeaders() {
+        for (var headers : List.of(Map.of("X-Api-Key", "fake-key"), Map.<String, String>of())) {
+            var config =
+                    new McpServerConfig(
+                            "fixture",
+                            "http",
+                            true,
+                            List.of(),
+                            URI.create("http://remote.example/mcp"),
+                            Map.of(),
+                            headers,
+                            headers.isEmpty() ? "FIXTURE_TOKEN" : "",
+                            5,
+                            false,
+                            false,
+                            false,
+                            "",
+                            "");
+            var error =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () ->
+                                    new McpConnection(
+                                            config,
+                                            root,
+                                            Map.of("FIXTURE_TOKEN", "fake-token"),
+                                            root));
+            assertFalse(error.getMessage().contains("fake-key"));
+            assertFalse(error.getMessage().contains("fake-token"));
+        }
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        McpServerConfig.parse(
+                                Map.of(
+                                        "fixture",
+                                        Map.of("type", "http", "url", "http://remote.example/mcp")),
+                                root));
+    }
+
+    @Test
     void stdioUsesSharedBaselineAndOnlyItsOwnExplicitEnvironment() throws Exception {
         var output = root.resolve("child-env");
         var config =

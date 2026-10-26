@@ -74,6 +74,7 @@ public class ConfigInitWizard {
         private final String original;
         private final Map<String, Object> base;
         private final Map<String, Object> defaults;
+        private final fr.openobject.ai.syleks.net.TransportSecurity.Policy transport;
         private final List<String> values = new ArrayList<>();
         private String warning = "";
 
@@ -102,6 +103,9 @@ public class ConfigInitWizard {
                 }
             }
             base = existing == null ? object(defaults) : existing;
+            transport =
+                    fr.openobject.ai.syleks.net.TransportSecurity.Policy.parse(
+                            base.getOrDefault("insecure_http_origins", List.of()));
             String selection = string(base, "model", "local/qwen3.8-27b");
             int slash = selection.indexOf('/');
             String providerId = slash > 0 ? selection.substring(0, slash) : "local";
@@ -118,7 +122,7 @@ public class ConfigInitWizard {
                     List.of(
                             providerId,
                             string(provider, "name", "Local"),
-                            string(options, "baseURL", "http://192.168.52.32:8000/v1"),
+                            string(options, "baseURL", "http://127.0.0.1:8000/v1"),
                             string(options, "apiKey", ""),
                             modelId,
                             string(model, "name", "Qwen3.8 27B UD-Q4_K_M"),
@@ -140,7 +144,12 @@ public class ConfigInitWizard {
         }
 
         public String warning() {
-            return warning;
+            try {
+                String insecure = transport.warning(transport.requireAllowed(URI.create(value(2))));
+                return warning.isEmpty() ? insecure : warning + " " + insecure;
+            } catch (IllegalArgumentException invalid) {
+                return warning;
+            }
         }
 
         public String value(int field) {
@@ -162,9 +171,9 @@ public class ConfigInitWizard {
                                 : "Use letters, digits, dots, underscores or hyphens.";
                 case 1, 5 -> value.isBlank() ? "Enter a display name." : "";
                 case 2 ->
-                        validURL(value)
+                        validURL(value, transport)
                                 ? ""
-                                : "Enter an HTTP(S) base URL without credentials, query or fragment.";
+                                : "Enter an HTTPS URL (HTTP needs loopback or a global origin exception), without credentials, query or fragment.";
                 case 3 -> "";
                 case 4 ->
                         value.matches("[A-Za-z0-9._:/-]{1,240}")
@@ -280,15 +289,11 @@ public class ConfigInitWizard {
         return form.configuration();
     }
 
-    private static boolean validURL(String value) {
+    private static boolean validURL(
+            String value, fr.openobject.ai.syleks.net.TransportSecurity.Policy transport) {
         try {
-            var uri = URI.create(value);
-            return ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
-                    && uri.getHost() != null
-                    && uri.getUserInfo() == null
-                    && uri.getQuery() == null
-                    && uri.getFragment() == null
-                    && (uri.getPort() == -1 || uri.getPort() > 0 && uri.getPort() <= 65535);
+            transport.requireAllowed(URI.create(value));
+            return true;
         } catch (IllegalArgumentException invalid) {
             return false;
         }

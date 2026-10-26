@@ -94,6 +94,57 @@ class ProviderConfigTest {
     }
 
     @Test
+    void rejectsPlaintextRemoteConfigurationAndPreparedConnectionsBeforeSending() throws Exception {
+        for (String url :
+                List.of(
+                        "http://remote.example:8000/v1",
+                        "http://localhost.evil/v1",
+                        "https://user:fake-key@remote.example/v1",
+                        "https://remote.example:65536/v1")) {
+            var error =
+                    assertThrows(
+                            IllegalStateException.class,
+                            () ->
+                                    config(
+                                            CONFIG.replace("http://127.0.0.1:8000/v1/", url),
+                                            Map.of()));
+            assertFalse(error.getMessage().contains("fake-key"));
+        }
+        var config = config(CONFIG, Map.of());
+        var captured = new AtomicReference<CapturedRequest>();
+        var client = client(config, 200, "data: [DONE]\n\n", captured);
+        var connection =
+                new AppConfig.ModelConnection(
+                        URI.create("http://remote.example/v1/chat/completions"),
+                        "fixture",
+                        "Fixture",
+                        "fixture",
+                        "fake-key",
+                        null,
+                        null,
+                        true);
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        client.streamPrepared(
+                                connection,
+                                "local/fixture",
+                                "build",
+                                List.of(),
+                                ignored -> {},
+                                ToolHandler.NONE,
+                                null));
+        assertNull(captured.get(), "Rejected destination must receive no request or credential");
+        assertEquals(
+                HttpClient.Redirect.NEVER,
+                config.configureProxy(
+                                "local",
+                                HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS))
+                        .build()
+                        .followRedirects());
+    }
+
+    @Test
     void switchesBetweenProvidersWithIndependentConnectionsAndAgentModels() throws Exception {
         var settings =
                 mapper.instance()
@@ -434,8 +485,8 @@ class ProviderConfigTest {
                     config(
                             """
                     {"provider":{
-                      "first":{"options":{"baseURL":"http://llm.invalid/v1","proxy":"http://127.0.0.1:%d"},"models":{"model":{}}},
-                      "second":{"options":{"baseURL":"http://llm.invalid/v1","proxy":"http://127.0.0.1:%d/"},"models":{"model":{}}},
+                      "first":{"options":{"baseURL":"http://localhost/v1","proxy":"http://127.0.0.1:%d"},"models":{"model":{}}},
+                      "second":{"options":{"baseURL":"http://localhost/v1","proxy":"http://127.0.0.1:%d/"},"models":{"model":{}}},
                       "direct":{"options":{"baseURL":"http://127.0.0.1:%d/v1"},"models":{"model":{}}}
                     }}
                     """
@@ -452,10 +503,10 @@ class ProviderConfigTest {
             }
             assertEquals(
                     List.of(
-                            "first:http://llm.invalid/v1/chat/completions",
-                            "second:http://llm.invalid/v1/chat/completions",
+                            "first:http://localhost/v1/chat/completions",
+                            "second:http://localhost/v1/chat/completions",
                             "direct:/v1/chat/completions",
-                            "first:http://llm.invalid/v1/chat/completions"),
+                            "first:http://localhost/v1/chat/completions"),
                     targets);
             assertNull(config.proxy("direct"));
         } finally {
@@ -492,7 +543,7 @@ class ProviderConfigTest {
                     config(
                             """
                     {"provider":{
-                      "ollama":{"options":{"baseURL":"http://ollama.invalid:11434","proxy":"http://127.0.0.1:%d"}}
+                      "ollama":{"options":{"baseURL":"http://localhost:11434","proxy":"http://127.0.0.1:%d"}}
                     }}
                     """
                                     .formatted(proxy.getAddress().getPort()),
@@ -506,9 +557,7 @@ class ProviderConfigTest {
             client.stream("ollama/test-model", List.of(), output::append);
             assertEquals("hello", output.toString());
             assertEquals(
-                    List.of(
-                            "http://ollama.invalid:11434/api/tags",
-                            "http://ollama.invalid:11434/api/chat"),
+                    List.of("http://localhost:11434/api/tags", "http://localhost:11434/api/chat"),
                     targets);
             assertTrue(config.configuredProviders().isEmpty());
         } finally {

@@ -75,6 +75,7 @@ abstract class ApiKeyChatProvider implements LlmProvider {
 
     protected final void stream(URI endpoint, ChatRequest request, ChatEventListener listener)
             throws Exception {
+        config.transport().requireAllowed(endpoint);
         var credentials = credentials(request.accountId());
         var connection =
                 new AppConfig.ModelConnection(
@@ -115,6 +116,7 @@ abstract class ApiKeyChatProvider implements LlmProvider {
     }
 
     protected final String fetch(URI uri, String token) throws Exception {
+        config.transport().requireAllowed(uri);
         var response =
                 http().send(
                                 HttpRequest.newBuilder(uri)

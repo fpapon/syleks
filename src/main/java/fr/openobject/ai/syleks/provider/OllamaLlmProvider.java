@@ -56,6 +56,7 @@ public class OllamaLlmProvider implements LlmProvider {
     public List<LlmModel> listModels(String accountId) throws Exception {
         var endpoint = config.resolveModel("ollama/placeholder").endpoint();
         URI tags = URI.create(endpoint.toString().replaceAll("/api/chat$", "/api/tags"));
+        config.transport().requireAllowed(tags);
         var response =
                 config.configureProxy(
                                 id(), HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)))

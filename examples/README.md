@@ -66,3 +66,5 @@ Command examples use the [minimal subprocess environment](../docs/configuration.
 For a Java/Maven installation outside `/usr/bin` and `/bin`, add its absolute executable directories
 to global `command_environment.trusted_path` and opt into `JAVA_HOME` with `pass_env` if needed.
 Project and agent examples cannot enable environment passthrough.
+
+Provider and MCP examples require HTTPS for remote endpoints by default. [The insecure HTTP example](agent-config-insecure-http.json) shows an explicit global origin exception for a reviewed LAN server; its credentials and conversation data travel in plaintext. Other HTTP examples are loopback fixtures; see the [transport decision matrix and migration guidance](../docs/providers.md#transport-security).

@@ -35,6 +35,28 @@ class ConfigInitWizardTest {
     @TempDir Path home;
 
     @Test
+    void setupUsesExistingGlobalExceptionsAndShowsThePlaintextWarning() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
+            var wizard = new ConfigInitWizard(mapper.instance());
+            var form =
+                    wizard.form("{\"insecure_http_origins\":[\"http://reviewed.example:8000\"]}");
+            form.value(2, "http://reviewed.example:8000/v1");
+            assertEquals("", form.validation(2));
+            assertTrue(form.warning().contains("INSECURE HTTP: http://reviewed.example:8000"));
+            var saved = new ObjectMapper().readTree(form.configuration());
+            assertEquals(
+                    "http://reviewed.example:8000",
+                    saved.path("insecure_http_origins").get(0).asText());
+            form.value(2, "http://reviewed.example:8001/v1");
+            assertFalse(form.validation(2).isEmpty());
+            var fresh = wizard.form(null);
+            fresh.value(2, "http://reviewed.example:8000/v1");
+            assertFalse(fresh.validation(2).isEmpty());
+        }
+    }
+
+    @Test
     void acceptsUnlimitedRoundsInAllRoundLimitFields() throws Exception {
         try (var container = ConfiguringContainer.of().start();
                 var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
@@ -192,7 +214,7 @@ class ConfigInitWizardTest {
             var config = new ObjectMapper().readTree(content);
             assertFalse(config.path("provider").path("local").path("options").has("apiKey"));
             assertEquals(20, config.path("max_rounds").asInt());
-            assertTrue(output.toString().contains("Enter an HTTP(S) base URL"));
+            assertTrue(output.toString().contains("Enter an HTTPS URL"));
             assertTrue(output.toString().contains("Enter -1 (unlimited) or an integer"));
             assertTrue(output.toString().contains("Enter a temperature"));
             new ConfigInitializer().initialize(home, content);

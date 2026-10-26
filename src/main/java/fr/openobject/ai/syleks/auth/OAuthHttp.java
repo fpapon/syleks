@@ -65,6 +65,7 @@ public class OAuthHttp {
     }
 
     private Map<?, ?> send(HttpRequest request, String... secrets) throws Exception {
+        fr.openobject.ai.syleks.net.TransportSecurity.requireSecure(request.uri());
         var response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
         Map<?, ?> result;
         try (var body = response.body()) {

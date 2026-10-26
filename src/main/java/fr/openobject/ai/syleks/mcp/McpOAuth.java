@@ -322,16 +322,12 @@ public final class McpOAuth implements AutoCloseable {
     }
 
     private static URI secure(URI uri) {
-        if (uri.getHost() == null
-                || uri.getUserInfo() != null
-                || uri.getFragment() != null
-                || uri.getQuery() != null
-                || !(uri.getScheme().equals("https")
-                        || uri.getScheme().equals("http")
-                                && Set.of("127.0.0.1", "localhost", "[::1]")
-                                        .contains(uri.getHost())))
+        fr.openobject.ai.syleks.net.TransportSecurity.requireSecure(uri);
+        // OAuth intentionally permits fewer IPv4 fixture addresses than the shared policy.
+        if (uri.getScheme().equalsIgnoreCase("http")
+                && !Set.of("127.0.0.1", "localhost", "[::1]").contains(uri.getHost()))
             throw new IllegalArgumentException(
-                    "MCP OAuth requires HTTPS (HTTP allowed for loopback fixtures)");
+                    "MCP OAuth requires HTTPS or an exact loopback fixture");
         return uri;
     }
 

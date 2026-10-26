@@ -34,6 +34,63 @@ class ConfigSchemaTest {
                     .getSchema(Path.of("agent-config.schema.json").toUri());
 
     @Test
+    void acceptsExplicitGlobalOriginDeclarationsAndRejectsBroadOrSecretBearingValues()
+            throws Exception {
+        var config =
+                json.readTree(
+                        Files.readString(Path.of("examples/agent-config-insecure-http.json")));
+        assertTrue(schema.validate(config).isEmpty(), () -> schema.validate(config).toString());
+        for (String origin :
+                List.of(
+                        "*",
+                        "http://*.example",
+                        "https://example.com",
+                        "http://example.com/path",
+                        "http://user:key@example.com")) {
+            var invalid = json.createObjectNode();
+            invalid.putArray("insecure_http_origins").add(origin);
+            assertFalse(schema.validate(invalid).isEmpty(), origin);
+        }
+    }
+
+    @Test
+    void enforcesTheTransportPolicyForProvidersAndMcpInTheSchema() {
+        for (String kind : List.of("local", "ollama", "mcp")) {
+            var config = json.createObjectNode();
+            com.fasterxml.jackson.databind.node.ObjectNode endpoint;
+            String key;
+            if (kind.equals("mcp")) {
+                endpoint = config.putObject("mcp").putObject("fixture");
+                endpoint.put("type", "http");
+                key = "url";
+            } else {
+                endpoint = config.putObject("provider").putObject(kind).putObject("options");
+                key = "baseURL";
+            }
+            for (String url :
+                    List.of(
+                            "https://remote.example/v1",
+                            "http://localhost:8000/v1",
+                            "http://127.0.0.2:8000/v1",
+                            "http://[::1]:8000/v1")) {
+                endpoint.put(key, url);
+                assertTrue(
+                        schema.validate(config).isEmpty(),
+                        () -> kind + ": " + schema.validate(config));
+            }
+            for (String url :
+                    List.of(
+                            "http://remote.example/v1",
+                            "http://10.0.0.1/v1",
+                            "http://localhost.evil/v1",
+                            "http://[::ffff:127.0.0.1]/v1")) {
+                endpoint.put(key, url);
+                assertFalse(schema.validate(config).isEmpty(), kind + ": " + url);
+            }
+        }
+    }
+
+    @Test
     void validatesProviderProxySettings() throws Exception {
         for (String id :
                 List.of(

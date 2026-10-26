@@ -46,6 +46,27 @@ class ResponsesProviderTest {
     }
 
     @Test
+    void rejectsRemoteDiscoveryAndChatBeforeCredentialLookupOrDelivery() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var provider =
+                    new ChatGptLlmProvider(
+                            f.auth,
+                            f.json,
+                            f.config,
+                            java.net.URI.create("http://remote.example/v1/"));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> provider.listModels("nonexistent-account"));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> provider.chat(request("nonexistent-account"), event -> {}));
+            assertNull(
+                    f.form.get(),
+                    "No authentication request may be triggered by a rejected transport");
+        }
+    }
+
+    @Test
     void summaryRequestsOmitToolsAndKeepSavedSummaryAsUserReferenceData() throws Exception {
         try (var f = new AuthFixture(root)) {
             var provider = new ChatGptLlmProvider(f.auth, f.json, f.config, f.base.resolve("v1/"));
@@ -173,7 +194,7 @@ class ResponsesProviderTest {
                         ex.getRequestBody().readAllBytes();
                         AuthFixture.respond(ex, 200, "data: {\"type\":\"response.completed\"}\n\n");
                     });
-            var base = java.net.URI.create("http://llm.invalid/v1/");
+            var base = java.net.URI.create("http://localhost/v1/");
             for (var provider :
                     List.of(
                             new ChatGptLlmProvider(f.auth, f.json, config, base),
@@ -185,10 +206,10 @@ class ResponsesProviderTest {
             }
             assertEquals(
                     List.of(
-                            "http://llm.invalid/v1/models",
-                            "http://llm.invalid/v1/responses",
-                            "http://llm.invalid/v1/models",
-                            "http://llm.invalid/v1/responses"),
+                            "http://localhost/v1/models",
+                            "http://localhost/v1/responses",
+                            "http://localhost/v1/models",
+                            "http://localhost/v1/responses"),
                     targets);
         }
     }

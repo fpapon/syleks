@@ -48,11 +48,13 @@ For unattended creation:
 syleks config init --defaults
 ```
 
-This creates **only missing files**, never overwrites existing ones, and does not offer to restart chat. Its bundled settings use `local/qwen3.8-27b` at `http://192.168.52.32:8000/v1`, context/output limits `196608`/`32768`, global round limit `20`, and Plan/Build limits `30` with temperatures `0.2`/`0.1`. No API key is written. These are deployment-specific examples; change the server and model before using them elsewhere.
+This creates **only missing files**, never overwrites existing ones, and does not offer to restart chat. Its bundled settings use `local/qwen3.8-27b` at `http://127.0.0.1:8000/v1`, context/output limits `196608`/`32768`, global round limit `20`, and Plan/Build limits `30` with temperatures `0.2`/`0.1`. No API key is written. These are deployment-specific examples; change the server and model before using them elsewhere.
 
 With redirected input, setup uses line prompts for a missing configuration and preserves an existing one. End of input cancels before writing. Use an interactive terminal or `/config` to update existing values.
 
 ## Configure providers and models by hand
+
+Remote provider and MCP URLs require HTTPS by default. HTTP is limited to loopback development endpoints or exact origins reviewed in the global `insecure_http_origins` array; see the [decision matrix and migration guide](providers.md#transport-security).
 
 Use valid JSON: no comments or trailing commas. This example defines one OpenAI-compatible provider:
 

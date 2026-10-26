@@ -139,6 +139,14 @@ public class ChatSession {
                             null,
                             false);
         }
+        String insecureTransport = config.transport().warning(connection.endpoint());
+        if (!insecureTransport.isEmpty()) history.add(ChatMessage.now("system", insecureTransport));
+        config.mcpServers().values().stream()
+                .filter(server -> server.enabled())
+                .map(server -> config.transport().warning(server.url()))
+                .filter(warning -> !warning.isEmpty())
+                .distinct()
+                .forEach(warning -> history.add(ChatMessage.now("system", "MCP " + warning)));
         return new ChatSnapshot(
                 List.copyOf(history),
                 displayedModel,

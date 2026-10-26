@@ -6,7 +6,7 @@
       "name": "Local",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "baseURL": "http://192.168.52.32:8000/v1"
+        "baseURL": "http://127.0.0.1:8000/v1"
       },
       "models": {
         "qwen3.8-27b": {
@@ -16,6 +16,7 @@
       }
     }
   },
+  "insecure_http_origins": [],
   "command_environment": { "pass_env": [], "trusted_path": ["/usr/bin", "/bin"] },
   "max_rounds": 20,
   "subagents": {

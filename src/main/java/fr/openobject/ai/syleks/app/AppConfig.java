@@ -87,6 +87,12 @@ public class AppConfig {
     }
 
     private final Path workspace;
+    private final fr.openobject.ai.syleks.net.TransportSecurity.Policy transport;
+
+    public fr.openobject.ai.syleks.net.TransportSecurity.Policy transport() {
+        return transport;
+    }
+
     private final Path home;
     private final fr.openobject.ai.syleks.engineering.EngineeringBoundary engineering;
 
@@ -126,6 +132,11 @@ public class AppConfig {
                     "SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
+        this.transport =
+                fr.openobject.ai.syleks.net.TransportSecurity.Policy.parse(
+                        settings.containsKey("insecure_http_origins")
+                                ? settings.get("insecure_http_origins")
+                                : java.util.List.of());
         this.commandEnvironment =
                 SubprocessEnvironment.commands(
                         settings.containsKey("command_environment")
@@ -150,7 +161,9 @@ public class AppConfig {
         var mcp = new LinkedHashMap<String, fr.openobject.ai.syleks.mcp.McpServerConfig>();
         mcp.putAll(
                 fr.openobject.ai.syleks.mcp.McpServerConfig.parse(
-                        settings.containsKey("mcp") ? settings.get("mcp") : Map.of(), file));
+                        settings.containsKey("mcp") ? settings.get("mcp") : Map.of(),
+                        file,
+                        transport));
         var projectFile = workspace.resolve(".syleks/agent-config.json");
         // Legacy path-only mcp_trusted_projects never grants content trust.
         String projectJson = projectTrust.trusted() ? projectTrust.content(projectFile) : "";
@@ -161,7 +174,7 @@ public class AppConfig {
             if (pm.containsKey("mcp"))
                 mcp.putAll(
                         fr.openobject.ai.syleks.mcp.McpServerConfig.parse(
-                                pm.get("mcp"), projectFile));
+                                pm.get("mcp"), projectFile, transport));
         }
         if (mcp.size() > 16)
             throw new IllegalStateException("MCP configuration exceeds 16 servers");
@@ -327,6 +340,7 @@ public class AppConfig {
 
     public java.net.http.HttpClient.Builder configureProxy(
             String providerId, java.net.http.HttpClient.Builder builder) {
+        builder.followRedirects(java.net.http.HttpClient.Redirect.NEVER);
         var proxy = proxy(providerId);
         if (proxy != null) {
             builder.proxy(
@@ -349,7 +363,7 @@ public class AppConfig {
         return builder;
     }
 
-    private static Map<String, Provider> readProviders(Map<?, ?> settings, Path file) {
+    private Map<String, Provider> readProviders(Map<?, ?> settings, Path file) {
         var result = new LinkedHashMap<String, Provider>();
         var definitions = object(settings, "provider", file);
         for (var entry : definitions.entrySet()) {
@@ -421,16 +435,10 @@ public class AppConfig {
         return Map.copyOf(result);
     }
 
-    private static URI providerEndpoint(String baseURL, String path, String id, Path file) {
+    private URI providerEndpoint(String baseURL, String path, String id, Path file) {
         try {
-            var endpoint = URI.create(baseURL.replaceAll("/+$", "") + path);
-            if (!("http".equals(endpoint.getScheme()) || "https".equals(endpoint.getScheme()))
-                    || endpoint.getHost() == null
-                    || endpoint.getQuery() != null
-                    || endpoint.getFragment() != null
-                    || endpoint.getUserInfo() != null) {
-                throw new IllegalArgumentException();
-            }
+            var base = transport.requireAllowed(URI.create(baseURL));
+            var endpoint = URI.create(base.toString().replaceAll("/+$", "") + path);
             return endpoint;
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException(
@@ -438,7 +446,7 @@ public class AppConfig {
                             + id
                             + " in "
                             + file
-                            + ": expected an HTTP(S) base URL");
+                            + ": expected HTTPS, or HTTP on loopback/an origin in global insecure_http_origins; no credentials, query or fragment; valid port required");
         }
     }
 

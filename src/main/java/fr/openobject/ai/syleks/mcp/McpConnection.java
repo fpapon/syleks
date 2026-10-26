@@ -57,6 +57,22 @@ final class McpConnection implements AutoCloseable {
             Map<String, String> environment,
             java.nio.file.Path home)
             throws IOException {
+        this(
+                config,
+                workspace,
+                environment,
+                home,
+                new fr.openobject.ai.syleks.net.TransportSecurity.Policy(java.util.Set.of()));
+    }
+
+    McpConnection(
+            McpServerConfig config,
+            java.nio.file.Path workspace,
+            Map<String, String> environment,
+            java.nio.file.Path home,
+            fr.openobject.ai.syleks.net.TransportSecurity.Policy transport)
+            throws IOException {
+        if (config.type().equals("http")) transport.requireAllowed(config.url());
         this.config = config;
         oauth = config.oauth() ? new McpOAuth(config, home) : null;
         var resolved = new LinkedHashMap<String, String>(config.headers());

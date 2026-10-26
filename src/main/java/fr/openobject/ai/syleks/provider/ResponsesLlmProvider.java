@@ -106,10 +106,13 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     }
 
     public List<LlmModel> listModels(String accountId) throws Exception {
+        config.transport().requireAllowed(base.resolve("models"));
         var c = credentials(accountId);
         var response =
                 http().send(
-                                HttpRequest.newBuilder(base.resolve("models"))
+                                HttpRequest.newBuilder(
+                                                config.transport()
+                                                        .requireAllowed(base.resolve("models")))
                                         .timeout(Duration.ofSeconds(20))
                                         .header("Authorization", "Bearer " + c.accessToken())
                                         .GET()
@@ -212,6 +215,7 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     }
 
     public void chat(ChatRequest request, ChatEventListener listener) throws Exception {
+        config.transport().requireAllowed(base.resolve("responses"));
         config.engineering().checkInference(id(), base.resolve("responses"), config.proxy(id()));
         var c = credentials(request.accountId());
         var engine = runtime();
@@ -268,7 +272,11 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                                 response =
                                         http().send(
                                                         HttpRequest.newBuilder(
-                                                                        base.resolve("responses"))
+                                                                        config.transport()
+                                                                                .requireAllowed(
+                                                                                        base
+                                                                                                .resolve(
+                                                                                                        "responses")))
                                                                 .timeout(Duration.ofMinutes(10))
                                                                 .header(
                                                                         "Authorization",

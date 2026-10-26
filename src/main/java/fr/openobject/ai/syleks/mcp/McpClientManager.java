@@ -77,7 +77,8 @@ public final class McpClientManager implements AutoCloseable {
                                                 server.config,
                                                 config.workspace(),
                                                 System.getenv(),
-                                                config.home());
+                                                config.home(),
+                                                config.transport());
                             connection = server.connection;
                         }
                     }
@@ -87,7 +88,15 @@ public final class McpClientManager implements AutoCloseable {
                         synchronized (this) {
                             if (!closed && server.connection == connection) {
                                 server.tools = tools;
-                                server.status = "Connected";
+                                server.status =
+                                        "Connected"
+                                                + (config.transport()
+                                                                .isException(server.config.url())
+                                                        ? " · "
+                                                                + config.transport()
+                                                                        .warning(
+                                                                                server.config.url())
+                                                        : "");
                             }
                         }
                     }

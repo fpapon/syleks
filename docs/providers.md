@@ -87,3 +87,41 @@ See [Authentication](authentication.md), OpenAI's [models and inference](https:/
 The [single-server example](../examples/agent-config-local.json) declares an OpenAI-compatible endpoint and model catalog. The [full reference](../examples/agent-config.json) adds a second provider, a model ID containing `/`, per-provider proxies and per-agent model selection. The [Ollama example](../examples/agent-config-ollama.json) uses the built-in adapter without a custom provider entry. See [installation](../examples/README.md) and [provider fields](configuration.md#provider-and-model-fields).
 
 Reserved `provider.ollama`, `provider.chatgpt`, `provider.openai-api`, `provider.spacexsi`, `provider.openrouter`, `provider.opencode` and `provider.google` entries only configure `options.proxy`; use the account/login flow for cloud credentials. `options.apiKey` on a custom provider is a literal value in `agent-config.json`; it does not read `OPENAI_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`, `OPENCODE_API_KEY` or `GEMINI_API_KEY` automatically. An agent's model override can move its requests to another configured provider, including when that agent runs as a child.
+
+## Transport security
+
+All provider chat, model discovery, CLI/setup validation and MCP HTTP requests require HTTPS for remote endpoints by default, even when no credential is configured. Certificate and hostname verification remain enabled. Automatic redirects are disabled, including same-origin redirects: configure the final endpoint directly. A redirect never forwards a token, custom header, or prompt to its target.
+
+| Destination | Provider / MCP HTTP | MCP OAuth |
+| --- | --- | --- |
+| HTTPS with a valid authority and port | Allowed | Allowed; existing metadata validation still applies |
+| HTTP exact `localhost` (case insensitive) | Development only | Existing exact `localhost` fixture only |
+| HTTP canonical dotted IPv4 in `127.0.0.0/8` | Development only | Only `127.0.0.1` |
+| HTTP IPv6 `::1`, compressed or expanded | Development only | Only `[::1]` |
+| HTTP remote or private LAN | Exact global origin exception required | Rejected |
+| HTTP misleading localhost suffix or mapped/scoped IPv6 | No automatic loopback trust; exact global exception required | Rejected |
+| URL userinfo, query, fragment, empty/zero/out-of-range port | Rejected | Rejected |
+
+To authorize a reviewed remote HTTP server, add its **origin** to `insecure_http_origins` in your global `~/.config/syleks/agent-config.json`:
+
+```json
+{
+  "insecure_http_origins": ["http://192.168.1.20:8000"],
+  "provider": {
+    "lan": {
+      "options": {"baseURL": "http://192.168.1.20:8000/v1"},
+      "models": {"my-model": {}}
+    }
+  }
+}
+```
+
+Merge these fields into existing settings and restart chat to apply them. The [complete example](../examples/agent-config-insecure-http.json) also selects the provider/model. The bundled default list is empty. Entries require HTTP, a literal host or exact hostname, and an optional valid port; no wildcard, path (except an optional trailing `/`), credentials, query or fragment. Hostname case and omitted port `80` are normalized. A grant covers all paths on that host/port, including discovery and chat; another host or port requires its own entry. IPv6 authorities retain their literal spelling apart from letter case. The array is limited to 64 entries.
+
+This is global authority only. Trusted project files can use an already granted origin but cannot grant one. No environment variable, tool argument or remembered approval can enable an exception. Setup uses and preserves the existing global list but does not create grants from a URL answer. CLI provider/MCP commands print `INSECURE HTTP` warnings on stderr; chat shows a warning for the selected provider and enabled MCP endpoints, setup warns on the reviewed URL, and connected MCP status includes the warning. Credentials, prompts and tool data sent to an authorized HTTP origin can be observed or changed in transit.
+
+To revoke, remove the origin (or set the list to `[]`) and restart the application. New CLI invocations load the updated policy immediately; an already running chat keeps its loaded policy until restart. Existing requests are not retroactively revoked. Exceptions never authorize redirects and never relax OAuth identity/discovery/token endpoint rules or certificate/hostname verification. MCP with `oauth: true` still requires HTTPS except its narrow loopback fixtures.
+
+Migration: verified HTTPS or a local tunnel remains preferable. Existing files are never rewritten. Remote HTTP without a matching global grant fails validation. The schema checks endpoint syntax and default HTTPS policy; when exceptions are declared, runtime validation enforces exact origin membership and port range. Transport errors omit URL paths, userinfo, query strings and configured credentials. The bundled setup example stays at `http://127.0.0.1:8000/v1`.
+
+Loopback classification is lexical and performs no hostname DNS lookup. IPv6 literal parsing does not resolve DNS. Exact `localhost` still relies on the host resolver; this is a transport policy, not protection against DNS rebinding, malicious proxies, or a same-user host attacker. Actual destination and private-network controls remain SEC-06 work. HTTP development traffic can be observed by the local endpoint and any explicitly configured proxy.

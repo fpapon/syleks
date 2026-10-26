@@ -41,6 +41,14 @@ public record McpServerConfig(
     }
 
     public static Map<String, McpServerConfig> parse(Object value, Path source) {
+        return parse(
+                value, source, new fr.openobject.ai.syleks.net.TransportSecurity.Policy(Set.of()));
+    }
+
+    public static Map<String, McpServerConfig> parse(
+            Object value,
+            Path source,
+            fr.openobject.ai.syleks.net.TransportSecurity.Policy transport) {
         if (!(value instanceof Map<?, ?> servers) || servers.size() > 16) throw invalid(source);
         var result = new LinkedHashMap<String, McpServerConfig>();
         for (var entry : servers.entrySet()) {
@@ -81,14 +89,12 @@ public record McpServerConfig(
             URI url = null;
             if (type.equals("http")) {
                 try {
-                    url = URI.create(string(m, "url", ""));
-                    if (!Set.of("http", "https").contains(url.getScheme())
-                            || url.getHost() == null
-                            || url.getUserInfo() != null
-                            || url.getFragment() != null
-                            || url.getQuery() != null) throw invalid(source);
+                    url = transport.requireAllowed(URI.create(string(m, "url", "")));
                 } catch (IllegalArgumentException e) {
-                    throw invalid(source);
+                    throw new IllegalStateException(
+                            "Invalid MCP endpoint in "
+                                    + source
+                                    + ": HTTPS required except loopback or an origin in global insecure_http_origins; no URL credentials, query or fragment; valid port required");
                 }
                 if (!command.isEmpty() || m.containsKey("environment")) throw invalid(source);
             } else if (command.isEmpty()
@@ -114,6 +120,14 @@ public record McpServerConfig(
                                     .anyMatch(k -> k.equalsIgnoreCase("authorization"))))
                 throw invalid(source);
             boolean oauth = bool(m, "oauth", false);
+            if (oauth && url != null) {
+                try {
+                    fr.openobject.ai.syleks.net.TransportSecurity.requireSecure(url);
+                } catch (IllegalArgumentException blocked) {
+                    throw new IllegalStateException(
+                            "MCP OAuth requires HTTPS except loopback fixtures");
+                }
+            }
             if (oauth
                     && (!type.equals("http")
                             || !token.isEmpty()

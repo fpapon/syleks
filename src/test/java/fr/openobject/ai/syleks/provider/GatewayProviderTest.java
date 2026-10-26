@@ -36,6 +36,39 @@ class GatewayProviderTest {
     @TempDir Path root;
 
     @Test
+    void rejectsRemoteCatalogAndChatWithoutSendingTheConfiguredKey() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var provider =
+                    new SpaceXsiLlmProvider(
+                            f.auth,
+                            f.json,
+                            f.config,
+                            new OllamaClient(f.config, f.json),
+                            java.net.URI.create("http://remote.example/models"),
+                            java.net.URI.create("http://remote.example/chat/completions"));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            provider.fetch(
+                                    java.net.URI.create("http://remote.example/models"),
+                                    "fake-key"));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () ->
+                            provider.chat(
+                                    new ChatRequest(
+                                            "grok-test",
+                                            "plan",
+                                            "nonexistent-account",
+                                            List.of(),
+                                            fr.openobject.ai.syleks.ai.ToolHandler.NONE,
+                                            null),
+                                    event -> {}));
+            assertNull(f.form.get());
+        }
+    }
+
+    @Test
     void classifiesOpenCodeTransportsFromTheDocumentedFamilies() {
         assertEquals(
                 OpenCodeTransports.Kind.RESPONSES, OpenCodeTransports.classify("gpt-5.5").kind());
