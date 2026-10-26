@@ -1,6 +1,6 @@
 # Security implementation backlog
 
-Status: implementation backlog. SEC-01, SEC-02, SEC-04, SEC-05, SEC-06, SEC-07, SEC-08, SEC-09 and SEC-10 are implemented with validation recorded in their task documents. SEC-03 is implementation ready with local Linux evidence and required CI checks configured; hosted CI execution remains pending. The remaining items are proposed work.
+Status: implementation backlog. SEC-01, SEC-02, SEC-04, SEC-05, SEC-06, SEC-07, SEC-08, SEC-09 and SEC-10 are implemented with validation recorded in their task documents. SEC-03 is implementation ready with local Linux evidence and required CI checks configured; hosted CI execution remains pending. SEC-11 checks and inventories are locally validated; dependency findings and hosted CI evidence remain open.
 
 Review baseline: 22 October 2026. This backlog follows a source review of permission enforcement, repository configuration, shell execution, filesystem access, network clients, credentials, and terminal handling. Reinspect current code before editing; paths and behavior can change. The earlier [shell security audit](../opencode-parity/shell-security.md) describes protections that must remain intact.
 
@@ -29,7 +29,7 @@ Assume repositories, model responses, fetched documents, tool output, and MCP se
 | SEC-08 | [Secret storage and redaction](08-secret-storage.md) — implemented 26 October 2026 | Hardening | SEC-04; coordinate with SEC-02 |
 | SEC-09 | [Approval display integrity](09-approval-display.md) — implemented 26 October 2026 | Hardening | Coordinate with SEC-05 |
 | SEC-10 | [Prompt history privacy](10-prompt-history-privacy.md) — implemented 26 October 2026 | Hardening | None |
-| SEC-11 | [CI supply-chain checks](11-ci-supply-chain.md) | Hardening | None |
+| SEC-11 | [CI supply-chain checks](11-ci-supply-chain.md) — implementation ready 26 October 2026; findings recorded, hosted CI pending | Hardening | None |
 
 Start with SEC-01, SEC-02, and SEC-04. Follow with SEC-05 and the supported sandbox backend. Network and filesystem enforcement need dedicated adversarial testing. Tasks without an implementation record remain **not started**; this table expresses dependencies, not authorization to delegate work.
 

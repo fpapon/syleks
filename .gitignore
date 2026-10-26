@@ -4,6 +4,7 @@ target/
 .DS_Store
 *.log
 .env
+__pycache__/
 **/auth/accounts/*.json
 **/auth/host.json
 **/auth/*.refresh-pending.json
