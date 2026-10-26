@@ -31,7 +31,7 @@ java --enable-native-access=ALL-UNNAMED -jar /path/to/syleks/target/syleks-0.1.0
 
 Append any [CLI option](commands.md) to that command. The historical `chat` argument still works. From the source directory, `mvn compile exec:exec` also launches chat in an interactive terminal.
 
-If you have a native Syleks executable, invoke it directly, for example `./target/syleks --help`; its chat commands and configuration are the same. Building that optional executable is covered in the repository [README](../README.md#native-executable-with-apache-arthur).
+If you have a native Syleks executable, invoke it directly, for example `./target/syleks --help`, or run `./bin/install-native.sh` to install it as `~/.local/bin/syleks`. The installer prints PATH setup instructions when needed. Its chat commands and configuration are the same. Building that optional executable is covered in the repository [README](../README.md#native-executable-with-apache-arthur).
 
 ## Option A: use Ollama
 

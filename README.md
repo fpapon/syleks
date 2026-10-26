@@ -94,6 +94,15 @@ mvn -Pnative clean package
 ./target/syleks chat
 ```
 
+Install the built executable for your user without sudo:
+
+```bash
+./bin/install-native.sh
+syleks --help
+```
+
+The installer copies `target/syleks` to `~/.local/bin/syleks`, replacing an existing installation. If that directory is missing from `PATH`, it prints the line to add to your shell startup file. You can select another destination or a previously built executable with `./bin/install-native.sh --bin-dir "$HOME/bin" /path/to/syleks`. The installer works from any working directory and does not modify your shell configuration.
+
 A regular `mvn clean package` continues to build the executable JAR. The native build requires a platform C/C++ toolchain (for example GCC and development headers on Linux), zlib development headers, and enough memory for Native Image. Build on the OS/architecture where the executable will run. The configured binary uses dynamic system libraries and requires no JVM at runtime. Existing configuration, model endpoints, terminal controls, and `/bin/bash` requirements still apply.
 
 The checked-in profile configures a GraalVM download for Linux x64. Maven must run on Java 25 or newer to compile the source. For another platform or an installed Native Image executable, adapt the Arthur configuration in `pom.xml`; the `nativeImage` configuration entry is currently commented out.
