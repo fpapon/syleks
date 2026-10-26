@@ -399,8 +399,16 @@ public final class ChatRenderer {
                 };
         canvas.text(left + 2, top + 1, fit(scope, width - 4), SUB, background, false);
         var lines = new ArrayList<String>();
-        for (var line : (request.description() + "\n" + request.details()).split("\n", -1))
-            lines.addAll(wrapProse(line, width - 4));
+        for (var line :
+                SecurityText.present(
+                                request.description()
+                                        + "\nRequest: "
+                                        + request.id()
+                                        + "\nSelected scope: "
+                                        + scope
+                                        + "\n"
+                                        + request.details())
+                        .split("\n", -1)) lines.addAll(wrap(line, width - 4));
         int available = Math.max(0, height - 4);
         prompt.clampScroll(Math.max(0, lines.size() - available));
         for (int index = 0; index < available && prompt.scroll() + index < lines.size(); index++)
@@ -438,8 +446,8 @@ public final class ChatRenderer {
                                 ? "←/→ select · Enter confirm · Ctrl+F expand"
                                 : "←/→ select · Enter confirm";
         canvas.text(left + 2, buttons + 1, fit(help, width - 4), SUB, bar, false);
-        if (lines.size() > available && width >= 65) {
-            var position = " " + (prompt.scroll() + 1) + "/" + lines.size() + " ";
+        if (lines.size() > available) {
+            var position = " ↓ " + (prompt.scroll() + 1) + "/" + lines.size() + " ";
             canvas.text(
                     left + width - textWidth(position) - 1, top, position, SUB, background, false);
         }

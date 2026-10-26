@@ -246,7 +246,7 @@ public class ToolExecutor {
             if (!gate.allow(
                     "bash",
                     command,
-                    "Directory: "
+                    "Executable: /bin/bash --noprofile --norc -c\nDirectory: "
                             + config.workspace()
                             + "\nTimeout: "
                             + timeout
@@ -254,7 +254,7 @@ public class ToolExecutor {
                             + new java.util.TreeSet<>(config.commandEnvironment().names())
                             + "\n"
                             + config.commandSandbox().description()
-                            + "\n"
+                            + "\nScript (executed unchanged):\n"
                             + command))
                 return ToolResult.denied(
                         "Permission refused by the user for bash command: " + command);

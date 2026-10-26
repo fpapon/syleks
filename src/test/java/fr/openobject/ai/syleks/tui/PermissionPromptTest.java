@@ -111,6 +111,86 @@ class PermissionPromptTest {
         assertFalse(screen.cursorVisible());
     }
 
+    @Test
+    void revealsControlsAndLongSuffixAfterScrollingAndResizingWithoutChangingRequest() {
+        var original =
+                new PermissionRequest(
+                        42,
+                        "Write שלום/ملف\u202Etxt",
+                        "x".repeat(350) + "DANGEROUS_SUFFIX\u200B\nnext\t\u001b]52;secret\u0007",
+                        true);
+        var prompt = new PermissionPrompt();
+        prompt.sync(original);
+        prompt.toggleExpanded();
+        var shown = new StringBuilder();
+        for (int width : new int[] {100, 35, 60}) {
+            prompt.scroll(-1000000);
+            for (int n = 0; n < 80; n++) {
+                var screen = render(prompt, width, 24);
+                shown.append(text(screen));
+                prompt.scroll(1);
+            }
+        }
+        assertTrue(shown.toString().contains("[U+202E]"));
+        assertTrue(shown.toString().contains("[U+200B]"));
+        assertTrue(shown.toString().contains("[U+000A]"));
+        assertTrue(shown.toString().contains("[U+0009]"));
+        assertTrue(shown.toString().contains("[U+001B]"));
+        assertTrue(shown.toString().contains("DANGEROUS_SUFFIX"));
+        assertTrue(shown.toString().contains("↓"));
+        assertSame(original, prompt.request());
+        assertTrue(original.description().contains("\u202E"));
+        assertFalse(shown.toString().contains("\u202E"));
+    }
+
+    @Test
+    void pastedConfirmationAndNavigationCannotResolveRenderedRequest(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path root) throws Exception {
+        try (var fixture = new fr.openobject.ai.syleks.session.SessionFixture(root)) {
+            var resolved = new java.util.ArrayList<Long>();
+            var chat =
+                    new fr.openobject.ai.syleks.ai.ChatSession(
+                            new fr.openobject.ai.syleks.ai.OllamaClient(
+                                    fixture.config, fixture.mapper.instance()),
+                            fixture.config) {
+                        @Override
+                        public synchronized void resolvePermission(long id, String choice) {
+                            resolved.add(id);
+                        }
+                    };
+            try (var app =
+                    new TerminalApp(
+                            chat,
+                            new fr.openobject.ai.syleks.app.ConfigInitializer(),
+                            new fr.openobject.ai.syleks.app.ConfigInitWizard(
+                                    fixture.mapper.instance()))) {
+                var field = TerminalApp.class.getDeclaredField("permissionPrompt");
+                field.setAccessible(true);
+                var prompt = (PermissionPrompt) field.get(app);
+                prompt.sync(tool);
+                render(prompt, 35, 15); // The ID belongs to the displayed request.
+                try (var reader =
+                        org.jline.utils.NonBlocking.nonBlocking(
+                                "paste-start", new java.io.StringReader("[200~"))) {
+                    app.handle(27, reader);
+                }
+                for (int cp : "\t\r\n/approve remember\r".codePoints().toArray())
+                    app.handle(cp, null);
+                assertTrue(resolved.isEmpty());
+                assertEquals("once", prompt.choice());
+                try (var reader =
+                        org.jline.utils.NonBlocking.nonBlocking(
+                                "paste-end", new java.io.StringReader("[201~"))) {
+                    app.handle(27, reader);
+                }
+                app.handle('\r', null);
+                assertEquals(java.util.List.of(tool.id()), resolved);
+            } finally {
+                chat.shutdown();
+            }
+        }
+    }
+
     private ChatRenderer.Screen render(PermissionPrompt prompt, int width, int height) {
         return new ChatRenderer("/project")
                 .render(

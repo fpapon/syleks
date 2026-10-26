@@ -59,6 +59,10 @@ An inline panel shows the requested action and details. For changes it includes 
 | Ctrl+F | Expand or collapse details |
 | Esc / Ctrl+C | Cancel pending work |
 
+Approval details include the workspace, target, policy sources and grant scope; HTTP(S) URL targets include their destination origin. Shell details identify the executable and the unchanged script. A `↓ current/total` indicator means more detail lines are available: expand and scroll to review the entire action, including long suffixes. Wrapping preserves whitespace.
+
+Bidi controls, zero-width joiners/separators and terminal controls appear as visible code point labels such as `[U+202E]`, `[U+200B]` and `[U+001B]`. Newlines appear as `[U+000A]` followed by a line break. These are display labels; the original command or filename remains the action being authorized. Ordinary Arabic/Hebrew, combining marks and emoji remain Unicode text. Emoji sequences using joiners or invisible tags show those components as labels. This does not detect lookalike letters or guarantee identical glyph layout across terminals.
+
 Each request starts on **Allow once**. Pasted text cannot confirm a request. Your existing draft is preserved while the panel has focus.
 
 - **Allow once** permits only the pending action.

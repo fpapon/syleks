@@ -145,6 +145,28 @@ class ScopedApprovalTest {
     }
 
     @Test
+    void approvalPresentationDoesNotRewriteTheLogicalFilenameOrPayload() throws Exception {
+        String filename = "שלום-ملف-\u202Etxt\u200B.txt";
+        String payload = "original\u2066payload\u2069";
+        send(write(filename, payload));
+        long id = prompt();
+        var request = chat.snapshot().permission();
+        assertTrue(request.description().contains(filename));
+        assertTrue(request.details().contains("Workspace: " + root.resolve("project")));
+        assertTrue(request.details().contains("Policy: ASK; source:"));
+        assertFalse(Files.exists(root.resolve("project").resolve(filename)));
+        chat.resolvePermission(id, "once");
+        idle();
+        assertEquals(payload, Files.readString(root.resolve("project").resolve(filename)));
+        assertFalse(
+                Files.exists(
+                        root.resolve("project")
+                                .resolve(
+                                        fr.openobject.ai.syleks.tui.SecurityText.present(
+                                                filename))));
+    }
+
+    @Test
     void exactReuseDoesNotAuthorizeChangedPayloadPathOrLiteralWildcardFilename() throws Exception {
         send(
                 write("*.txt", "first"),
@@ -452,6 +474,12 @@ class ScopedApprovalTest {
                     new ToolCall("path", "webfetch", Map.of("url", url.replace("/one", "/two"))),
                     new ToolCall("origin", "webfetch", Map.of("url", otherUrl)));
             long first = prompt();
+            assertTrue(
+                    chat.snapshot()
+                            .permission()
+                            .details()
+                            .contains("Destination origin: " + url.replace("/one", "")));
+            assertEquals(0, received.get(), "displaying the origin must not send a request");
             chat.approve("remember");
             next(first);
             assertEquals(2, received.get());

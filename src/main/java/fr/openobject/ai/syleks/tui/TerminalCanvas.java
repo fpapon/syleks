@@ -67,6 +67,7 @@ public final class TerminalCanvas {
 
     public void text(int x, int y, String text, int fg, int bg, boolean bold) {
         if (y < 0 || y >= height || x >= width || text == null) return;
+        text = SecurityText.present(text);
         var col = x;
         for (int offset = 0; offset < text.length(); ) {
             int cp = text.codePointAt(offset);

@@ -1,6 +1,6 @@
 # Security implementation backlog
 
-Status: implementation backlog. SEC-01, SEC-02, SEC-04, SEC-05, SEC-06, SEC-07 and SEC-08 are implemented with validation recorded in their task documents. SEC-03 is implementation ready with local Linux evidence and required CI checks configured; hosted CI execution remains pending. The remaining items are proposed work.
+Status: implementation backlog. SEC-01, SEC-02, SEC-04, SEC-05, SEC-06, SEC-07, SEC-08 and SEC-09 are implemented with validation recorded in their task documents. SEC-03 is implementation ready with local Linux evidence and required CI checks configured; hosted CI execution remains pending. The remaining items are proposed work.
 
 Review baseline: 22 October 2026. This backlog follows a source review of permission enforcement, repository configuration, shell execution, filesystem access, network clients, credentials, and terminal handling. Reinspect current code before editing; paths and behavior can change. The earlier [shell security audit](../opencode-parity/shell-security.md) describes protections that must remain intact.
 
@@ -27,7 +27,7 @@ Assume repositories, model responses, fetched documents, tool output, and MCP se
 | SEC-06 | [Network destination controls](06-network-destinations.md) — implemented 26 October 2026 | Medium, deployment dependent | SEC-01; coordinate with SEC-03/04 |
 | SEC-07 | [Race-resistant file access](07-filesystem-races.md) — implemented 26 October 2026 | Medium, potential issue | None |
 | SEC-08 | [Secret storage and redaction](08-secret-storage.md) — implemented 26 October 2026 | Hardening | SEC-04; coordinate with SEC-02 |
-| SEC-09 | [Approval display integrity](09-approval-display.md) | Hardening | Coordinate with SEC-05 |
+| SEC-09 | [Approval display integrity](09-approval-display.md) — implemented 26 October 2026 | Hardening | Coordinate with SEC-05 |
 | SEC-10 | [Prompt history privacy](10-prompt-history-privacy.md) | Hardening | None |
 | SEC-11 | [CI supply-chain checks](11-ci-supply-chain.md) | Hardening | None |
 

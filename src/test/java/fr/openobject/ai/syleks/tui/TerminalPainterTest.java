@@ -24,6 +24,25 @@ import org.junit.jupiter.api.Test;
 
 class TerminalPainterTest {
     @Test
+    void paintsVisibleLabelsInsteadOfUntrustedTerminalSequencesAcrossResize() throws Exception {
+        var output = new ByteArrayOutputStream();
+        try (var terminal = new DumbTerminal(new ByteArrayInputStream(new byte[0]), output)) {
+            var painter = new TerminalPainter();
+            for (int width : new int[] {100, 35, 80}) {
+                var canvas = new TerminalCanvas(width, 15);
+                canvas.text(0, 0, "file\u202Etxt\u001b]52;payload\u0007", 1, 2, false);
+                painter.paint(terminal, new ChatRenderer.Screen(canvas, 0, 0, false));
+            }
+            var painted = output.toString(java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(painted.contains("[U+202E]"));
+            assertTrue(painted.contains("[U+001B]"));
+            assertFalse(painted.contains("\u202E"));
+            assertFalse(painted.contains("\u001b]52;"));
+            assertFalse(painted.contains("\u0007"));
+        }
+    }
+
+    @Test
     void leavesAnUnchangedFrameAndCursorUntouched() throws Exception {
         var output = new ByteArrayOutputStream();
         try (var terminal = new DumbTerminal(new ByteArrayInputStream(new byte[0]), output)) {

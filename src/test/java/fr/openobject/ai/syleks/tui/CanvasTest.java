@@ -26,6 +26,24 @@ import org.junit.jupiter.api.Test;
 
 class CanvasTest {
     @Test
+    void labelsExplicitInvisiblePolicyAndPreservesOrdinaryUnicode() {
+        var ordinary = "العربية שלום e\u0301 🧪 ❤️";
+        assertEquals(ordinary, SecurityText.present(ordinary));
+        for (int cp :
+                new int[] {
+                    0, 9, 13, 27, 0x7f, 0x85, 0xad, 0x34f, 0x61c, 0x200b, 0x200c, 0x200d, 0x200e,
+                    0x200f, 0x2028, 0x2029, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2060, 0x2066,
+                    0x2067, 0x2068, 0x2069, 0xfeff, 0xe0061
+                }) {
+            var label = "[U+%04X]".formatted(cp);
+            assertEquals(label, SecurityText.present(new String(Character.toChars(cp))));
+            var canvas = new TerminalCanvas(20, 1);
+            canvas.text(0, 0, new String(Character.toChars(cp)), 1, 2, false);
+            assertTrue(row(canvas, 0).startsWith(label));
+        }
+    }
+
+    @Test
     void handlesWideGlyphsAndClipping() {
         var canvas = new TerminalCanvas(7, 2);
         canvas.text(0, 0, "Hi 🧪", 1, 2, false);

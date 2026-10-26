@@ -41,7 +41,7 @@ final class PermissionPrompt {
     }
 
     void scroll(int delta) {
-        scroll = (int) Math.clamp((long) scroll + delta, 0, 1_000_000);
+        scroll = (int) Math.clamp((long) scroll + delta, 0, Integer.MAX_VALUE);
     }
 
     void clampScroll(int max) {

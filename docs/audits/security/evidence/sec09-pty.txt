@@ -1,0 +1,253 @@
+SEC-09 synthetic PTY probe, 26 October 2026
+Linux PTY; JDK 25; renderer/painter and TerminalApp.handle; temporary SessionFixture.
+PTY sizes and harness render sizes: 100x30 -> 35x15 -> 80x24.
+Inputs: Ctrl+F, Tab, bracketed-paste Enter, narrow resize, PgDn x8, wide resize, Up, Enter.
+Assertions: paste resolved=0; explicit Enter resolved=1 for displayed ID 901; labels visible;
+no raw bidi/zero-width/OSC payload; long SECURITY_SUFFIX reachable.
+Frames below include generated terminal text only; terminal ANSI sequences removed.
+
+--- frame 0 ---
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.sqlite.SQLiteJDBCLoader in an unnamed module (file:/home/fpa/.m2/repository/org/xerial/sqlite-jdbc/3.53.2.0/sqlite-jdbc-3.53.2.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+
+                                                                                                    
+  ▣  Syleks                                                                     /synthetic/project  
+                                                                                                    
+  ────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                    
+  Session · New conversation                                                     Fixture · Java 25  
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+  ▎ △ Permission required                                                                 ↓ 1/12    
+  ▎ Allow this request once.                                                                        
+  ▎ bash / build / printf 'שלום-ملف[U+202E].txt[U+200B]'[U+000A]                                    
+  ▎ Request: 901[U+000A]                                                                            
+  ▎  Allow once   Remember exact   Reject                                                           
+  ▎ ←/→ select · Enter confirm · Esc cancel · Ctrl+F expand · ↑/↓ details                           
+                                                                                                    
+  Ctrl+P commands · Esc cancel · PgUp/PgDn scroll                            ◌ Awaiting permission  
+                                                                                                    
+FRAME_READY 100 30 selected=once resolved=0
+
+
+--- frame 1 ---
+
+                                                                                                    
+  ▣  Syleks                                                                     /synthetic/project  
+                                                                                                    
+  ────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                    
+  Session · New conversation                                                     Fixture · Java 25  
+                                                                                                    
+  ▎ △ Permission required                                                                           
+  ▎ Allow this request once.                                                                        
+  ▎ bash / build / printf 'שלום-ملف[U+202E].txt[U+200B]'[U+000A]                                    
+  ▎ Request: 901[U+000A]                                                                            
+  ▎ Selected scope: Allow this request once.[U+000A]                                                
+  ▎ Workspace: /synthetic/project[U+000A]                                                           
+  ▎ Policy: ASK; source: synthetic global[U+000A]                                                   
+  ▎ Destination origin: https://example.invalid:443[U+000A]                                         
+  ▎ Script: printf safe[U+000A]                                                                     
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxSECU    
+  ▎ RITY_SUFFIX[U+000A]                                                                             
+  ▎ [U+001B]]52;fake[U+0007][U+000A]                                                                
+  ▎ Remember scope: exact action; expires in 15 minutes.                                            
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎  Allow once   Remember exact   Reject                                                           
+  ▎ ←/→ select · Enter confirm · Esc cancel · Ctrl+F expand · ↑/↓ details                           
+                                                                                                    
+  Ctrl+P commands · Esc cancel · PgUp/PgDn scroll                            ◌ Awaiting permission  
+                                                                                                    
+FRAME_READY 100 30 selected=once resolved=0
+
+
+--- frame 2 ---
+
+                                                                                                    
+  ▣  Syleks                                                                     /synthetic/project  
+                                                                                                    
+  ────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                    
+  Session · New conversation                                                     Fixture · Java 25  
+                                                                                                    
+  ▎ △ Permission required                                                                           
+  ▎ Exact action for 15 minutes; changed arguments/context need review.                             
+  ▎ bash / build / printf 'שלום-ملف[U+202E].txt[U+200B]'[U+000A]                                    
+  ▎ Request: 901[U+000A]                                                                            
+  ▎ Selected scope: Exact action for 15 minutes; changed arguments/context need review.[U+000A]     
+  ▎ Workspace: /synthetic/project[U+000A]                                                           
+  ▎ Policy: ASK; source: synthetic global[U+000A]                                                   
+  ▎ Destination origin: https://example.invalid:443[U+000A]                                         
+  ▎ Script: printf safe[U+000A]                                                                     
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxSECU    
+  ▎ RITY_SUFFIX[U+000A]                                                                             
+  ▎ [U+001B]]52;fake[U+0007][U+000A]                                                                
+  ▎ Remember scope: exact action; expires in 15 minutes.                                            
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎  Allow once   Remember exact   Reject                                                           
+  ▎ ←/→ select · Enter confirm · Esc cancel · Ctrl+F expand · ↑/↓ details                           
+                                                                                                    
+  Ctrl+P commands · Esc cancel · PgUp/PgDn scroll                            ◌ Awaiting permission  
+                                                                                                    
+FRAME_READY 100 30 selected=remember resolved=0
+
+
+--- frame 4 ---
+
+                                                                                                    
+  ▣  Syleks                                                                     /synthetic/project  
+                                                                                                    
+  ────────────────────────────────────────────────────────────────────────────────────────────────  
+                                                                                                    
+  Session · New conversation                                                     Fixture · Java 25  
+                                                                                                    
+  ▎ △ Permission required                                                                           
+  ▎ Exact action for 15 minutes; changed arguments/context need review.                             
+  ▎ bash / build / printf 'שלום-ملف[U+202E].txt[U+200B]'[U+000A]                                    
+  ▎ Request: 901[U+000A]                                                                            
+  ▎ Selected scope: Exact action for 15 minutes; changed arguments/context need review.[U+000A]     
+  ▎ Workspace: /synthetic/project[U+000A]                                                           
+  ▎ Policy: ASK; source: synthetic global[U+000A]                                                   
+  ▎ Destination origin: https://example.invalid:443[U+000A]                                         
+  ▎ Script: printf safe[U+000A]                                                                     
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxSECU    
+  ▎ RITY_SUFFIX[U+000A]                                                                             
+  ▎ [U+001B]]52;fake[U+0007][U+000A]                                                                
+  ▎ Remember scope: exact action; expires in 15 minutes.                                            
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎                                                                                                 
+  ▎  Allow once   Remember exact   Reject                                                           
+  ▎ ←/→ select · Enter confirm · Esc cancel · Ctrl+F expand · ↑/↓ details                           
+                                                                                                    
+  Ctrl+P commands · Esc cancel · PgUp/PgDn scroll                            ◌ Awaiting permission  
+                                                                                                    
+FRAME_READY 100 30 selected=remember resolved=0
+
+
+--- frame 6 ---
+
+ ▣  Syleks           …etic/project 
+ ───────────────────────────────── 
+                                   
+ Session · New…   Fixture · Java … 
+                                   
+ ▎ △ Permission required  ↓ 1/26   
+ ▎ Exact action for 15 minutes;…   
+ ▎ bash / build / printf 'שלום-م   
+ ▎ لف[U+202E].txt[U+200B]'[U+000   
+ ▎ A]                              
+ ▎ Request: 901[U+000A]            
+ ▎  Once   Exact   Reject          
+ ▎ ←/→ select · Enter confirm      
+                                   
+ Ctrl+P · Ctrl+D exit  ◌ Awaiting… 
+FRAME_READY 35 15 selected=remember resolved=0
+
+
+--- frame 14 ---
+
+ ▣  Syleks           …etic/project 
+ ───────────────────────────────── 
+                                   
+ Session · New…   Fixture · Java … 
+                                   
+ ▎ △ Permission required ↓ 23/26   
+ ▎ Exact action for 15 minutes;…   
+ ▎ [U+001B]]52;fake[U+0007][U+00   
+ ▎ 0A]                             
+ ▎ Remember scope: exact action;   
+ ▎  expires in 15 minutes.         
+ ▎  Once   Exact   Reject          
+ ▎ ←/→ select · Enter confirm      
+                                   
+ Ctrl+P · Ctrl+D exit  ◌ Awaiting… 
+FRAME_READY 35 15 selected=remember resolved=0
+
+
+--- frame 16 ---
+
+  ▣  Syleks                                                 /synthetic/project  
+  ────────────────────────────────────────────────────────────────────────────  
+                                                                                
+  Session · New conversation                                 Fixture · Java 25  
+                                                                                
+  ▎ △ Permission required                                                       
+  ▎ Exact action for 15 minutes; changed arguments/context need review.         
+  ▎ bash / build / printf 'שלום-ملف[U+202E].txt[U+200B]'[U+000A]                
+  ▎ Request: 901[U+000A]                                                        
+  ▎ Selected scope: Exact action for 15 minutes; changed arguments/context n    
+  ▎ eed review.[U+000A]                                                         
+  ▎ Workspace: /synthetic/project[U+000A]                                       
+  ▎ Policy: ASK; source: synthetic global[U+000A]                               
+  ▎ Destination origin: https://example.invalid:443[U+000A]                     
+  ▎ Script: printf safe[U+000A]                                                 
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxSECURITY_SUFFIX[U+000A]                 
+  ▎ [U+001B]]52;fake[U+0007][U+000A]                                            
+  ▎ Remember scope: exact action; expires in 15 minutes.                        
+  ▎  Allow once   Remember exact   Reject                                       
+  ▎ ←/→ select · Enter confirm · Ctrl+F expand                                  
+                                                                                
+  Ctrl+P commands · Esc cancel                           ◌ Awaiting permission  
+FRAME_READY 80 24 selected=remember resolved=0
+
+
+--- frame 17 ---
+
+  ▣  Syleks                                                 /synthetic/project  
+  ────────────────────────────────────────────────────────────────────────────  
+                                                                                
+  Session · New conversation                                 Fixture · Java 25  
+                                                                                
+  ▎ △ Permission required                                                       
+  ▎ Exact action for 15 minutes; changed arguments/context need review.         
+  ▎ bash / build / printf 'שלום-ملف[U+202E].txt[U+200B]'[U+000A]                
+  ▎ Request: 901[U+000A]                                                        
+  ▎ Selected scope: Exact action for 15 minutes; changed arguments/context n    
+  ▎ eed review.[U+000A]                                                         
+  ▎ Workspace: /synthetic/project[U+000A]                                       
+  ▎ Policy: ASK; source: synthetic global[U+000A]                               
+  ▎ Destination origin: https://example.invalid:443[U+000A]                     
+  ▎ Script: printf safe[U+000A]                                                 
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    
+  ▎ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxSECURITY_SUFFIX[U+000A]                 
+  ▎ [U+001B]]52;fake[U+0007][U+000A]                                            
+  ▎ Remember scope: exact action; expires in 15 minutes.                        
+  ▎  Allow once   Remember exact   Reject                                       
+  ▎ ←/→ select · Enter confirm · Ctrl+F expand                                  
+                                                                                
+  Ctrl+P commands · Esc cancel                           ◌ Awaiting permission  
+FRAME_READY 80 24 selected=remember resolved=1
+

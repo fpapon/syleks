@@ -270,14 +270,25 @@ public class ChatSession {
                                 + " / "
                                 + requirement.operation()
                                 + " / "
-                                + requirement.target());
+                                + requirement.target()
+                                + "\nPolicy: "
+                                + config.permissions(requirement.agent())
+                                        .describe(requirement.operation(), requirement.target()));
             }
         }
         if (asks.isEmpty()) {
             action.run();
         } else {
             pendingPermission =
-                    permission(description, String.join("\n", asks), action, () -> {}, null);
+                    permission(
+                            description,
+                            "Workspace: "
+                                    + config.workspace()
+                                    + "\nOne-time approval only.\n"
+                                    + String.join("\n", asks),
+                            action,
+                            () -> {},
+                            null);
             status = "Awaiting permission";
             executionState = AgentState.WAITING_PERMISSION;
             info(
@@ -1063,6 +1074,26 @@ public class ChatSession {
                 context);
     }
 
+    private static String approvalOrigin(String target) {
+        try {
+            var uri = java.net.URI.create(target);
+            if (uri.getHost() != null
+                    && ("https".equalsIgnoreCase(uri.getScheme())
+                            || "http".equalsIgnoreCase(uri.getScheme())))
+                return "\nDestination origin: "
+                        + uri.getScheme()
+                        + "://"
+                        + uri.getHost()
+                        + ":"
+                        + (uri.getPort() >= 0
+                                ? uri.getPort()
+                                : "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80);
+        } catch (IllegalArgumentException ignored) {
+            // Not a URL; the original target remains visible and is used for authorization.
+        }
+        return "";
+    }
+
     private boolean toolPermission(
             long id, String actor, String operation, String target, String details)
             throws Exception {
@@ -1119,7 +1150,26 @@ public class ChatSession {
             approval = new CompletableFuture<>();
             boolean rememberable = ApprovalGrants.rememberable(call, operation);
             String scopeDetails =
-                    details
+                    "Workspace: "
+                            + key.workspace()
+                            + "\nTarget: "
+                            + target
+                            + approvalOrigin(target)
+                            + "\nPolicy: "
+                            + (scope == null
+                                    ? config.permissions(actor).describe(operation, target)
+                                    : scope.actors.stream()
+                                            .map(
+                                                    a ->
+                                                            a
+                                                                    + ": "
+                                                                    + config.permissions(a)
+                                                                            .describe(
+                                                                                    operation,
+                                                                                    target))
+                                            .collect(java.util.stream.Collectors.joining("; ")))
+                            + "\n"
+                            + details
                             + (rememberable
                                     ? "\nRemember scope: exact action/arguments, canonical target, agent, workspace, session/task and policy/account context. Expires after 15 minutes; no wildcards.\nAction SHA-256: "
                                             + key.action()
