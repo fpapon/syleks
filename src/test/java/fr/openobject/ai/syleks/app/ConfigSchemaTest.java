@@ -34,6 +34,32 @@ class ConfigSchemaTest {
                     .getSchema(Path.of("agent-config.schema.json").toUri());
 
     @Test
+    void validatesSandboxPolicyAndRejectsUnknownCapabilitiesOrUnboundedResources()
+            throws Exception {
+        for (String mode : List.of("restricted", "unrestricted"))
+            assertTrue(
+                    schema.validate(
+                                    json.readTree(
+                                            "{\"command_sandbox\":{\"mode\":\"" + mode + "\"}}"))
+                            .isEmpty());
+        for (String settings :
+                List.of(
+                        "null",
+                        "\"unrestricted\"",
+                        "{\"mode\":\"auto\"}",
+                        "{\"network\":\"local\"}",
+                        "{\"backend\":\"fake\"}",
+                        "{\"memory_mib\":0}",
+                        "{\"processes\":513}",
+                        "{\"cpu_percent\":1000}",
+                        "{\"memory_mib\":64.5}"))
+            assertFalse(
+                    schema.validate(json.readTree("{\"command_sandbox\":" + settings + "}"))
+                            .isEmpty(),
+                    settings);
+    }
+
+    @Test
     void acceptsExplicitGlobalOriginDeclarationsAndRejectsBroadOrSecretBearingValues()
             throws Exception {
         var config =

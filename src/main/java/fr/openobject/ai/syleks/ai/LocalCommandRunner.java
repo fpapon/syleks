@@ -27,6 +27,7 @@ public final class LocalCommandRunner {
     public static final int MAX_OUTPUT_CHARS = 32000;
     private final Path directory;
     private final fr.openobject.ai.syleks.app.SubprocessEnvironment environment;
+    private final fr.openobject.ai.syleks.sandbox.CommandExecutionBackend backend;
 
     public LocalCommandRunner(Path directory) {
         this(
@@ -39,8 +40,20 @@ public final class LocalCommandRunner {
 
     public LocalCommandRunner(
             Path directory, fr.openobject.ai.syleks.app.SubprocessEnvironment environment) {
+        this(
+                directory,
+                environment,
+                fr.openobject.ai.syleks.sandbox.CommandSandboxPolicy.parse(java.util.Map.of())
+                        .backend(Path.of(System.getProperty("user.home"))));
+    }
+
+    public LocalCommandRunner(
+            Path directory,
+            fr.openobject.ai.syleks.app.SubprocessEnvironment environment,
+            fr.openobject.ai.syleks.sandbox.CommandExecutionBackend backend) {
         this.directory = directory.toAbsolutePath().normalize();
         this.environment = environment;
+        this.backend = backend;
     }
 
     public record Result(int exitCode, String output, boolean timedOut, boolean truncated) {
@@ -66,69 +79,66 @@ public final class LocalCommandRunner {
         }
         if (timeoutSeconds < 1 || timeoutSeconds > 300)
             throw new IllegalArgumentException("timeout_seconds must be an integer from 1 to 300");
-        var builder =
-                new ProcessBuilder("/bin/bash", "--noprofile", "--norc", "-c", command)
-                        .directory(directory.toFile())
-                        .redirectErrorStream(true);
-        // Clear before launch: no exported functions, startup options, loader hooks or secrets.
-        builder.environment().clear();
-        builder.environment().putAll(environment.forWorkspace(directory));
-        var process = builder.start();
-        process.getOutputStream().close();
-        var output = new CompletableFuture<String>();
-        var truncated = new java.util.concurrent.atomic.AtomicBoolean();
-        var reader =
-                Thread.ofVirtual()
-                        .name("command-output")
-                        .start(
-                                () -> {
-                                    try (var input =
-                                            new InputStreamReader(
-                                                    process.getInputStream(),
-                                                    StandardCharsets.UTF_8)) {
-                                        var text = new StringBuilder();
-                                        var buffer = new char[4096];
-                                        int count;
-                                        while ((count = input.read(buffer)) >= 0) {
-                                            int keep =
-                                                    Math.min(
-                                                            count,
-                                                            MAX_OUTPUT_CHARS - text.length());
-                                            if (keep > 0) text.append(buffer, 0, keep);
-                                            if (keep < count) truncated.set(true);
+        try (var execution =
+                backend.start(
+                        directory, environment.forWorkspace(directory), command, timeoutSeconds)) {
+            var process = execution.process();
+            var output = new CompletableFuture<String>();
+            var truncated = new java.util.concurrent.atomic.AtomicBoolean();
+            var reader =
+                    Thread.ofVirtual()
+                            .name("command-output")
+                            .start(
+                                    () -> {
+                                        try (var input =
+                                                new InputStreamReader(
+                                                        process.getInputStream(),
+                                                        StandardCharsets.UTF_8)) {
+                                            var text = new StringBuilder();
+                                            var buffer = new char[4096];
+                                            int count;
+                                            while ((count = input.read(buffer)) >= 0) {
+                                                int keep =
+                                                        Math.min(
+                                                                count,
+                                                                MAX_OUTPUT_CHARS - text.length());
+                                                if (keep > 0) text.append(buffer, 0, keep);
+                                                if (keep < count) truncated.set(true);
+                                            }
+                                            if (!text.isEmpty()
+                                                    && Character.isHighSurrogate(
+                                                            text.charAt(text.length() - 1)))
+                                                text.setLength(text.length() - 1);
+                                            output.complete(text.toString());
+                                        } catch (Exception e) {
+                                            output.completeExceptionally(e);
                                         }
-                                        if (!text.isEmpty()
-                                                && Character.isHighSurrogate(
-                                                        text.charAt(text.length() - 1)))
-                                            text.setLength(text.length() - 1);
-                                        output.complete(text.toString());
-                                    } catch (Exception e) {
-                                        output.completeExceptionally(e);
-                                    }
-                                });
-        boolean timedOut = false;
-        try {
-            if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
-                timedOut = true;
-                terminate(process);
-            }
-            String text;
+                                    });
+            boolean timedOut = false;
             try {
-                text = output.get(2, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
+                if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+                    timedOut = true;
+                    terminate(process);
+                }
+                String text;
+                try {
+                    text = output.get(2, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    terminate(process);
+                    process.getInputStream().close();
+                    text = "Output stream remained open after command completion.";
+                }
+                return new Result(
+                        timedOut ? -1 : process.exitValue(), text, timedOut, truncated.get());
+            } finally {
                 terminate(process);
-                process.getInputStream().close();
-                text = "Output stream remained open after command completion.";
+                try {
+                    process.getInputStream().close();
+                } catch (java.io.IOException ignored) {
+                    /* cleanup */
+                }
+                reader.interrupt();
             }
-            return new Result(timedOut ? -1 : process.exitValue(), text, timedOut, truncated.get());
-        } finally {
-            terminate(process);
-            try {
-                process.getInputStream().close();
-            } catch (java.io.IOException ignored) {
-                /* cleanup */
-            }
-            reader.interrupt();
         }
     }
 

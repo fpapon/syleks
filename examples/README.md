@@ -68,3 +68,5 @@ to global `command_environment.trusted_path` and opt into `JAVA_HOME` with `pass
 Project and agent examples cannot enable environment passthrough.
 
 Provider and MCP examples require HTTPS for remote endpoints by default. [The insecure HTTP example](agent-config-insecure-http.json) shows an explicit global origin exception for a reviewed LAN server; its credentials and conversation data travel in plaintext. Other HTTP examples are loopback fixtures; see the [transport decision matrix and migration guidance](../docs/providers.md#transport-security).
+
+[The restricted command example](agent-config-sandbox.json) shows the global-only Linux sandbox policy, including its separate network capability and resource limits. Merge it into global settings and restart; see [dependencies and migration](../docs/command-sandbox.md). PATH additions do not expose SDKs outside restricted runtime mounts.

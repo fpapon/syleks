@@ -122,7 +122,12 @@ class SubprocessEnvironmentTest {
                                 List.of("JAVA_HOME")),
                         Map.of("JAVA_HOME", bin.getParent().toString()),
                         root);
-        var runner = new fr.openobject.ai.syleks.ai.LocalCommandRunner(root, policy);
+        // This environment test deliberately uses the host SDK; backend mount tests are separate.
+        var runner =
+                new fr.openobject.ai.syleks.ai.LocalCommandRunner(
+                        root,
+                        policy,
+                        fr.openobject.ai.syleks.sandbox.CommandExecutionBackend.unrestricted());
         assertEquals(0, runner.execute("java --version", 10).exitCode());
         Files.writeString(
                 root.resolve("Hello.java"),

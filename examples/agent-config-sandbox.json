@@ -1,0 +1,10 @@
+{
+  "$schema": "../agent-config.schema.json",
+  "command_sandbox": {
+    "mode": "restricted",
+    "network": "deny",
+    "memory_mib": 1024,
+    "processes": 64,
+    "cpu_percent": 100
+  }
+}

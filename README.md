@@ -249,7 +249,7 @@ For `ask`, the TUI shows the exact command, working directory, and timeout. `/ap
 
 The tool accepts `command` and optional `timeout_seconds` (default 60, range 1–300). Commands run through `/bin/bash --noprofile --norc -c` in the launch directory with a minimal environment and closed stdin (see [environment policy and opt-ins](docs/configuration.md#subprocess-environments)). Combined stdout/stderr, exit code, timeout state, and truncation state are returned to the model and shown in the conversation. Captured output is limited to 32,000 characters. Esc/Ctrl+C cancels the running command and model turn; command processes and their descendants are terminated during cleanup. Tool/model conversations stop after the configured `max_rounds` limit (default 12). This is intended for foreground, non-interactive commands, rather than persistent background services.
 
-Shell execution uses your normal OS permissions and is not a filesystem sandbox. An allowed shell command can read/write files or access the network regardless of separate `read`/`edit`/web declarations. Granular command policies analyze every literal command and redirection before execution; any denial blocks the entire script. Unsupported shell syntax is refused under granular policies. A uniform `bash: ask` policy permits full shell syntax after approval. See [shell rules](docs/tools-and-permissions.md#shell-and-web-access) for the supported subset and examples. Command output is sent back to your configured model endpoint.
+Shell execution defaults to restricted Linux isolation: writable workspace, private home/tmp, no network, and enforced resource limits. Required backend failures refuse execution. Only an explicit global `command_sandbox.mode: "unrestricted"` setting grants normal host authority; approval cannot select it. See [command isolation](docs/command-sandbox.md) for Linux dependencies, network grants, limits and migration. Separate `read`/`edit`/web declarations remain independent of shell permissions. Granular command policies analyze every literal command and redirection before execution; any denial blocks the entire script. Unsupported shell syntax is refused under granular policies. A uniform `bash: ask` policy permits full shell syntax after approval. See [shell rules](docs/tools-and-permissions.md#shell-and-web-access) for the supported subset and examples. Command output is sent back to your configured model endpoint.
 
 ## Markdown and source highlighting
 
@@ -340,7 +340,7 @@ The app supports streaming conversations, persisted root/child sessions, declare
 1. Encryption at rest.
 2. Syntax-aware diff navigation and richer Markdown tables.
 3. Richer file browsing and attachment workflows.
-4. OS-sandboxed execution and richer change review.
+4. Additional command sandbox backends and richer change review.
 5. File picker, fuzzy search, configurable keymap, terminal themes.
 
 Licensed Apache-2.0 (see LICENSE).

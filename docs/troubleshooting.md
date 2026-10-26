@@ -43,6 +43,7 @@ Run `/permissions` for the active agent, or `/permissions NAME` for a subagent. 
 - File tools reject paths outside the launch directory's workspace and paths through symlinks. Start from the intended project root.
 - Text files over 1 MB, binary files, and invalid UTF-8 are unsupported by the dedicated text tools. Search scans and output are bounded.
 - Exact edits fail if the old text is missing or ambiguous; supply more surrounding text or request an intentional replacement of all matches.
+- Restricted shell commands require the [supported Linux sandbox](command-sandbox.md). Check Bubblewrap, the systemd user manager, delegated cgroup controllers and kernel namespace permissions if the probe fails. No automatic unrestricted fallback exists.
 - Shell commands require `/bin/bash` and cannot accept interactive standard input. Long commands may hit the configured timeout.
 - Web search can fail when DuckDuckGo changes its HTML or blocks automated requests. Try a known URL with permitted `webfetch` instead.
 

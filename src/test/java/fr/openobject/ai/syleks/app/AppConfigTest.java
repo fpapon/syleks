@@ -192,6 +192,46 @@ class AppConfigTest {
                 () -> new AppConfig(mapper.instance(), home, host, workspace));
     }
 
+    @Test
+    void sandboxAuthorityComesOnlyFromGlobalPolicyEvenForTrustedProjects() throws Exception {
+        var workspace = Files.createDirectory(home.resolve("sandbox-project"));
+        var project = workspace.resolve(".syleks/agent-config.json");
+        Files.createDirectories(project.getParent());
+        Files.writeString(
+                project, "{\"command_sandbox\":{\"mode\":\"unrestricted\",\"network\":\"allow\"}}");
+        var trust = new ProjectTrust(home, workspace);
+        trust.grant(trust.digest());
+        var config =
+                new AppConfig(
+                        mapper.instance(),
+                        home,
+                        Map.of("SYLEKS_COMMAND_SANDBOX", "unrestricted"),
+                        workspace);
+        assertEquals("restricted", config.commandSandbox().mode());
+        assertEquals("deny", config.commandSandbox().network());
+        writeConfig("{\"command_sandbox\":{\"network\":\"allow\"}}");
+        config = new AppConfig(mapper.instance(), home, Map.of(), workspace);
+        assertEquals("restricted", config.commandSandbox().mode());
+        assertEquals("allow", config.commandSandbox().network());
+        writeConfig("{\"command_sandbox\":{\"mode\":\"unrestricted\"}}");
+        config = new AppConfig(mapper.instance(), home, Map.of(), workspace);
+        assertEquals("unrestricted", config.commandSandbox().mode());
+        var chat =
+                new fr.openobject.ai.syleks.ai.ChatSession(
+                        new fr.openobject.ai.syleks.ai.OllamaClient(config, mapper.instance()),
+                        config);
+        assertTrue(
+                chat.snapshot().messages().stream()
+                        .anyMatch(message -> message.content().contains("UNRESTRICTED")));
+        assertFalse(
+                chat.history().stream()
+                        .anyMatch(message -> message.content().contains("UNRESTRICTED")));
+        writeConfig("{\"command_sandbox\":{\"mode\":\"automatic\"}}");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new AppConfig(mapper.instance(), home, Map.of(), workspace));
+    }
+
     private AppConfig config(Map<String, String> environment) {
         return new AppConfig(mapper.instance(), home, environment);
     }

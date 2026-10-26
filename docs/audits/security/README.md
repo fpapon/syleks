@@ -1,6 +1,6 @@
 # Security implementation backlog
 
-Status: implementation backlog. SEC-01, SEC-02, and SEC-04 are implemented with validation recorded in their task documents; the remaining items are proposed work.
+Status: implementation backlog. SEC-01, SEC-02, and SEC-04 are implemented with validation recorded in their task documents. SEC-03 is implementation ready with local Linux evidence and required CI checks configured; hosted CI execution remains pending. The remaining items are proposed work.
 
 Review baseline: 22 October 2026. This backlog follows a source review of permission enforcement, repository configuration, shell execution, filesystem access, network clients, credentials, and terminal handling. Reinspect current code before editing; paths and behavior can change. The earlier [shell security audit](../opencode-parity/shell-security.md) describes protections that must remain intact.
 
@@ -21,7 +21,7 @@ Assume repositories, model responses, fetched documents, tool output, and MCP se
 | --- | --- | --- | --- |
 | SEC-01 | [Permission ceiling and project trust](01-permission-ceiling-and-project-trust.md) — implemented 25 October 2026 | High | None |
 | SEC-02 | [Subprocess environment isolation](02-subprocess-environment.md) — implemented 25 October 2026 | High | None; coordinate with SEC-03 |
-| SEC-03 | [OS command sandbox](03-command-sandbox.md) | High, larger scope | SEC-01 and SEC-02 |
+| SEC-03 | [OS command sandbox](03-command-sandbox.md) — implementation ready 26 October 2026; local backend validated, hosted CI pending | High, larger scope | SEC-01 and SEC-02 |
 | SEC-04 | [Credential transport security](04-credential-transport.md) — implemented 25 October 2026 | High for remote HTTP | None; share URL handling with SEC-06 |
 | SEC-05 | [Scoped remembered approvals](05-scoped-approvals.md) | Medium–High | SEC-01 |
 | SEC-06 | [Network destination controls](06-network-destinations.md) | Medium, deployment dependent | SEC-01; coordinate with SEC-03/04 |

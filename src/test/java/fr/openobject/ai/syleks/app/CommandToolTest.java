@@ -515,7 +515,11 @@ class CommandToolTest {
                     """
                 {"model":"local/model","provider":{"local":{"options":{"baseURL":"http://localhost:8000/v1"},"models":{"model":{}}}}}
                 """;
-        Files.writeString(home.resolve(".config/syleks/agent-config.json"), content);
+        // Explicit host mode keeps shell-parser tests independent of platform backend support.
+        Files.writeString(
+                home.resolve(".config/syleks/agent-config.json"),
+                "{\"command_sandbox\":{\"mode\":\"unrestricted\"}"
+                        + (content.strip().equals("{}") ? "}" : "," + content.substring(1)));
         return new AppConfig(mapper.instance(), home, Map.of(), project);
     }
 

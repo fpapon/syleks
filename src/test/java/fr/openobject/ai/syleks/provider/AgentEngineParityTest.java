@@ -367,6 +367,8 @@ class AgentEngineParityTest {
                     auth.json.toString(
                             Map.of(
                                     // This fixture scripts exact agent/tool rounds and raw prompts.
+                                    "command_sandbox",
+                                    Map.of("mode", "unrestricted"),
                                     "compaction",
                                     Map.of("mode", "manual"),
                                     "model",

@@ -93,6 +93,8 @@ public final class Main {
                         In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
                         Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
                         Remote HTTP: review insecure_http_origins in global agent-config.json; restart to apply/revoke.
+                        Commands: restricted Linux isolation by default; global command_sandbox controls mode/network.
+                        Unavailable sandbox enforcement refuses commands; unrestricted mode is an explicit global choice.
                         --defaults: skip questions and use the bundled provider/model settings without an API key.
                         Exports are JSON on stdout and may contain confidential content. Redirect explicitly.
                         Session IDs are restricted to the current project. Use --help for this message.

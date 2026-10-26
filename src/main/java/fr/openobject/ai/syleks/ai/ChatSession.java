@@ -140,6 +140,8 @@ public class ChatSession {
                             false);
         }
         String insecureTransport = config.transport().warning(connection.endpoint());
+        if (config.commandSandbox().mode().equals("unrestricted"))
+            history.add(0, ChatMessage.now("system", config.commandSandbox().description()));
         if (!insecureTransport.isEmpty()) history.add(ChatMessage.now("system", insecureTransport));
         config.mcpServers().values().stream()
                 .filter(server -> server.enabled())
@@ -376,7 +378,9 @@ public class ChatSession {
                         "Permissions for "
                                 + selected
                                 + " (ordered within layers; DENY > ASK > ALLOW)\n"
-                                + config.projectTrust().state());
+                                + config.projectTrust().state()
+                                + "\n"
+                                + config.commandSandbox().description());
         var operations = new java.util.LinkedHashSet<>(PermissionPolicy.OPERATIONS);
         policy.rules().stream()
                 .map(PermissionPolicy.Rule::operation)

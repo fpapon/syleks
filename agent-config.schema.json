@@ -39,6 +39,17 @@
       "items": { "type": "string", "pattern": "^http://(?:\\[[0-9A-Fa-f:.]+\\]|[A-Za-z0-9.-]+)(?::[0-9]+)?/?$" },
       "description": "Global-only reviewed plaintext HTTP origins. Exact host and effective port; no paths, credentials, query or fragment. Runtime enforces membership/ports, emits warnings and keeps OAuth strict. Remove entries and restart to revoke."
     },
+    "command_sandbox": {
+      "type": "object", "additionalProperties": false,
+      "description": "Global-only OS command isolation. Restricted Linux backend fails closed when unavailable. Unrestricted explicitly grants host authority; never inferred from repository settings or approvals.",
+      "properties": {
+        "mode": {"enum": ["restricted", "unrestricted"], "default": "restricted"},
+        "network": {"enum": ["deny", "allow"], "default": "deny", "description": "Separate restricted-mode capability: all IPv4/IPv6 destinations when allowed; host Unix sockets remain denied."},
+        "memory_mib": {"type": "integer", "minimum": 64, "maximum": 16384, "default": 1024},
+        "processes": {"type": "integer", "minimum": 8, "maximum": 512, "default": 64},
+        "cpu_percent": {"type": "integer", "minimum": 10, "maximum": 400, "default": 100}
+      }
+    },
     "command_environment": {
       "type": "object", "additionalProperties": false,
       "description": "Global-only command environment. Project/agent configuration cannot override this policy. Values are read from the host only for explicitly selected supported names.",

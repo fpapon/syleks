@@ -70,7 +70,11 @@ public class ToolExecutor {
     public ToolExecutor(AppConfig config) {
         this.config = config;
         files = new AgentTools(config.workspace());
-        commands = new LocalCommandRunner(config.workspace(), config.commandEnvironment());
+        commands =
+                new LocalCommandRunner(
+                        config.workspace(),
+                        config.commandEnvironment(),
+                        config.commandSandbox().backend(config.home()));
     }
 
     @FunctionalInterface
@@ -245,6 +249,8 @@ public class ToolExecutor {
                             + timeout
                             + " seconds\nEnvironment names: "
                             + new java.util.TreeSet<>(config.commandEnvironment().names())
+                            + "\n"
+                            + config.commandSandbox().description()
                             + "\n"
                             + command))
                 return ToolResult.denied(

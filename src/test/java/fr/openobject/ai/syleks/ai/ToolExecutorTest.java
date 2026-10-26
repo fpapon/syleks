@@ -62,7 +62,9 @@ class ToolExecutorTest {
             throws Exception {
         Path file = root.resolve("home/.config/syleks/agent-config.json");
         Files.createDirectories(file.getParent());
-        Files.writeString(file, "{\"permission\":{\"bash\":\"allow\",\"read\":\"allow\"}}");
+        Files.writeString(
+                file,
+                "{\"command_sandbox\":{\"mode\":\"unrestricted\"},\"permission\":{\"bash\":\"allow\",\"read\":\"allow\"}}");
         try (var f = new SessionFixture(root)) {
             var executor = new ToolExecutor(f.config);
             var nonzero =

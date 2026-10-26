@@ -877,7 +877,12 @@ class SubagentExecutionTest {
         Files.createDirectories(root.resolve("project"));
         Path file = root.resolve("home/.config/syleks/agent-config.json");
         Files.createDirectories(file.getParent());
-        Files.writeString(file, json);
+        // Permission/engine fixtures explicitly choose host mode; backend tests require real
+        // isolation.
+        Files.writeString(
+                file,
+                "{\"command_sandbox\":{\"mode\":\"unrestricted\"}"
+                        + (json.strip().equals("{}") ? "}" : "," + json.substring(1)));
     }
 
     @Test

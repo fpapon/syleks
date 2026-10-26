@@ -34,7 +34,14 @@ class ToolsPhaseFiveTest {
     private void configure(String permissions) throws Exception {
         Path file = root.resolve("home/.config/syleks/agent-config.json");
         Files.createDirectories(file.getParent());
-        Files.writeString(file, permissions);
+        // Permission/engine fixtures explicitly choose host mode; backend tests require real
+        // isolation.
+        Files.writeString(
+                file,
+                "{\"command_sandbox\":{\"mode\":\"unrestricted\"}"
+                        + (permissions.strip().equals("{}")
+                                ? "}"
+                                : "," + permissions.substring(1)));
     }
 
     private ToolResult execute(

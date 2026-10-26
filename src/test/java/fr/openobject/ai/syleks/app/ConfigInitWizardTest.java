@@ -35,6 +35,20 @@ class ConfigInitWizardTest {
     @TempDir Path home;
 
     @Test
+    void setupPreservesTheExplicitGlobalSandboxPolicyAndDefaultsToRestricted() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
+            var wizard = new ConfigInitWizard(mapper.instance());
+            var fresh = new ObjectMapper().readTree(wizard.form(null).configuration());
+            assertEquals("restricted", fresh.path("command_sandbox").path("mode").asText());
+            assertEquals("deny", fresh.path("command_sandbox").path("network").asText());
+            var existing = "{\"command_sandbox\":{\"mode\":\"unrestricted\"}}";
+            var saved = new ObjectMapper().readTree(wizard.form(existing).configuration());
+            assertEquals("unrestricted", saved.path("command_sandbox").path("mode").asText());
+        }
+    }
+
+    @Test
     void setupUsesExistingGlobalExceptionsAndShowsThePlaintextWarning() throws Exception {
         try (var container = ConfiguringContainer.of().start();
                 var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {

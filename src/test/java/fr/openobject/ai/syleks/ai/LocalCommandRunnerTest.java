@@ -27,10 +27,22 @@ import org.junit.jupiter.api.io.TempDir;
 class LocalCommandRunnerTest {
     @TempDir Path directory;
 
+    // These tests exercise capture/lifecycle in explicit host mode; real isolation has its own
+    // suite.
+    private static LocalCommandRunner unrestricted(Path directory) {
+        return new LocalCommandRunner(
+                directory,
+                fr.openobject.ai.syleks.app.SubprocessEnvironment.commands(
+                        java.util.Map.of(),
+                        System.getenv(),
+                        Path.of(System.getProperty("user.home"))),
+                fr.openobject.ai.syleks.sandbox.CommandExecutionBackend.unrestricted());
+    }
+
     @Test
     void capturesBothStreamsExitStatusAndWorkingDirectory() throws Exception {
         var result =
-                new LocalCommandRunner(directory)
+                unrestricted(directory)
                         .execute("pwd; printf 'output'; printf 'error' >&2; exit 7", 5);
         assertEquals(7, result.exitCode());
         assertTrue(result.output().contains(directory.toString()));
@@ -40,7 +52,7 @@ class LocalCommandRunnerTest {
 
     @Test
     void closesStandardInputAndCapsOutputWithoutBlocking() throws Exception {
-        var runner = new LocalCommandRunner(directory);
+        var runner = unrestricted(directory);
         var stdin =
                 runner.execute("if read value; then printf unexpected; else printf closed; fi", 5);
         assertEquals("closed", stdin.output());
@@ -117,7 +129,11 @@ class LocalCommandRunnerTest {
                             java.util.Map.of("pass_env", java.util.List.of("JAVA_HOME")),
                             System.getenv(),
                             Path.of(args[0]));
-            var runner = new LocalCommandRunner(Path.of(args[0]), policy);
+            var runner =
+                    new LocalCommandRunner(
+                            Path.of(args[0]),
+                            policy,
+                            fr.openobject.ai.syleks.sandbox.CommandExecutionBackend.unrestricted());
             var result = runner.execute("env", 5);
             if (result.output().contains("SEC02_FAKE_SECRET")
                     || result.output().contains("SYLEKS_SHELL_TEST_VALUE=")
@@ -139,7 +155,7 @@ class LocalCommandRunnerTest {
     @Test
     void timesOutAndTerminatesTheCommandTree() throws Exception {
         var result =
-                new LocalCommandRunner(directory)
+                unrestricted(directory)
                         .execute("sleep 30 & child=$!; printf '%s' \"$child\"; wait", 1);
         assertTrue(result.timedOut());
         assertEquals(-1, result.exitCode());
@@ -156,7 +172,7 @@ class LocalCommandRunnerTest {
                         .start(
                                 () -> {
                                     try {
-                                        new LocalCommandRunner(directory)
+                                        unrestricted(directory)
                                                 .execute(
                                                         "sleep 30 & child=$!; printf '%s' \"$child\" > child.pid; wait",
                                                         30);

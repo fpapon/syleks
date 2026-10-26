@@ -63,6 +63,11 @@ public class AppConfig {
     }
 
     private final SubprocessEnvironment commandEnvironment;
+    private final fr.openobject.ai.syleks.sandbox.CommandSandboxPolicy commandSandbox;
+
+    public fr.openobject.ai.syleks.sandbox.CommandSandboxPolicy commandSandbox() {
+        return commandSandbox;
+    }
 
     public SubprocessEnvironment commandEnvironment() {
         return commandEnvironment;
@@ -132,6 +137,11 @@ public class AppConfig {
                     "SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
+        this.commandSandbox =
+                fr.openobject.ai.syleks.sandbox.CommandSandboxPolicy.parse(
+                        settings.containsKey("command_sandbox")
+                                ? settings.get("command_sandbox")
+                                : Map.of());
         this.transport =
                 fr.openobject.ai.syleks.net.TransportSecurity.Policy.parse(
                         settings.containsKey("insecure_http_origins")

@@ -261,6 +261,13 @@ Fields live at `mcp.SERVER`. IDs start with a lowercase letter and contain up to
 
 Provider preferences and credentials honor an absolute `XDG_CONFIG_HOME`; legacy agent configuration and MCP credentials remain under `~/.config/syleks`. See [Storage and privacy](storage-and-privacy.md) for exact paths. Additional environment switches are `SYLEKS_ALLOW_CLOUD=false` ([cloud policy](providers.md#sessions-and-confidentiality)), `SYLEKS_CREDENTIAL_BACKEND=auto|secret-service|file` and `SYLEKS_AUTH_TIMEOUT_SECONDS` ([authentication](authentication.md)).
 
+## Command sandbox
+
+`command_sandbox` is global-only and defaults to restricted Linux isolation with no network.
+Required enforcement failures refuse the command. See [command isolation](command-sandbox.md)
+for configuration, supported dependencies, resource limits and the explicit unrestricted choice.
+Project settings, approvals and environment variables cannot change it. `/permissions` shows the policy.
+
 ## Subprocess environments
 
 Commands no longer inherit the host environment. Configure `command_environment` only in
@@ -277,7 +284,7 @@ unsandboxed shell commands and trusted extensions still have the user's filesyst
 }
 ```
 
-Replace those example installation directories with real trusted directories outside your workspace.
+Replace those example installation directories with real trusted directories outside your workspace. Restricted commands only see the system runtime mounts described in [command isolation](command-sandbox.md); PATH/environment opt-ins never add mounts.
 `trusted_path` replaces the entire command PATH; its default is `["/usr/bin", "/bin"]`.
 Empty, relative, missing, non-directory and workspace directories (including symlink targets)
 fail closed before command launch. Syleks does not inherit the host PATH. To use SDKMAN, Homebrew,
@@ -291,7 +298,7 @@ execution. Environment filtering does not constrain code inside an approved exec
 Supported names are `JAVA_HOME`, `MAVEN_HOME`, `M2_HOME`, `GRADLE_HOME`, `GRADLE_USER_HOME`,
 `GOPATH`, `GOMODCACHE`, `CARGO_HOME`, `RUSTUP_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`,
 `SSH_AUTH_SOCK`, `http_proxy`, `https_proxy`, `no_proxy`, `HTTP_PROXY`, `HTTPS_PROXY`, and
-`NO_PROXY`. Opting into a socket grants agent access; proxy values may contain credentials.
+`NO_PROXY`. In unrestricted mode, opting into a socket grants agent access; proxy values may contain credentials.
 These settings are for commands only and are never automatically copied to MCP servers.
 The finite supported list deliberately excludes arbitrary custom variables and startup options;
 unsupported names or settings are configuration errors. There is no unrestricted inheritance mode.
@@ -299,13 +306,13 @@ unsupported names or settings are configuration errors. There is no unrestricted
 | Variable or class | Command default | Reason / explicit opt-in |
 | --- | --- | --- |
 | `PATH` | Fixed `/usr/bin:/bin` | Basic system utilities; global `trusted_path` adds trusted installations |
-| `HOME` | Application's configured home | Build caches and normal user configuration; does not isolate credential files |
-| `TMPDIR` | Fixed `/tmp` | System temporary directory; ignores host-selected directories |
+| `HOME` | Private `/syleks-home` when restricted; configured home when unrestricted | Restricted commands cannot access host caches or configuration |
+| `TMPDIR` | Fixed `/tmp` | Private tmpfs when restricted; host directory when unrestricted |
 | `LANG` | Host value, else `C.UTF-8` | Text encoding and locale compatibility |
 | `LC_ALL`, `LC_CTYPE` | Host values when present | Preserve explicit locale/character encoding choices |
 | `SystemRoot` | Host value when present | Windows runtime discovery for MCP; command runner still requires `/bin/bash` |
 | Java/build SDK and cache variables | Absent | Supported names above require `pass_env` |
-| SSH/GPG agent variables | Absent | Only `SSH_AUTH_SOCK` has an explicit command opt-in |
+| SSH/GPG agent variables | Absent | Only unrestricted mode honors the explicit `SSH_AUTH_SOCK` opt-in |
 | Cloud/provider tokens and unknown variables | Absent | No command passthrough setting for these names |
 | Proxy variables | Absent | Supported names above require `pass_env` |
 | Loader and interpreter hooks | Absent, cannot opt in | Includes `LD_*`, `DYLD_*`, `PYTHONPATH`, `PYTHONSTARTUP`, `NODE_OPTIONS`, `PERL5OPT`, `RUBYOPT`, `JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `JDK_JAVA_OPTIONS`, `MAVEN_OPTS`, `GRADLE_OPTS` |
@@ -322,9 +329,9 @@ a configured server is a trusted program. Bare MCP executables are resolved usin
 child PATH, without Java's inherited host-PATH lookup; prefer absolute commands for predictability.
 Project MCP settings still require the existing content trust grant. See [MCP servers](mcp.md).
 
-This is environment hygiene, not an OS sandbox. HOME exposes normal configuration, build scripts
+Environment filtering alone is not OS isolation. In unrestricted mode HOME exposes normal configuration, build scripts
 and credential files to approved programs. Trusted executable directories, binaries, symlinks and
 installation contents must remain under user control: checks do not prevent replacement races or
-a same-user host attacker. Commands may read files, execute scripts and access the network under
-the user's OS permissions. SEC-03 tracks the separate OS isolation boundary. The command backend
-requires Unix `/bin/bash`; Windows command execution is not claimed or tested.
+a same-user host attacker. Unrestricted commands may read files, execute scripts and access the
+network under the user's OS permissions. [Restricted command isolation](command-sandbox.md)
+adds the separate OS boundary. Windows command isolation is not claimed or tested.
