@@ -36,6 +36,7 @@ An “older context omitted” notice means the model request could not include 
 Run `/permissions` for the active agent, or `/permissions NAME` for a subagent. Rules can differ between agents and can be overridden by Markdown definitions. After editing rules, restart.
 
 - A denied action cannot be approved from the prompt; change its effective configuration deliberately if you want to permit it.
+- Remembered approvals cover only the exact reviewed action for 15 minutes. Changed paths, payloads, command timeouts, tasks or accounts need another review. Use `/approvals` to inspect/revoke grants; restart after policy or trust changes.
 - A waiting approval pauses the action. Select a choice and press Enter; pasted text will not confirm it.
 - Plain command text in a response is not executable tool output. The model and server must support structured function calls.
 - A subagent needs the caller's `task` permission as well as its own `chat` permission. It does not receive the parent's transcript automatically.

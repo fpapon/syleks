@@ -60,6 +60,40 @@ public class CredentialStore {
         return root;
     }
 
+    /** Approval invalidation fingerprints; never unlock the vault or expose token values. */
+    public String approvalContext(Collection<String> ids) throws IOException {
+        var context = new LinkedHashMap<String, Object>();
+        context.put("selection", read(root.resolve("config.json")));
+        for (String id : new TreeSet<>(ids)) {
+            var value = read(accountPath(id));
+            var metadata = new LinkedHashMap<String, Object>();
+            for (String field :
+                    List.of(
+                            "provider",
+                            "email",
+                            "issuer",
+                            "subject",
+                            "client_id",
+                            "host_id",
+                            "scopes",
+                            "received_at",
+                            "expires_at",
+                            "vault_ref")) metadata.put(field, value.get(field));
+            metadata.put(
+                    "has_token",
+                    value.get("access_token") instanceof String token && !token.isBlank());
+            metadata.put(
+                    "credential_revision",
+                    fr.openobject.ai.syleks.ai.ApprovalGrants.digest(
+                            List.of(
+                                    Objects.toString(value.get("access_token"), ""),
+                                    Objects.toString(value.get("refresh_token"), ""),
+                                    Objects.toString(value.get("id_token"), ""))));
+            context.put(id, metadata);
+        }
+        return fr.openobject.ai.syleks.ai.ApprovalGrants.digest(context);
+    }
+
     private void directory(Path path) throws IOException {
         if (path.startsWith(root) && !path.equals(root)) directory(path.getParent());
         if (Files.isSymbolicLink(path)) throw new IOException("Unsafe credential directory");

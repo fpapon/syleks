@@ -92,6 +92,15 @@ public class AppConfig {
     }
 
     private final Path workspace;
+    private final String approvalPolicyRevision;
+
+    public String approvalPolicyRevision() {
+        if (!approvalPolicyRevision.equals(ApprovalPolicyRevision.read(home, workspace)))
+            throw new IllegalStateException(
+                    "Security configuration or project trust changed; restart before approving or executing tools");
+        return approvalPolicyRevision;
+    }
+
     private final fr.openobject.ai.syleks.net.TransportSecurity.Policy transport;
 
     public fr.openobject.ai.syleks.net.TransportSecurity.Policy transport() {
@@ -127,6 +136,7 @@ public class AppConfig {
     AppConfig(JsonMapper json, Path home, Map<String, String> environment, Path project) {
         this.home = home;
         this.workspace = fr.openobject.ai.syleks.session.ProjectService.canonical(project);
+        String reviewedPolicy = ApprovalPolicyRevision.read(home, workspace);
         this.projectTrust = new ProjectTrust(home, workspace);
         this.engineering =
                 new fr.openobject.ai.syleks.engineering.EngineeringBoundary(home, workspace);
@@ -259,6 +269,8 @@ public class AppConfig {
             throw new IllegalStateException(
                     "Invalid agent configuration in " + file + ": " + e.getMessage(), e);
         }
+        this.approvalPolicyRevision = reviewedPolicy;
+        approvalPolicyRevision(); // Refuse a configuration changed while it was being loaded.
     }
 
     private static Map<?, ?> readSettings(JsonMapper json, Path file) {

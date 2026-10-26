@@ -54,3 +54,7 @@ Une règle shell contrôle l’invocation du programme et les redirections litt�
 Les constructions Bash hors grammaire sont refusées plutôt que partiellement interprétées sous policy granulaire. Les effets d’un script autorisé ne sont pas transactionnels : une erreur de programme après un premier effet ne déclenche pas de rollback. Le précontrôle garantit l’absence de démarrage d’un script refusé par la policy.
 
 `report.json`, `test-results.json`, les scores et `source-manifest.json` ne sont pas réécrits : ils attestent la campagne d’audit précédente. `verify_report.py` refusera normalement les empreintes modifiées après ce correctif ; ce comportement signale que le rapport initial n’est plus une certification du checkout courant. La preuve du correctif est la nouvelle campagne Maven décrite ici.
+
+## Évolution des approbations
+
+Le suivi ci-dessus est historique. [SEC-05](../security/05-scoped-approvals.md) remplace la portée outil/agent de `always` par une approbation de l’action exacte avec expiration. Les refus granulaires et les vérifications avant effet restent inchangés.

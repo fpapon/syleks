@@ -38,9 +38,9 @@ class PermissionPromptTest {
         prompt.sync(tool);
         assertEquals("once", prompt.choice());
         prompt.move(1);
-        assertEquals("always", prompt.choice());
+        assertEquals("remember", prompt.choice());
         prompt.sync(tool);
-        assertEquals("always", prompt.choice());
+        assertEquals("remember", prompt.choice());
         prompt.move(1);
         assertEquals("reject", prompt.choice());
         prompt.move(1);
@@ -66,7 +66,7 @@ class PermissionPromptTest {
         var screen = render(prompt, 100, 30);
         assertTrue(text(screen).contains("Allow once"));
         assertTrue(text(screen).contains("Reject"));
-        assertFalse(text(screen).contains("Always allow"));
+        assertFalse(text(screen).contains("Remember exact"));
     }
 
     @Test
@@ -77,15 +77,15 @@ class PermissionPromptTest {
         assertFalse(screen.cursorVisible());
         assertTrue(text(screen).contains("Permission required"));
         assertTrue(text(screen).contains("Allow once"));
-        assertTrue(text(screen).contains("Always allow"));
+        assertTrue(text(screen).contains("Remember exact"));
         assertTrue(text(screen).contains("Enter confirm"));
         var row = row(screen.canvas(), 25);
         assertEquals(0xFDBA8C, screen.canvas().at(row.indexOf("Allow once"), 25).bg());
         prompt.move(1);
         screen = render(prompt, 100, 30);
-        assertTrue(text(screen).contains("this session; deny rules still apply"));
+        assertTrue(text(screen).contains("Exact action for 15 minutes"));
         row = row(screen.canvas(), 25);
-        assertEquals(0xFDBA8C, screen.canvas().at(row.indexOf("Always allow"), 25).bg());
+        assertEquals(0xFDBA8C, screen.canvas().at(row.indexOf("Remember exact"), 25).bg());
         prompt.toggleExpanded();
         screen = render(prompt, 100, 30);
         assertTrue(text(screen).contains("ls -la"));
@@ -106,7 +106,7 @@ class PermissionPromptTest {
         assertEquals(0, prompt.scroll());
         screen = render(prompt, 35, 15);
         assertTrue(text(screen).contains("Once"));
-        assertTrue(text(screen).contains("Always"));
+        assertTrue(text(screen).contains("Exact"));
         assertTrue(text(screen).contains("Reject"));
         assertFalse(screen.cursorVisible());
     }

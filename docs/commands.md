@@ -68,7 +68,10 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | `/permissions` | Show effective decisions, sources, ceilings and project trust |
 | `/permissions NAME` | Show another agent's effective permissions |
 | `/approve`, `/approve once` | Allow the pending action once |
-| `/approve always` | Remember a tool approval for this agent while this session stays open |
+| `/approve remember` | Remember the exact reviewed action/arguments for 15 minutes |
+| `/approve always` | Compatibility alias for the same exact scope |
+| `/approvals` | List grant IDs, exact scopes and expirations |
+| `/approvals revoke ID`, `/approvals revoke all` | Revoke one grant or clear memory and reject a pending request |
 | `/deny` | Reject a pending action |
 | `/answer TEXT` | Answer a tool question; a suggested option number or free text is accepted |
 | `/save PATH` | Export displayed messages as Markdown; never overwrite a file |

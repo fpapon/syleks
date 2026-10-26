@@ -94,6 +94,7 @@ public final class Main {
                         Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
                         Remote HTTP: review insecure_http_origins in global agent-config.json; restart to apply/revoke.
                         Commands: restricted Linux isolation by default; global command_sandbox controls mode/network.
+                        Approvals: /approve remember grants the exact action for 15 minutes; /approvals lists/revokes grants.
                         Unavailable sandbox enforcement refuses commands; unrestricted mode is an explicit global choice.
                         --defaults: skip questions and use the bundled provider/model settings without an API key.
                         Exports are JSON on stdout and may contain confidential content. Redirect explicitly.

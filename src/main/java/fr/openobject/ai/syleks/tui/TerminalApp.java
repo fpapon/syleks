@@ -669,6 +669,7 @@ public class TerminalApp implements AutoCloseable {
                 }
                 case "/agents" -> session.listAgents();
                 case "/permissions" -> session.listPermissions(arg);
+                case "/approvals" -> session.approvals(arg);
                 case "/approve" -> session.approve(arg);
                 case "/deny" -> session.deny();
                 case "/answer" -> session.answer(arg);

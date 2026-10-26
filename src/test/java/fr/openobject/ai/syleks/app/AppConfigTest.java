@@ -232,6 +232,32 @@ class AppConfigTest {
                 () -> new AppConfig(mapper.instance(), home, Map.of(), workspace));
     }
 
+    @Test
+    void refusesPolicyChangesDuringConfigurationLoadInsteadOfPinningStaleAuthority()
+            throws Exception {
+        var file = writeConfig("{\"permission\":{\"bash\":\"allow\"}}");
+        var changed = new java.util.concurrent.atomic.AtomicBoolean();
+        var proxy =
+                (JsonMapper)
+                        java.lang.reflect.Proxy.newProxyInstance(
+                                JsonMapper.class.getClassLoader(),
+                                new Class<?>[] {JsonMapper.class},
+                                (instance, method, arguments) -> {
+                                    var value = method.invoke(mapper.instance(), arguments);
+                                    if (method.getName().equals("fromString")
+                                            && changed.compareAndSet(false, true))
+                                        Files.writeString(
+                                                file, "{\"permission\":{\"bash\":\"deny\"}}");
+                                    return value;
+                                });
+        var failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> new AppConfig(proxy, home, Map.of(), home.resolve("project")));
+        assertTrue(changed.get());
+        assertTrue(failure.getMessage().contains("Security configuration"));
+    }
+
     private AppConfig config(Map<String, String> environment) {
         return new AppConfig(mapper.instance(), home, environment);
     }

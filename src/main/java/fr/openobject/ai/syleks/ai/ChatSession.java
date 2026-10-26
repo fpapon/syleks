@@ -76,13 +76,15 @@ public class ChatSession {
     private CompletableFuture<String> pendingQuestion;
     private List<String> questionOptions = List.of();
     private long permissionRevision;
-    private final java.util.Set<ToolGrant> toolGrants = new java.util.LinkedHashSet<>();
+    private final ApprovalGrants toolGrants;
+    private final String approvalSession = java.util.UUID.randomUUID().toString();
+    private String grantEnvironment;
     private int commandLogIndex = -1;
     private String activeCommand;
 
     private record Requirement(String agent, String operation, String target) {}
 
-    private record ToolGrant(String agent, String operation) {}
+    private record ToolGrant(ApprovalGrants.Key key, long reviewedAt) {}
 
     private record PendingPermission(
             String description,
@@ -90,18 +92,30 @@ public class ChatSession {
             Runnable refuse,
             ToolGrant tool,
             String details,
-            long id) {}
+            long id,
+            String environment) {}
 
     private PendingPermission permission(
             String description, String details, Runnable action, Runnable refuse, ToolGrant tool) {
         return new PendingPermission(
-                description, action, refuse, tool, details, ++permissionRevision);
+                description,
+                action,
+                refuse,
+                tool,
+                details,
+                ++permissionRevision,
+                approvalEnvironment());
     }
 
     private static final String TOOL_APPROVAL_OPTIONS =
-            "\n/approve once to allow this action once, /approve always to allow this tool for this agent for the rest of this session (all targets still subject to deny rules), /deny to refuse.";
+            "\n/approve once allows this request only; /approve remember remembers this exact action for 15 minutes (same arguments/context, DENY still applies); /deny refuses.";
 
     public ChatSession(OllamaClient ollama, AppConfig config) {
+        this(ollama, config, new ApprovalGrants());
+    }
+
+    ChatSession(OllamaClient ollama, AppConfig config, ApprovalGrants grants) {
+        this.toolGrants = grants;
         this.ollama = ollama;
         this.config = config;
         this.agent = config.defaultAgent();
@@ -233,6 +247,7 @@ public class ChatSession {
     }
 
     private void authorize(List<Requirement> requirements, String description, Runnable action) {
+        refreshGrants();
         if (pendingPermission != null)
             throw new IllegalStateException(
                     "Resolve the pending permission with /approve or /deny first.");
@@ -280,28 +295,48 @@ public class ChatSession {
     }
 
     public synchronized void approve(String choice) {
-        var mode = choice.isBlank() ? "once" : choice;
-        if (!mode.equals("once") && !mode.equals("always"))
-            throw new IllegalArgumentException("Usage: /approve [once|always]");
+        var mode = choice.isBlank() ? "once" : choice.equals("always") ? "remember" : choice;
+        if (!mode.equals("once") && !mode.equals("remember"))
+            throw new IllegalArgumentException(
+                    "Usage: /approve [once|remember] (always is an exact-scope alias)");
         if (pendingPermission == null) {
             info("No pending permission request.");
             return;
         }
         var request = pendingPermission;
-        if (mode.equals("always")) {
-            if (request.tool() == null)
+        try {
+            if (!request.environment().equals(approvalEnvironment())
+                    || request.tool() != null && !toolGrants.fresh(request.tool().reviewedAt()))
                 throw new IllegalStateException(
-                        "Always approval applies to agent tools only. Use /approve once for this request.");
-            toolGrants.add(request.tool());
+                        "Approval context changed or review expired; request the action again");
+        } catch (RuntimeException stale) {
+            pendingPermission = null;
+            toolGrants.clear();
+            request.refuse().run();
+            status = task == null ? "Ready" : "Generating";
+            executionState = task == null ? AgentState.IDLE : AgentState.WAITING_TOOL;
+            notifyAll();
+            throw stale;
+        }
+        if (mode.equals("remember")) {
+            if (request.tool() == null)
+                throw new IllegalStateException("This action is one-time only. Use /approve once.");
+            var grant = toolGrants.remember(request.tool().key());
             info(
-                    "Approved for this session: "
-                            + request.tool().agent()
+                    "Remembered exact action: "
+                            + grant.id()
                             + " / "
-                            + request.tool().operation()
-                            + " (all targets subject to deny rules). Configuration is unchanged.");
+                            + grant.key().agent()
+                            + " / "
+                            + grant.key().operation()
+                            + " / "
+                            + grant.key().target()
+                            + " until "
+                            + grant.expiresAt()
+                            + ". DENY still applies; configuration is unchanged.");
         }
         if (persistence != null && request.tool() != null)
-            persistence.authorization(mode.equals("always") ? "USER_ALWAYS" : "USER_ONCE");
+            persistence.authorization(mode.equals("remember") ? "USER_EXACT" : "USER_ONCE");
         pendingPermission = null;
         status = task == null ? "Ready" : "Generating";
         try {
@@ -404,11 +439,10 @@ public class ChatSession {
                         .append(rule.source())
                         .append(")");
         }
-        for (var grant : toolGrants) {
-            if (grant.agent().equals(selected))
-                result.append("\nSession approval: ")
-                        .append(grant.operation())
-                        .append(" (ask → allow; deny still applies)");
+        refreshGrants();
+        for (var grant : toolGrants.list()) {
+            if (grant.key().agent().equals(selected))
+                result.append("\n").append(describeGrant(grant));
         }
         result.append(
                 "\n\nEnforced actions: chat, task, save, bash, read, edit, write, webfetch, websearch, glob, grep, list.");
@@ -616,7 +650,8 @@ public class ChatSession {
         return providers;
     }
 
-    public void providers(ProviderService service) {
+    public synchronized void providers(ProviderService service) {
+        toolGrants.clear();
         this.providers = service;
     }
 
@@ -744,7 +779,8 @@ public class ChatSession {
                                 actor,
                                 call,
                                 (operation, target, details) ->
-                                        toolPermission(id, actor, operation, target, details),
+                                        toolPermission(
+                                                id, actor, operation, target, details, null, call),
                                 () -> {
                                     synchronized (this) {
                                         checkActive(id);
@@ -848,7 +884,20 @@ public class ChatSession {
                             String details,
                             PermissionPolicy.Decision decision)
                             throws Exception {
-                        return toolPermission(id, child, op, target, details, decision);
+                        return toolPermission(id, child, op, target, details, null, null);
+                    }
+
+                    @Override
+                    public boolean allow(
+                            String child,
+                            String op,
+                            String target,
+                            String details,
+                            PermissionPolicy.Decision decision,
+                            TaskScope scope,
+                            ToolCall childCall)
+                            throws Exception {
+                        return toolPermission(id, child, op, target, details, scope, childCall);
                     }
 
                     public String question(String child, String text, List<String> options)
@@ -954,10 +1003,73 @@ public class ChatSession {
         notifyAll();
     }
 
+    private String approvalEnvironment() {
+        String policy = config.approvalPolicyRevision();
+        return ApprovalGrants.digest(
+                List.of(
+                        policy,
+                        config.workspace().toString(),
+                        sessionId == null ? approvalSession : sessionId,
+                        agent,
+                        model,
+                        providers == null ? "no-provider" : providers.approvalContext()));
+    }
+
+    private void refreshGrants() {
+        try {
+            String environment = approvalEnvironment();
+            if (!environment.equals(grantEnvironment)) toolGrants.clear();
+            grantEnvironment = environment;
+        } catch (RuntimeException changed) {
+            toolGrants.clear();
+            throw changed;
+        }
+    }
+
+    private ApprovalGrants.Key actionKey(
+            long id,
+            String actor,
+            String operation,
+            String target,
+            String details,
+            TaskScope scope,
+            ToolCall call)
+            throws Exception {
+        String environment = approvalEnvironment();
+        String task =
+                scope != null
+                        ? scope.session
+                        : !responsePrefix.isEmpty() ? "manual-task:" + id : "primary";
+        String context =
+                ApprovalGrants.digest(
+                        List.of(
+                                environment,
+                                scope == null ? List.of(actor) : scope.actors,
+                                scope == null
+                                        ? runningModel == null ? model : runningModel
+                                        : scope.model,
+                                config.commandSandbox().description(),
+                                config.commandEnvironment().approvalContext()));
+        return new ApprovalGrants.Key(
+                actor,
+                operation,
+                ApprovalGrants.canonicalTarget(config.workspace(), operation, target),
+                ApprovalGrants.digest(
+                        java.util.Arrays.asList(
+                                call == null ? "one-time" : call.name(),
+                                call == null ? null : call.arguments(),
+                                details)),
+                config.workspace().toRealPath().toString(),
+                sessionId == null ? approvalSession : sessionId,
+                task,
+                config.approvalPolicyRevision(),
+                context);
+    }
+
     private boolean toolPermission(
             long id, String actor, String operation, String target, String details)
             throws Exception {
-        return toolPermission(id, actor, operation, target, details, null);
+        return toolPermission(id, actor, operation, target, details, null, null);
     }
 
     private boolean toolPermission(
@@ -966,37 +1078,62 @@ public class ChatSession {
             String operation,
             String target,
             String details,
-            PermissionPolicy.Decision ceiling)
+            TaskScope scope,
+            ToolCall call)
             throws Exception {
         CompletableFuture<Boolean> approval;
         long promptId;
+        ApprovalGrants.Key key;
         synchronized (this) {
-            checkActive(id);
+            for (; ; ) {
+                checkActive(id);
+                if (scope != null) scope.check();
+                var decision =
+                        scope == null
+                                ? config.permissions(actor).evaluate(operation, target)
+                                : scope.decision(config, operation, target);
+                if (decision == PermissionPolicy.Decision.DENY) return false;
+                if (decision == PermissionPolicy.Decision.ALLOW) {
+                    // ToolExecutor validates live policy once per invocation. Delegation and
+                    // maintenance enter here directly and must perform their own check.
+                    if (call == null) config.approvalPolicyRevision();
+                    if (persistence != null) persistence.authorization("POLICY_ALLOWED");
+                    return true;
+                }
+                refreshGrants();
+                key = actionKey(id, actor, operation, target, details, scope, call);
+                boolean remembered =
+                        decision == PermissionPolicy.Decision.ASK && toolGrants.contains(key);
+                if (persistence != null)
+                    persistence.authorization(
+                            remembered
+                                    ? "SESSION_EXACT"
+                                    : decision == PermissionPolicy.Decision.ASK
+                                            ? "AWAITING_APPROVAL"
+                                            : "POLICY_ALLOWED");
+                if (decision == PermissionPolicy.Decision.ALLOW || remembered) return true;
+                if (pendingPermission == null) break;
+                wait(); // Recheck constraints, context and grants after every queued request.
+            }
             if (!pending.isEmpty()) {
                 messages.add(ChatMessage.now("assistant", responsePrefix + pending));
                 pending = new StringBuilder();
             }
-            var decision =
-                    ceiling == null
-                            ? toolDecision(actor, operation, target)
-                            : ceiling == PermissionPolicy.Decision.ASK
-                                            && toolGrants.contains(new ToolGrant(actor, operation))
-                                    ? PermissionPolicy.Decision.ALLOW
-                                    : ceiling;
-            if (decision == PermissionPolicy.Decision.DENY) return false;
-            if (decision == PermissionPolicy.Decision.ALLOW) return true;
-            while (pendingPermission != null) {
-                wait();
-                checkActive(id);
-            }
             approval = new CompletableFuture<>();
+            boolean rememberable = ApprovalGrants.rememberable(call, operation);
+            String scopeDetails =
+                    details
+                            + (rememberable
+                                    ? "\nRemember scope: exact action/arguments, canonical target, agent, workspace, session/task and policy/account context. Expires after 15 minutes; no wildcards.\nAction SHA-256: "
+                                            + key.action()
+                                    : "\nOne-time approval only.");
             pendingPermission =
                     permission(
                             operation + " / " + actor + " / " + target,
-                            details,
+                            scopeDetails,
                             () -> approval.complete(true),
                             () -> approval.complete(false),
-                            new ToolGrant(actor, operation));
+                            rememberable ? new ToolGrant(key, toolGrants.now()) : null);
             promptId = pendingPermission.id();
             status = "Awaiting permission";
             executionState = AgentState.WAITING_PERMISSION;
@@ -1008,13 +1145,13 @@ public class ChatSession {
                             + " / "
                             + target
                             + "\n"
-                            + details
-                            + TOOL_APPROVAL_OPTIONS);
+                            + scopeDetails
+                            + (rememberable ? TOOL_APPROVAL_OPTIONS : "\n/approve once or /deny."));
         }
         boolean allowed;
         try {
             allowed = approval.get();
-        } catch (InterruptedException e) {
+        } catch (InterruptedException cancelled) {
             synchronized (this) {
                 if (pendingPermission != null && pendingPermission.id() == promptId) {
                     pendingPermission = null;
@@ -1022,10 +1159,21 @@ public class ChatSession {
                     notifyAll();
                 }
             }
-            throw e;
+            throw cancelled;
         }
         synchronized (this) {
             checkActive(id);
+            if (scope != null) scope.check();
+            refreshGrants();
+            var decision =
+                    scope == null
+                            ? config.permissions(actor).evaluate(operation, target)
+                            : scope.decision(config, operation, target);
+            allowed =
+                    allowed
+                            && decision != PermissionPolicy.Decision.DENY
+                            && key.equals(
+                                    actionKey(id, actor, operation, target, details, scope, call));
             executionState =
                     pendingPermission == null
                             ? AgentState.WAITING_TOOL
@@ -1034,26 +1182,59 @@ public class ChatSession {
         return allowed;
     }
 
-    // Called under the session monitor. Remembered choices can only relax ASK, never DENY.
-    private PermissionPolicy.Decision toolDecision(String actor, String operation, String target) {
-        return toolDecision(
-                actor, operation, config.permissions(actor).evaluate(operation, target));
+    private String describeGrant(ApprovalGrants.Grant grant) {
+        var key = grant.key();
+        return "Exact approval "
+                + grant.id()
+                + ": "
+                + key.agent()
+                + " / "
+                + key.operation()
+                + " / "
+                + key.target()
+                + " [action SHA-256 "
+                + key.action()
+                + "] until "
+                + grant.expiresAt()
+                + "; task "
+                + key.task()
+                + "; workspace "
+                + key.workspace()
+                + "; session "
+                + key.session()
+                + "; DENY still applies";
     }
 
-    private PermissionPolicy.Decision toolDecision(
-            String actor, String operation, PermissionPolicy.Decision decision) {
-        boolean remembered =
-                decision == PermissionPolicy.Decision.ASK
-                        && toolGrants.contains(new ToolGrant(actor, operation));
-        var effective = remembered ? PermissionPolicy.Decision.ALLOW : decision;
-        if (persistence != null)
-            persistence.authorization(
-                    effective == PermissionPolicy.Decision.DENY
-                            ? "DENIED"
-                            : effective == PermissionPolicy.Decision.ASK
-                                    ? "AWAITING_APPROVAL"
-                                    : remembered ? "SESSION_APPROVAL" : "POLICY_ALLOWED");
-        return effective;
+    public synchronized void approvals(String argument) {
+        refreshGrants();
+        String arg = argument.strip();
+        if (arg.startsWith("revoke ")) {
+            String id = arg.substring(7).strip();
+            if (id.equals("all")) {
+                toolGrants.clear();
+                if (pendingPermission != null) {
+                    var request = pendingPermission;
+                    pendingPermission = null;
+                    request.refuse().run();
+                    notifyAll();
+                }
+                status = task == null ? "Ready" : "Generating";
+                executionState = task == null ? AgentState.IDLE : AgentState.WAITING_TOOL;
+                info("All remembered approvals revoked.");
+            } else
+                info(
+                        toolGrants.revoke(id)
+                                ? "Exact approval revoked: " + id
+                                : "No matching approval.");
+        } else if (arg.isEmpty()) {
+            var grants = toolGrants.list();
+            info(
+                    grants.isEmpty()
+                            ? "No remembered approvals."
+                            : grants.stream()
+                                    .map(this::describeGrant)
+                                    .collect(java.util.stream.Collectors.joining("\n")));
+        } else throw new IllegalArgumentException("Usage: /approvals [revoke ID|all]");
     }
 
     private static String fenced(String content, String language) {
@@ -1100,6 +1281,7 @@ public class ChatSession {
     }
 
     public synchronized boolean cancel() {
+        toolGrants.clear();
         boolean hadPermissionRequest = pendingPermission != null;
         if (pendingPermission != null) pendingPermission.refuse().run();
         pendingPermission = null;
@@ -1166,6 +1348,7 @@ public class ChatSession {
         }
         if (persistence != null) persistence.model(value);
         synchronized (this) {
+            toolGrants.clear();
             model = value;
             if (persistence != null) updateMetadata();
             info("Modèle sélectionné : " + model);
@@ -1180,6 +1363,7 @@ public class ChatSession {
         if (!definition.mode().primary())
             throw new IllegalArgumentException(
                     "Agent " + value + " is a subagent; invoke it with @" + value + " task");
+        toolGrants.clear();
         agent = value;
         model =
                 config.agentModel(
@@ -1189,6 +1373,7 @@ public class ChatSession {
 
     public synchronized void toggleAgent() {
         if (task == null && retiring == null && pendingPermission == null) {
+            toolGrants.clear();
             var names = config.primaryAgents();
             if (names.isEmpty()) return;
             agent = names.get((names.indexOf(agent) + 1) % names.size());
@@ -1252,7 +1437,8 @@ public class ChatSession {
     }
 
     /** Explicit injection also allows integration tests to use an isolated database. */
-    public void persistence(AgentService service) {
+    public synchronized void persistence(AgentService service) {
+        toolGrants.clear();
         this.persistence = service;
     }
 

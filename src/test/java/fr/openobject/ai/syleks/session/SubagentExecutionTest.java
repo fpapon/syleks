@@ -563,6 +563,86 @@ class SubagentExecutionTest {
     }
 
     @Test
+    void rememberedChildActionCannotCrossIntoAnotherTaskOfTheSameAgent() throws Exception {
+        configure("{\"permission\":{\"read\":\"ask\"}}");
+        Files.writeString(root.resolve("project/source"), "synthetic source");
+        try (var f = new SessionFixture(root)) {
+            var calls = new AtomicInteger();
+            var wire =
+                    streamer(
+                            f,
+                            (actor, history) -> {
+                                long reads =
+                                        history.stream()
+                                                .filter(
+                                                        message ->
+                                                                "tool".equals(message.get("role")))
+                                                .count();
+                                return reads < 2
+                                        ? calls(
+                                                new ToolCall(
+                                                        "read-" + calls.incrementAndGet(),
+                                                        "read",
+                                                        Map.of("path", "source")))
+                                        : done("complete");
+                            });
+            var client =
+                    new OllamaClient(f.config, f.mapper.instance()) {
+                        public void streamPrepared(
+                                String model,
+                                String actor,
+                                List<Map<String, Object>> history,
+                                java.util.function.Consumer<String> receive,
+                                ToolHandler tools,
+                                Observer observer)
+                                throws Exception {
+                            wire.stream(model, actor, null, history, tools, observer, receive);
+                        }
+                    };
+            var chat = new ChatSession(client, f.config);
+            chat.persistence(f.agent);
+            try {
+                assertTrue(chat.send("@explore first task"));
+                awaitPermission(chat);
+                long first = chat.snapshot().permission().id();
+                assertTrue(chat.snapshot().permission().rememberAllowed());
+                chat.resolvePermission(first, "remember");
+                awaitFinished(chat);
+                var children = f.sessions.children(f.agent.current().id());
+                assertEquals(1, children.size());
+                assertEquals(
+                        2,
+                        f.repositories.listExecutions(children.getFirst().id()).stream()
+                                .filter(execution -> execution.status() == ToolStatus.SUCCESS)
+                                .count());
+                assertTrue(chat.send("@explore separate task"));
+                awaitPermission(chat);
+                long second = chat.snapshot().permission().id();
+                assertNotEquals(first, second);
+                chat.resolvePermission(first, "remember");
+                assertEquals(second, chat.snapshot().permission().id());
+                chat.cancel();
+            } finally {
+                chat.shutdown();
+            }
+        }
+    }
+
+    private void awaitPermission(ChatSession chat) throws Exception {
+        long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (chat.snapshot().permission() == null
+                && chat.snapshot().busy()
+                && System.nanoTime() < end) Thread.sleep(5);
+        assertNotNull(chat.snapshot().permission(), chat.snapshot().status());
+    }
+
+    private void awaitFinished(ChatSession chat) throws Exception {
+        long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (chat.snapshot().busy() && System.nanoTime() < end) Thread.sleep(5);
+        assertFalse(chat.snapshot().busy(), chat.snapshot().status());
+    }
+
+    @Test
     void clearsATimedOutChildApprovalAndLetsTheParentContinue() throws Exception {
         configure("{\"subagents\":{\"timeout_seconds\":1},\"permission\":{\"read\":\"ask\"}}");
         Files.writeString(root.resolve("project/source"), "fictional content");

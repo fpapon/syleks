@@ -70,7 +70,7 @@ final class PermissionPrompt {
 
     String choice() {
         return switch (selected) {
-            case 1 -> "always";
+            case 1 -> "remember";
             case 2 -> "reject";
             default -> "once";
         };

@@ -74,6 +74,10 @@ public final class ProjectTrust {
         return trusted;
     }
 
+    public String approvalRevision() {
+        return hash(digest + "\0" + ConfigurationFiles.optional(record, 1024));
+    }
+
     public String state() {
         return (trusted ? "trusted" : "untrusted or changed")
                 + " workspace "

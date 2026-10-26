@@ -38,6 +38,18 @@ public class SubagentExecutor {
                 PermissionPolicy.Decision decision)
                 throws Exception;
 
+        default boolean allow(
+                String actor,
+                String operation,
+                String target,
+                String details,
+                PermissionPolicy.Decision decision,
+                TaskScope scope,
+                ToolCall call)
+                throws Exception {
+            return allow(actor, operation, target, details, decision);
+        }
+
         default String question(String actor, String text, List<String> options) throws Exception {
             throw new IllegalStateException("Interactive questions unavailable");
         }
@@ -294,6 +306,17 @@ public class SubagentExecutor {
                 String target,
                 String details)
                 throws Exception {
+            return authorize(service, scope, operation, target, details, null);
+        }
+
+        private boolean authorize(
+                AgentService service,
+                TaskScope scope,
+                String operation,
+                String target,
+                String details,
+                ToolCall call)
+                throws Exception {
             scope.check();
             var decision = scope.decision(config, operation, target);
             service.authorization(
@@ -307,7 +330,13 @@ public class SubagentExecutor {
                     decision == PermissionPolicy.Decision.ALLOW
                             || approval != null
                                     && approval.allow(
-                                            scope.actor(), operation, target, details, decision);
+                                            scope.actor(),
+                                            operation,
+                                            target,
+                                            details,
+                                            decision,
+                                            scope,
+                                            call);
             scope.check();
             service.authorization(
                     allowed
@@ -418,7 +447,9 @@ public class SubagentExecutor {
                                             scope.actor(),
                                             call,
                                             (op, target, details) ->
-                                                    authorize(service, scope, op, target, details),
+                                                    authorize(
+                                                            service, scope, op, target, details,
+                                                            call),
                                             scope::check,
                                             scope.session,
                                             approval == null

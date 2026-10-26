@@ -648,7 +648,7 @@ class CommandToolTest {
     }
 
     @Test
-    void alwaysApprovesFutureCommandsButPreservesExplicitDenials() throws Exception {
+    void remembersOnlyTheExactScriptAndPreservesExplicitDenials() throws Exception {
         var projectAgents = Files.createDirectories(project.resolve(".syleks/agents"));
         Files.writeString(
                 projectAgents.resolve("build.md"),
@@ -666,6 +666,7 @@ class CommandToolTest {
                                 config,
                                 requests,
                                 ollamaCall("printf first > first.txt"),
+                                ollamaCall("printf first > first.txt"),
                                 ollamaCall("printf second > second.txt"),
                                 ollamaCall(
                                         "printf safe > unexpected.txt; printf blocked > blocked.txt"),
@@ -681,7 +682,17 @@ class CommandToolTest {
         var prompt = session.snapshot().permission();
         assertTrue(prompt.alwaysAllowed());
         assertTrue(prompt.details().contains("printf first > first.txt"));
-        session.resolvePermission(prompt.id(), "always");
+        session.resolvePermission(prompt.id(), "always"); // Compatibility alias is also exact.
+        await(
+                () ->
+                        session.snapshot().permission() != null
+                                && session.snapshot().permission().id() != prompt.id());
+        assertTrue(Files.exists(project.resolve("first.txt")));
+        assertFalse(Files.exists(project.resolve("second.txt")));
+        session.resolvePermission(
+                prompt.id(), "remember"); // stale ID cannot approve the next script
+        assertFalse(Files.exists(project.resolve("second.txt")));
+        session.approve("once");
         await(() -> !session.snapshot().busy());
         assertTrue(Files.exists(project.resolve("first.txt")));
         assertTrue(Files.exists(project.resolve("second.txt")));
@@ -689,12 +700,15 @@ class CommandToolTest {
         assertFalse(Files.exists(project.resolve("unexpected.txt")));
         assertFalse(Files.exists(project.resolve("hidden.txt")));
         assertTrue(requests.toString().contains("Permission denied"));
+        session.listPermissions("build");
+        assertTrue(session.history().getLast().content().contains("Exact approval"));
         session.clear();
         session.send("Another turn");
+        await(() -> session.snapshot().permission() != null);
+        assertFalse(Files.exists(project.resolve("third.txt")));
+        session.approve();
         await(() -> !session.snapshot().busy());
         assertTrue(Files.exists(project.resolve("third.txt")));
-        session.listPermissions("build");
-        assertTrue(session.history().getLast().content().contains("Session approval: bash"));
     }
 
     @Test
@@ -718,9 +732,20 @@ class CommandToolTest {
                         config);
         session.send("Write two files and read");
         await(() -> session.snapshot().status().equals("Awaiting permission"));
-        session.approve("always");
-        await(() -> session.snapshot().status().equals("Awaiting permission"));
+        long firstPrompt = session.snapshot().permission().id();
+        session.approve("remember");
+        await(
+                () ->
+                        session.snapshot().permission() != null
+                                && session.snapshot().permission().id() != firstPrompt);
         assertTrue(Files.exists(project.resolve("first.txt")));
+        assertFalse(Files.exists(project.resolve("second.txt")));
+        long secondPrompt = session.snapshot().permission().id();
+        session.approve();
+        await(
+                () ->
+                        session.snapshot().permission() != null
+                                && session.snapshot().permission().id() != secondPrompt);
         assertTrue(Files.exists(project.resolve("second.txt")));
         assertTrue(session.history().getLast().content().contains("Permission required: read"));
         session.deny();

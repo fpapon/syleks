@@ -50,12 +50,18 @@ class ProviderServiceTest {
             var second = f.login(null);
             p.service.useAccount(first.account().id());
             assertEquals("chatgpt/test-model", p.service.selection());
+            String firstContext = p.service.approvalContext();
             p.service.useAccount(second.account().id());
+            assertNotEquals(firstContext, p.service.approvalContext());
             assertEquals(second.account().id(), p.service.active().accountId());
             assertEquals(
                     second.account().id(), new ProviderFixture(f).service.active().accountId());
             p.service.restore("chatgpt/test-model", first.account().id());
             assertEquals(first.account().id(), p.service.active().accountId());
+            assertNotEquals(
+                    firstContext,
+                    p.service.approvalContext(),
+                    "Account round trips must not revive a prior grant context");
             assertThrows(
                     Exception.class,
                     () -> p.service.restore("chatgpt/test-model", UUID.randomUUID().toString()));

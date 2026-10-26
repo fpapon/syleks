@@ -53,7 +53,7 @@ An inline panel shows the requested action and details. For changes it includes 
 
 | Control | Action |
 | --- | --- |
-| Left / Right or Tab / Shift+Tab | Choose Allow once, Always allow, or Reject |
+| Left / Right or Tab / Shift+Tab | Choose Allow once, Remember exact, or Reject |
 | Enter | Confirm the selected choice |
 | Up / Down, Page Up / Page Down | Scroll action details |
 | Ctrl+F | Expand or collapse details |
@@ -62,10 +62,10 @@ An inline panel shows the requested action and details. For changes it includes 
 Each request starts on **Allow once**. Pasted text cannot confirm a request. Your existing draft is preserved while the panel has focus.
 
 - **Allow once** permits only the pending action.
-- **Always allow** remembers approval for that tool and agent, across targets and turns while the current session stays open. It only relaxes `ask`; an explicit `deny` still blocks the action. It is not offered for chat, delegation, or Markdown saving.
+- **Remember exact** remembers only the reviewed action and arguments for 15 minutes, bound to canonical target, agent, workspace, session/task, policy and account/execution context. It only relaxes a matching `ask`; DENY still wins. Chat, delegation, exports, questions, deletion patches and custom/MCP effects remain one-time.
 - **Reject** refuses the action.
 
-Remembered approvals do not modify your files. They are cleared on restart and session actions, including new/open/resume/fork/rename. `/permissions` lists remembered approvals. The command interface also supports `/approve` (once), `/approve once`, `/approve always`, and `/deny`.
+Remembered approvals do not modify configuration or survive restart. `/permissions` and `/approvals` list exact grants; `/approvals revoke ID` and `/approvals revoke all` revoke them. Cancellation, clear, session/model/agent and account changes invalidate memory. Policy or project trust changes require a restart before tools execute. Use `/approve remember` for exact memory; legacy `/approve always` has the same narrow meaning. See [grant identity and lifecycle](approvals.md).
 
 ## Available tools
 
@@ -107,7 +107,7 @@ Shell commands run through `/bin/bash --noprofile --norc -c` in the launch direc
 
 **Shell execution defaults to restricted Linux isolation.** The global-only `command_sandbox` policy controls OS capabilities, independently of shell approvals. Unsupported enforcement refuses execution; explicit unrestricted mode grants host authority. See [command isolation](command-sandbox.md) for the backend, setup and limitations. Separate file/web rules do not constrain code inside an allowed program. Command permissions govern shell invocations, not every action an allowed executable, script, interpreter, or child process can perform. Prefer an allowlist of trusted programs when using granular rules.
 
-With granular `bash` patterns, Syleks checks **every literal command and redirection before starting any part of the script**. This includes command lists separated by `;`, newlines, `&&`, `||`, `&`, and pipelines. A single `deny` blocks the entire script, even a branch that might not run. `ask` requires approval when no action is denied. Remembered `always` approvals never override a denial or unsupported syntax.
+With granular `bash` patterns, Syleks checks **every literal command and redirection before starting any part of the script**. This includes command lists separated by `;`, newlines, `&&`, `||`, `&`, and pipelines. A single `deny` blocks the entire script, even a branch that might not run. `ask` requires approval when no action is denied. Remembered exact approvals never override a denial or unsupported syntax.
 
 Commands are matched with literal quotes/backslashes decoded and words separated by single spaces: `t'o'uch marker` is checked as `touch marker`. Redirections are additional targets including their operator and optional descriptor, such as `> output.txt`, `>> output.txt`, `< input.txt`, or `2> errors.txt`. Consequently, allowing `printf *` alone does not authorize `printf ok > output.txt` under a deny-by-default policy: also allow or ask for `> output.txt`. Executable names and redirection filenames are literal strings; their paths are not canonicalized. An explicit deny/ask rule matching the original whole script remains an additional restriction; a whole-script allow never skips individual checks.
 
@@ -126,7 +126,7 @@ Commands are matched with literal quotes/backslashes decoded and words separated
 
 Here `printf ok; touch marker` is refused before either command runs. `printf ok > output.txt` requires approval. The complete original script, working directory and timeout appear in the approval prompt.
 
-Granular policies accept a conservative literal subset of Bash. Variable/arithmetic/command/process substitutions, unquoted glob/brace/tilde expansion, comments, assignments, groups, control structures, here documents/strings, indirect shell commands, shell-state builtins and `printf` variable assignments are refused when they cannot be checked safely. This restriction also applies after `always` approval. For full shell scripts, use a uniform `"bash": "ask"` permission policy and review each request (or consciously grant `"bash": "allow"`). These uniform policies retain whole-shell syntax within the selected OS sandbox mode. A later unconditional `*` rule overrides earlier granular rules, following the usual precedence.
+Granular policies accept a conservative literal subset of Bash. Variable/arithmetic/command/process substitutions, unquoted glob/brace/tilde expansion, comments, assignments, groups, control structures, here documents/strings, indirect shell commands, shell-state builtins and `printf` variable assignments are refused when they cannot be checked safely. This restriction also applies after exact remembered approval. For full shell scripts, use a uniform `"bash": "ask"` permission policy and review each request (or consciously grant `"bash": "allow"`). These uniform policies retain whole-shell syntax within the selected OS sandbox mode. A later unconditional `*` rule overrides earlier granular rules, following the usual precedence.
 
 Web fetch follows at most five redirects, checking permission for each destination. Permitted URLs can include private/local servers. Search sends your query to DuckDuckGo's HTML search service, requires no API key, and may fail if that service blocks requests or changes its page. Search redirects require `webfetch` permission for the destination. Web content is untrusted material supplied to the model.
 

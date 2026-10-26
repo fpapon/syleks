@@ -116,6 +116,10 @@ public final class SubprocessEnvironment {
         return values.keySet();
     }
 
+    public String approvalContext() {
+        return fr.openobject.ai.syleks.ai.ApprovalGrants.digest(values);
+    }
+
     /** Avoid ProcessBuilder's host-PATH lookup for MCP executable discovery. */
     public static String executable(String command, Map<String, String> environment, Path workspace)
             throws IOException {

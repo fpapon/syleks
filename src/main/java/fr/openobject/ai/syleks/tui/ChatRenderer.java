@@ -260,8 +260,8 @@ public final class ChatRenderer {
         String controls =
                 awaitingPermission
                         ? (width >= 65
-                                ? "/approve once · /approve always · /deny"
-                                : "/approve once|always · /deny")
+                                ? "/approve once · /approve remember · /deny"
+                                : "/approve once|remember · /deny")
                         : width >= 65
                                 ? (snapshot.busy()
                                         ? "Esc cancel · Tab mode"
@@ -393,8 +393,7 @@ public final class ChatRenderer {
                 left + 2, top, fit("△ Permission required", width - 4), orange, background, true);
         var scope =
                 switch (prompt.selected()) {
-                    case 1 ->
-                            "Always allow this tool for this agent this session; deny rules still apply.";
+                    case 1 -> "Exact action for 15 minutes; changed arguments/context need review.";
                     case 2 -> "Reject this request and return a refusal to the agent.";
                     default -> "Allow this request once.";
                 };
@@ -416,8 +415,8 @@ public final class ChatRenderer {
         canvas.fill(left + 1, buttons, width - 1, 2, bar);
         String[] labels =
                 width >= 50
-                        ? new String[] {"Allow once", "Always allow", "Reject"}
-                        : new String[] {"Once", "Always", "Reject"};
+                        ? new String[] {"Allow once", "Remember exact", "Reject"}
+                        : new String[] {"Once", "Exact", "Reject"};
         int x = left + 2;
         for (int index = 0; index < labels.length; index++) {
             if (index == 1 && !request.alwaysAllowed()) continue;

@@ -184,7 +184,7 @@ Review the supplied code and explain your findings.
 - Actions are `allow`, `ask`, or `deny`. A scalar such as `"permission": "deny"` applies to every operation. `"*"` can also be used as an operation key.
 - Explicit global `permission` rules form a ceiling. Within each layer the last matching rule wins; independent layers combine using DENY > ASK > ALLOW. Agents and approvals cannot relax a global DENY or bypass a global ASK. Project expansions and model overrides require [content-bound local trust](docs/tools-and-permissions.md#project-trust-and-permission-ceilings).
 - Target patterns support `*` (any text) and `?` (one character), with case-sensitive matching. Targets are model IDs for `chat`, agent names for `task`, normalized absolute paths for `save`, and normalized literal commands/redirections for granular `bash` rules. List broad patterns before narrower exceptions; declaration order matters.
-- `ask` pauses the action until approval or rejection. `/approve` is shorthand for `/approve once`. Once permits only the pending action. For agent tools, always remembers approval for that agent and tool across targets and turns while the current session stays open; it only relaxes `ask`, so explicit `deny` rules still apply. It does not change the configuration file or grant access to other agents/tools. Restart and session actions (including new/open/resume/fork/rename) clear remembered approvals. Chat, delegation, and Markdown exports support once only. `/permissions [AGENT]` also lists remembered tool approvals. Esc/Ctrl+C cancel pending work. Session/agent/model changes are blocked while an approval is pending. See [Tools and approvals](docs/tools-and-permissions.md) for panel controls.
+- `ask` pauses the action until approval or rejection. `/approve` means once. **Remember exact** (`/approve remember`) grants only the reviewed action and arguments for 15 minutes, bound to agent, canonical target, workspace, session/task, policy and account context. `/approve always` is a compatibility alias with this same exact scope. DENY always wins. `/approvals` lists grants; `/approvals revoke ID` or `/approvals revoke all` revokes them. Cancellation, session/model/agent changes, policy/trust/account changes and restart invalidate memory. Chat, delegation, exports, questions, deletion patches and extension/MCP effects are one-time. See [exact approvals](docs/approvals.md) for scope and lifecycle.
 - Subagent calls check the caller's `task` permission for the target agent and the callee's `chat` permission for its model. An explicit manual invocation does not bypass either check.
 - `/permissions` shows the selected primary agent's effective policy; `/permissions reviewer` inspects another agent.
 
@@ -194,9 +194,9 @@ Copy or merge [examples/permissions.json](examples/permissions.json) into your c
 
 ### Permission prompt
 
-When an action needs approval, an inline panel replaces the composer with **Allow once**, **Always allow**, and **Reject**. Use **Left/Right** or **Tab/Shift+Tab** to select, then **Enter** to confirm. Every new request starts on Allow once. The selected choice explains its scope above the action details. Always allow applies to that tool and agent for this app session; explicit deny rules still apply. Requests for chat, delegation, and conversation exports offer Allow once and Reject only.
+When an action needs approval, an inline panel replaces the composer with **Allow once**, **Remember exact**, and **Reject**. Use **Left/Right** or **Tab/Shift+Tab** to select, then **Enter** to confirm. Every new request starts on Allow once. The selected choice explains its scope above the action details. Remember exact applies only to the reviewed action for 15 minutes; explicit deny rules still apply. One-time effects offer Allow once and Reject only.
 
-Use **Up/Down** or **Page Up/Page Down** to scroll the action details and **Ctrl+F** to expand/collapse the panel. **Esc** or **Ctrl+C** cancels the pending action. The draft is preserved while the prompt has keyboard focus; pasted text cannot confirm a request. The `/approve [once|always]` and `/deny` commands remain available as the session command interface, while the focused prompt uses the selection controls directly.
+Use **Up/Down** or **Page Up/Page Down** to scroll the action details and **Ctrl+F** to expand/collapse the panel. **Esc** or **Ctrl+C** cancels the pending action. The draft is preserved while the prompt has keyboard focus; pasted text cannot confirm a request. The `/approve [once|remember]` and `/deny` commands remain available as the session command interface, while the focused prompt uses the selection controls directly.
 
 ## File and web tools
 
@@ -245,7 +245,7 @@ Configure the global policy, or the `permission` block of an individual agent:
 }
 ```
 
-For `ask`, the TUI shows the exact command, working directory, and timeout. `/approve once` executes that command once; `/approve always` approves this and future `bash` requests for the same agent during this app session, except commands matched by deny rules. `/deny` returns a refusal to the model. `allow` runs matching commands without prompting, while `deny` blocks them. Subagent commands are checked against the child's policy and every ancestor's policy. Permission changes require a restart.
+For `ask`, the TUI shows the exact command, working directory, and timeout. `/approve once` executes that command once; `/approve remember` permits exact reuse for 15 minutes with the same script, arguments and execution context; changed commands/timeouts need a new review. `/deny` returns a refusal to the model. `allow` runs matching commands without prompting, while `deny` blocks them. Subagent commands are checked against the child's policy and every ancestor's policy. Permission changes require a restart.
 
 The tool accepts `command` and optional `timeout_seconds` (default 60, range 1–300). Commands run through `/bin/bash --noprofile --norc -c` in the launch directory with a minimal environment and closed stdin (see [environment policy and opt-ins](docs/configuration.md#subprocess-environments)). Combined stdout/stderr, exit code, timeout state, and truncation state are returned to the model and shown in the conversation. Captured output is limited to 32,000 characters. Esc/Ctrl+C cancels the running command and model turn; command processes and their descendants are terminated during cleanup. Tool/model conversations stop after the configured `max_rounds` limit (default 12). This is intended for foreground, non-interactive commands, rather than persistent background services.
 
@@ -287,10 +287,11 @@ Highlighting preserves source whitespace and carries multiline comment/string st
 | `/clear` | Open a new persistent session; keep the previous conversation |
 | `/model MODEL` | Switch to a configured `provider/model` or a bare Ollama model |
 | `/agents` | List available agents and subagents |
-| `/permissions [AGENT]` | Inspect effective permissions |
-| Permission prompt: Left/Right, Tab, Enter | Select Allow once / Always allow / Reject, then confirm |
+| `/permissions [AGENT]` | Inspect effective permissions and exact grants |
+| `/approvals [revoke ID\|all]` | List or revoke exact remembered actions |
+| Permission prompt: Left/Right, Tab, Enter | Select Allow once / Remember exact / Reject, then confirm |
 | Permission prompt: Ctrl+F, Up/Down, PgUp/PgDn | Expand or scroll action details |
-| `/approve [once\|always]` / `/deny` | Approve once (default), remember a tool approval for this agent and session, or refuse |
+| `/approve [once\|remember]` / `/deny` | Approve once (default), remember the exact action for 15 minutes, or refuse |
 | `/agent NAME` | Select a primary agent |
 | `@NAME TASK` / `/subagent NAME TASK` | Run an isolated subagent task |
 | `/demo` | Show sample tool cards and Java diff (fake; no files read) |

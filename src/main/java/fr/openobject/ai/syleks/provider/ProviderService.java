@@ -36,6 +36,23 @@ public class ProviderService {
     private volatile String unavailableSelection;
     private final Map<String, String> accounts = new ConcurrentHashMap<>();
     private final Map<String, String> accountStatuses = new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicLong approvalRevision =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    public String approvalContext() {
+        try {
+            return fr.openobject.ai.syleks.ai.ApprovalGrants.digest(
+                    List.of(
+                            String.valueOf(active),
+                            new TreeMap<>(accounts),
+                            new TreeMap<>(accountStatuses),
+                            approvalRevision.get(),
+                            store.approvalContext(accounts.values())));
+        } catch (IOException | IllegalArgumentException unavailable) {
+            throw new IllegalStateException(
+                    "Approval account context unavailable; reconnect or restart");
+        }
+    }
 
     public ProviderService(
             ProviderRegistry registry,
@@ -140,6 +157,7 @@ public class ProviderService {
     }
 
     private void save(ProviderConfiguration value) throws Exception {
+        approvalRevision.incrementAndGet();
         store.locked(
                 "configuration",
                 () -> {
@@ -235,6 +253,7 @@ public class ProviderService {
     }
 
     public void restore(String selection, String accountId) throws Exception {
+        approvalRevision.incrementAndGet();
         unavailableSelection = selection;
         String provider = registry.providerId(selection);
         registry.get(provider);
@@ -281,6 +300,7 @@ public class ProviderService {
     }
 
     private void remember(Credentials c) {
+        approvalRevision.incrementAndGet();
         accountStatuses.put(
                 c.account().id(),
                 !c.connected()
@@ -291,6 +311,7 @@ public class ProviderService {
     }
 
     public boolean logout(String id) throws Exception {
+        approvalRevision.incrementAndGet();
         boolean revoked = auth.logout(id);
         remember(store.load(id));
         return revoked;

@@ -64,8 +64,11 @@ final class HelpModal {
                             "/permissions [NAME]",
                             "Show permissions for the active or named agent."),
                     new Entry(
-                            "/approve [once|always]",
-                            "Allow a pending action once or for this session."),
+                            "/approve [once|remember]",
+                            "Allow once or remember the exact action for 15 minutes."),
+                    new Entry(
+                            "/approvals [revoke ID|all]",
+                            "List or revoke exact remembered actions."),
                     new Entry("/deny", "Reject the pending action."),
                     new Entry(
                             "/answer TEXT", "Answer a tool question; option numbers are accepted."),
@@ -96,7 +99,7 @@ final class HelpModal {
                     new Entry("Ctrl+C", "Cancel generation or approval; exit when idle."),
                     new Entry("Ctrl+D", "Exit Syleks."),
                     new Entry("Approval controls", ""),
-                    new Entry("Tab · ←/→", "Choose Once, Always or Reject."),
+                    new Entry("Tab · ←/→", "Choose Once, Remember exact or Reject."),
                     new Entry("Enter", "Confirm the selected approval action."),
                     new Entry("Ctrl+F", "Expand or collapse the approval details."),
                     new Entry("↑/↓ · PgUp/PgDn", "Scroll approval details."));

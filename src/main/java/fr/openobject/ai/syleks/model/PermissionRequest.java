@@ -17,4 +17,9 @@ package fr.openobject.ai.syleks.model;
 
 /** Immutable permission prompt, identified independently of generation and render cycles. */
 public record PermissionRequest(
-        long id, String description, String details, boolean alwaysAllowed) {}
+        long id, String description, String details, boolean alwaysAllowed) {
+    /** Legacy accessor name retained for callers; this permits exact-action memory only. */
+    public boolean rememberAllowed() {
+        return alwaysAllowed;
+    }
+}

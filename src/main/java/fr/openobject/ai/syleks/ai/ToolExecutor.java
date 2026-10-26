@@ -150,8 +150,11 @@ public class ToolExecutor {
             throw new InterruptedException("Tool cancelled");
         try {
             config.engineering().checkTool(call.name());
+            config.approvalPolicyRevision();
         } catch (java.io.IOException e) {
             return ToolResult.denied(e.getMessage());
+        } catch (IllegalStateException changed) {
+            return ToolResult.denied(changed.getMessage());
         }
         var began = new AtomicBoolean();
         AgentTools.Gate gate =

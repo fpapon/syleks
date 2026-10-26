@@ -74,7 +74,7 @@ class CanvasTest {
                         "Ollama",
                         "Qwen3");
         var canvas = new ChatRenderer().render(snapshot, new Editor(), 100, 30, 0, false).canvas();
-        assertTrue(row(canvas, 25).contains("/approve once · /approve always · /deny"));
+        assertTrue(row(canvas, 25).contains("/approve once · /approve remember · /deny"));
         var footer = row(canvas, 28);
         assertTrue(footer.contains("Awaiting permission"));
         assertEquals(TerminalCanvas.YELLOW, canvas.at(footer.indexOf("◌"), 28).fg());
