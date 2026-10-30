@@ -71,6 +71,7 @@ public final class Main {
                         Syleks — persistent local AI sessions
                         Usage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]
                                syleks config init [--defaults]
+                               syleks config update
                                syleks secrets migrate
                                syleks secrets rotate|revoke <syleks-secret:uuid>
                                syleks trust inspect|revoke
@@ -91,6 +92,7 @@ public final class Main {
                                syleks mcp auth|logout <server-id>
                         No option: open the TUI and offer this project's sessions.
                         -c: resume the latest session; create one if this project has none.
+                        config update: refresh the bundled schema and migrate global settings, backing up changed files.
                         config init: open the configuration TUI to create/update provider and model settings.
                         In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
                         Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
@@ -228,6 +230,22 @@ public final class Main {
                     instance.instance().run(args, out);
                 }
             } else if (args.length > 0 && args[0].equals("config")) {
+                if (args.length == 2 && args[1].equals("update")) {
+                    try (var container = ConfiguringContainer.of().start();
+                            var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
+                        for (var result :
+                                new ConfigUpdater(mapper.instance())
+                                        .update(ConfigInitializer.home())) {
+                            out.println(
+                                    (result.updated() ? "Updated " : "Already current ")
+                                            + safe(result.path().toString()));
+                            if (result.backup() != null)
+                                out.println("Backup: " + safe(result.backup().toString()));
+                        }
+                        out.println("Restart active chats to apply updated configuration.");
+                    }
+                    return 0;
+                }
                 require(
                         (args.length == 2 || args.length == 3 && args[2].equals("--defaults"))
                                 && args[1].equals("init"));

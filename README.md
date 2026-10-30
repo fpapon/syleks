@@ -115,6 +115,8 @@ The repository `.sdkmanrc` selects Zulu Java 25 for JVM development. The native 
 
 Run `bin/syleks config init` to create or edit settings in a terminal form; use `/config` or Ctrl+G inside chat. Review and save, then choose **Restart chat** or run `/restart` later. For unattended creation of missing files, use `bin/syleks config init --defaults`. The bundled server/model are deployment examples: replace them with your own.
 
+After upgrading, run `bin/syleks config update` to refresh the installed schema and migrate existing settings, with backups of changed files.
+
 Global settings live in `~/.config/syleks/agent-config.json`. The [configuration guide](docs/configuration.md) documents every supported field, defaults, environment overrides, provider/model selection, permissions, child budgets and MCP options. The [JSON schema](agent-config.schema.json) supports editor validation; startup also validates references and runtime constraints.
 
 | Example | Contents |

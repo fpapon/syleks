@@ -52,6 +52,28 @@ This creates **only missing files**, never overwrites existing ones, and does no
 
 With redirected input, setup uses line prompts for a missing configuration and preserves an existing one. End of input cancels before writing. Use an interactive terminal or `/config` to update existing values.
 
+## Update configuration after upgrading
+
+After upgrading Syleks, run `syleks config update` to replace
+`~/.config/syleks/agent-config.schema.json` with the schema bundled in the installed
+release and migrate the existing `agent-config.json`. Run `config init` first if
+no configuration exists. The update is noninteractive and works without starting a
+chat or connecting to a provider.
+
+The migration points `$schema` at the local schema, qualifies legacy bare model
+IDs as `ollama/<model>` (including agent overrides), and fills missing runtime
+defaults in `insecure_http_origins`, `web_private_origins`, `command_environment`,
+`command_sandbox` and `subagents`. Existing values, providers, permissions, custom
+fields and agent files are preserved. Unknown or invalid settings still need manual
+review against the refreshed schema; the command does not guess replacements.
+Malformed JSON and unsafe file destinations are rejected before writes.
+
+Each changed existing file gets a private, non-overwriting `.bak-<uuid>` copy next
+to it; paths are printed without configuration contents. Store backups securely
+because they may contain credentials. Each replacement is atomic, but the two files
+are updated separately, with the schema first. A failed update can be rerun; an
+already current file is left untouched. Restart active chats after updating.
+
 ## Configure providers and models by hand
 
 Remote provider and MCP URLs require HTTPS by default. HTTP is limited to loopback development endpoints or exact origins reviewed in the global `insecure_http_origins` array; see the [decision matrix and migration guide](providers.md#transport-security).
