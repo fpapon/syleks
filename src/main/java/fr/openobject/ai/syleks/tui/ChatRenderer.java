@@ -54,6 +54,12 @@ public final class ChatRenderer {
         return cachedWeight;
     }
 
+    private OutputSelection.Area outputArea = new OutputSelection.Area(0, 0, 0, 0);
+
+    OutputSelection.Area outputArea() {
+        return outputArea;
+    }
+
     private final String workspace;
     private final java.util.function.LongSupplier clock;
 
@@ -166,6 +172,7 @@ public final class ChatRenderer {
             double warning,
             double critical) {
         var canvas = new TerminalCanvas(width, height);
+        outputArea = new OutputSelection.Area(0, 0, 0, 0);
         width = canvas.width();
         height = canvas.height();
         if (height < 15 || width < 35) {
@@ -218,6 +225,9 @@ public final class ChatRenderer {
                         0,
                         transcript.size() - layout.available() - Math.clamp(scroll, 0, maxScroll));
         int end = Math.min(transcript.size(), begin + layout.available());
+        outputArea =
+                new OutputSelection.Area(
+                        left, layout.content(), left + bodyWidth, layout.content() + end - begin);
         for (int index = begin, y = layout.content(); index < end; index++, y++) {
             paintLine(canvas, transcript.get(index), left, y, bodyWidth);
         }

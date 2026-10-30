@@ -72,6 +72,13 @@ public class TerminalApp implements AutoCloseable {
     public record ConfigurationResult(boolean saved, boolean restart) {}
 
     private final Editor editor = new Editor();
+    private final OutputSelection outputSelection = new OutputSelection();
+    private String pendingClipboard;
+    private String clipboardNotice;
+    private long clipboardNoticeUntil;
+    private long clipboardRequest;
+    private java.util.function.Predicate<String> desktopClipboard = Clipboard::copyDesktop;
+
     private final PermissionPrompt permissionPrompt = new PermissionPrompt();
     private final HelpModal helpModal = new HelpModal();
     private final ChatRenderer renderer = new ChatRenderer();
@@ -86,6 +93,22 @@ public class TerminalApp implements AutoCloseable {
     private boolean running = true;
     private boolean paste;
     private int terminalWidth = 100, terminalHeight = 30;
+
+    private boolean outputFocused() {
+        return usageModal == null
+                && providerModal == null
+                && configurationModal == null
+                && !palette
+                && !sessionLoading
+                && !sessionPicker.isOpen()
+                && permissionPrompt.request() == null;
+    }
+
+    void prepareOutputSelection(ChatRenderer.Screen screen, String sessionId) {
+        if (!outputFocused()) outputSelection.clear();
+        outputSelection.frame(
+                screen.canvas(), renderer.outputArea(), sessionId, sessionViews.scroll());
+    }
 
     public TerminalApp(
             ChatSession session,
@@ -149,7 +172,8 @@ public class TerminalApp implements AutoCloseable {
             this.terminal = terminal;
             attributes = terminal.enterRawMode();
             terminal.writer()
-                    .print("\u001b[?1049h\u001b[?2004h\u001b[?1000h\u001b[?1006h\u001b[?7l");
+                    .print(
+                            "\u001b[?1049h\u001b[?2004h\u001b[?1000h\u001b[?1002h\u001b[?1006h\u001b[?7l");
             terminal.flush();
         }
 
@@ -160,7 +184,7 @@ public class TerminalApp implements AutoCloseable {
             try {
                 terminal.writer()
                         .print(
-                                "\u001b[?1006l\u001b[?1000l\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h");
+                                "\u001b[?1006l\u001b[?1002l\u001b[?1000l\u001b[?2004l\u001b[?7h\u001b[?1049l\u001b[0m\u001b[?25h");
                 terminal.flush();
                 terminal.setAttributes(attributes);
             } finally {
@@ -229,6 +253,10 @@ public class TerminalApp implements AutoCloseable {
                                         : usagePreferences.visibility(),
                                 usagePreferences == null ? 70 : usagePreferences.warning(),
                                 usagePreferences == null ? 90 : usagePreferences.critical());
+                prepareOutputSelection(screen, snapshot.sessionId());
+                outputSelection.paint(screen.canvas());
+                queueSelectionCopy(System.nanoTime());
+                flushClipboard(terminal);
                 if (sessionPicker.isOpen()) {
                     sessionPicker.paint(screen.canvas());
                     screen =
@@ -252,6 +280,7 @@ public class TerminalApp implements AutoCloseable {
                                     slash < 0 ? selection : selection.substring(slash + 1),
                                     session.contextLimits(selection));
                 }
+                paintClipboardNotice(screen.canvas(), System.nanoTime());
                 painter.paint(terminal, screen);
                 int input = reader.read(70);
                 if (input == -1) break;
@@ -290,22 +319,7 @@ public class TerminalApp implements AutoCloseable {
             }
             if (providerModal.kind() == ProviderModal.Kind.AUTH) {
                 if ((key == 'c' || key == 'C') && manualAuthorization != null) {
-                    var uri = manualAuthorization;
-                    Thread.ofVirtual()
-                            .start(
-                                    () -> {
-                                        try {
-                                            java.awt.Toolkit.getDefaultToolkit()
-                                                    .getSystemClipboard()
-                                                    .setContents(
-                                                            new java.awt.datatransfer
-                                                                    .StringSelection(
-                                                                    uri.toString()),
-                                                            null);
-                                        } catch (Exception ignored) {
-                                            /* URL remains visible for manual opening. */
-                                        }
-                                    });
+                    pendingClipboard = manualAuthorization.toString();
                 } else if ((key == 'o' || key == 'O') && manualAuthorization != null)
                     browser.open(manualAuthorization);
                 return;
@@ -422,6 +436,10 @@ public class TerminalApp implements AutoCloseable {
             openHelp();
             return;
         } // Ctrl+P
+        if (key == 3 && !paste && outputSelection.active()) {
+            pendingClipboard = outputSelection.text();
+            return;
+        }
         if (key == 3) {
             if (!session.cancel()) running = false;
             return;
@@ -458,6 +476,10 @@ public class TerminalApp implements AutoCloseable {
     private void handleEscape(NonBlockingReader reader) throws Exception {
         int second = reader.read(20);
         if (second != '[' && second != 'O') {
+            if (outputFocused() && outputSelection.active()) {
+                outputSelection.clear();
+                return;
+            }
             if (usageModal != null) {
                 usageModal = null;
                 return;
@@ -495,13 +517,20 @@ public class TerminalApp implements AutoCloseable {
         // draft text or approval keystrokes.
         if (second == '[' && sequence.toString().equals("M")) {
             int button = reader.read(25), x = reader.read(25), y = reader.read(25);
-            if (!paste && button >= 32 && x >= 33 && y >= 33) mouseButton(button - 32);
+            if (!paste && button >= 32 && x >= 33 && y >= 33)
+                mouseEvent(button - 32, x - 33, y - 33, (button - 32 & 3) == 3);
             return;
         }
         if (second == '[' && sequence.toString().startsWith("<")) {
             var report = sequence.toString();
-            if (!paste && report.matches("<\\d{1,3};\\d{1,6};\\d{1,6}M"))
-                mouseButton(Integer.parseInt(report.substring(1, report.indexOf(';'))));
+            if (!paste && report.matches("<\\d{1,3};\\d{1,6};\\d{1,6}[Mm]")) {
+                var values = report.substring(1, report.length() - 1).split(";");
+                mouseEvent(
+                        Integer.parseInt(values[0]),
+                        Integer.parseInt(values[1]) - 1,
+                        Integer.parseInt(values[2]) - 1,
+                        report.endsWith("m"));
+            }
             return;
         }
         var navigation = sequence.toString();
@@ -593,6 +622,63 @@ public class TerminalApp implements AutoCloseable {
                 /* unsupported terminal escape */
             }
         }
+    }
+
+    private void mouseEvent(int button, int x, int y, boolean release) {
+        if (!release && (button & ~28) >= 64) {
+            outputSelection.clear();
+            mouseButton(button);
+            return;
+        }
+        if (!outputFocused()) return;
+        int plain = button & ~28;
+        if (release && (plain == 0 || plain == 3)) outputSelection.move(x, y, true);
+        else if (plain == 32) outputSelection.move(x, y, false);
+        else if (plain == 0) outputSelection.press(x, y);
+        queueSelectionCopy(System.nanoTime());
+    }
+
+    void queueSelectionCopy(long now) {
+        if (!outputFocused() || paste) return;
+        var text = outputSelection.pollCopy(now);
+        if (text != null) pendingClipboard = text;
+    }
+
+    void flushClipboard(org.jline.terminal.Terminal terminal) {
+        if (pendingClipboard == null) return;
+        var text = pendingClipboard;
+        pendingClipboard = null;
+        long request = ++clipboardRequest;
+        sessionWorker.submit(
+                () -> {
+                    boolean copied = desktopClipboard.test(text);
+                    completions.add(
+                            () -> {
+                                if (request != clipboardRequest) return;
+                                if (!copied) {
+                                    terminal.writer().print(Clipboard.terminalSequence(text));
+                                    terminal.flush();
+                                }
+                                clipboardNotice =
+                                        copied
+                                                ? "Text copied to clipboard"
+                                                : "Desktop clipboard unavailable; sent to terminal (Linux: install wl-clipboard or xclip)";
+                                clipboardNoticeUntil = System.nanoTime() + 4_000_000_000L;
+                            });
+                });
+    }
+
+    void paintClipboardNotice(TerminalCanvas canvas, long now) {
+        if (clipboardNotice == null || now - clipboardNoticeUntil >= 0) return;
+        int row = canvas.height() - 1;
+        canvas.fill(0, row, canvas.width(), 1, TerminalCanvas.INPUT);
+        canvas.text(
+                1,
+                row,
+                ChatRenderer.fit(clipboardNotice, canvas.width() - 2),
+                TerminalCanvas.GREEN,
+                TerminalCanvas.INPUT,
+                false);
     }
 
     private void mouseButton(int button) {

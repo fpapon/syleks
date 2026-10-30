@@ -101,13 +101,20 @@ final class HelpModal {
                     new Entry(
                             "Mouse wheel · Shift/Ctrl+↑/↓",
                             "Scroll response lines; keep your draft."),
+                    new Entry(
+                            "Mouse drag",
+                            "Select output; copy automatically on release or when movement stops."),
                     new Entry("Ctrl+Home/End", "Jump to the start/latest response."),
                     new Entry("Tab", "Cycle primary agents while idle."),
                     new Entry("Ctrl+P", "Open or close this help popup; keep your draft."),
                     new Entry("Ctrl+G", "Open configuration; keep your draft."),
                     new Entry("Ctrl+R", "Browse sessions; keep your draft."),
-                    new Entry("Esc", "Dismiss a popup or cancel active work."),
-                    new Entry("Ctrl+C", "Cancel generation or approval; exit when idle."),
+                    new Entry(
+                            "Esc",
+                            "Clear output selection, dismiss a popup or cancel active work."),
+                    new Entry(
+                            "Ctrl+C",
+                            "Copy selected output; otherwise cancel work or exit when idle."),
                     new Entry("Ctrl+D", "Exit Syleks."),
                     new Entry("Approval controls", ""),
                     new Entry("Tab · ←/→", "Choose Once, Remember exact or Reject."),

@@ -279,7 +279,9 @@ Highlighting preserves source whitespace and carries multiline comment/string st
 | Ctrl+O | Insert a newline (works in standard terminals) |
 | Ctrl+P | Show/close scrollable help popup; keep the draft |
 | Tab | Cycle through primary agents while idle |
-| Ctrl+C or Esc | Cancel in-flight generation (Ctrl+C again exits) |
+| Mouse drag | Select output; copy automatically on release or after a brief pause |
+| Ctrl+C | Copy selected output; otherwise cancel generation or exit when idle |
+| Esc | Clear output selection; otherwise cancel generation or dismiss a popup |
 | Ctrl+D | Exit |
 | Left / Right | Edit the text |
 | Up / Down | Recall older/newer prompts and commands; Down past the newest restores the draft |
@@ -301,6 +303,8 @@ Highlighting preserves source whitespace and carries multiline comment/string st
 | `/demo` | Show sample tool cards and Java diff (fake; no files read) |
 | `/save session.md` | Explicitly export Markdown (refuses to overwrite) |
 | `/quit` | Exit |
+
+Output selection is limited to the visible conversation panel. Drag with the left mouse button; the selection is copied automatically when you release it or stop moving for 350 ms. A temporary status message confirms a successful desktop clipboard copy. Copying preserves the input draft and active generation. A click starts a new selection; Esc clears it. Scrolling, resizing, session changes, and updates to selected output clear the selection. Copies contain the displayed text with line breaks at displayed rows and trailing padding removed. Syleks uses `wl-copy` on Wayland (`wl-clipboard` package), `xclip`/`xsel` on X11, `pbcopy` on macOS, and `clip.exe` on Windows when available. JVM builds can also use AWT; native builds skip AWT because its JNI initialization is unsupported. If desktop copying is unavailable, Syleks sends an OSC 52 clipboard sequence and displays a message suggesting the clipboard helper to install. This fallback requires support and clipboard access in your terminal; the terminal does not acknowledge success.
 
 The layout uses a workspace header, blue user-message rails, shaded code cards with file/language labels, and a footer status indicator. The composer border, prompt marker, and agent label change color with the active agent: blue for Build, purple for Plan, and a stable color derived from the name for custom agents and subagents. The composer keeps the caret visible when editing multiline input. Use `/demo` to preview the styling with clearly labeled simulated content; it does not read or modify project files. Truecolor terminals with a Unicode monospace font give the best result.
 

@@ -138,13 +138,114 @@ class ChatScrollTest {
             try (var handle = new TerminalApp.TerminalHandle(terminal)) {
                 var setup = output.toString(StandardCharsets.UTF_8);
                 assertTrue(setup.contains("\u001b[?1000h"));
+                assertTrue(setup.contains("\u001b[?1002h"));
                 assertTrue(setup.contains("\u001b[?1006h"));
             }
             var restored = output.toString(StandardCharsets.UTF_8);
             assertTrue(restored.contains("\u001b[?1006l"));
             assertTrue(restored.contains("\u001b[?1000l"));
+            assertTrue(restored.contains("\u001b[?1002l"));
             assertTrue(restored.contains("\u001b[?1049l"));
         }
+    }
+
+    @Test
+    void dragAutomaticallyCopiesAndRepeatedCtrlCDoesNotExitOrCancel() throws Exception {
+        try (var fixture = new Fixture(root)) {
+            var app = fixture.app;
+            var editor = field(app, "editor", Editor.class);
+            editor.setText("keep draft");
+            var renderer = field(app, "renderer", ChatRenderer.class);
+            var screen = renderer.render(fixture.chat.snapshot(), editor, 100, 30, 0, false);
+            app.prepareOutputSelection(screen, fixture.chat.snapshot().sessionId());
+            var area = renderer.outputArea();
+            String start = ";" + (area.left() + 1) + ";" + (area.top() + 1);
+            String end = ";" + (area.left() + 8) + ";" + (area.top() + 1);
+            escape(app, "[<0" + start + "M");
+            escape(app, "[<32" + end + "M");
+            escape(app, "[<0" + end + "m");
+            var selection = field(app, "outputSelection", OutputSelection.class);
+            assertEquals("response", selection.text());
+            assertEquals(
+                    "response",
+                    field(app, "pendingClipboard", String.class),
+                    "Releasing the mouse must queue a copy without any keyboard input");
+            app.handle(3, null);
+            app.handle(3, null);
+            assertEquals("response", field(app, "pendingClipboard", String.class));
+            assertTrue(selection.active());
+            assertEquals(0, fixture.cancellations);
+            assertTrue(field(app, "running", Boolean.class));
+            assertEquals("keep draft", editor.text());
+            // Legacy press/drag/release coordinates are consumed as well.
+            escape(app, "[M" + (char) 32 + (char) (area.left() + 33) + (char) (area.top() + 33));
+            escape(app, "[M" + (char) 64 + (char) (area.left() + 40) + (char) (area.top() + 33));
+            escape(app, "[M" + (char) 35 + (char) (area.left() + 40) + (char) (area.top() + 33));
+            assertEquals("response", selection.text());
+            escape(app, "");
+            assertFalse(selection.active());
+            assertEquals("keep draft", editor.text());
+            escape(app, "[200~");
+            escape(app, "[<0" + start + "M");
+            escape(app, "[<32" + end + "M");
+            escape(app, "[201~");
+            assertFalse(selection.active());
+            app.handle(16, null);
+            escape(app, "[<0" + start + "M");
+            escape(app, "[<32" + end + "M");
+            assertFalse(selection.active());
+        }
+    }
+
+    @Test
+    void displaysCopyConfirmationAfterDesktopSuccessAndHonestTerminalFallback() throws Exception {
+        try (var fixture = new Fixture(root);
+                var terminal =
+                        new DumbTerminal(
+                                new ByteArrayInputStream(new byte[0]),
+                                new ByteArrayOutputStream())) {
+            var app = fixture.app;
+            var copied = new java.util.concurrent.atomic.AtomicReference<String>();
+            var desktop = TerminalApp.class.getDeclaredField("desktopClipboard");
+            desktop.setAccessible(true);
+            desktop.set(
+                    app,
+                    (java.util.function.Predicate<String>)
+                            text -> {
+                                copied.set(text);
+                                return true;
+                            });
+            var pending = TerminalApp.class.getDeclaredField("pendingClipboard");
+            pending.setAccessible(true);
+            pending.set(app, "selected text");
+            app.flushClipboard(terminal);
+            awaitClipboardCompletion(app);
+            assertEquals("selected text", copied.get());
+            assertEquals("Text copied to clipboard", field(app, "clipboardNotice", String.class));
+            var canvas = new TerminalCanvas(100, 30);
+            app.paintClipboardNotice(canvas, System.nanoTime());
+            var line = new StringBuilder();
+            for (int x = 0; x < canvas.width(); x++) line.append(canvas.at(x, 29).glyph());
+            assertTrue(line.toString().contains("Text copied to clipboard"));
+            var expired = new TerminalCanvas(100, 30);
+            app.paintClipboardNotice(expired, System.nanoTime() + 5_000_000_000L);
+            assertEquals(TerminalCanvas.BG, expired.at(1, 29).bg());
+            desktop.set(app, (java.util.function.Predicate<String>) text -> false);
+            pending.set(app, "fallback text");
+            app.flushClipboard(terminal);
+            awaitClipboardCompletion(app);
+            assertEquals(
+                    "Desktop clipboard unavailable; sent to terminal (Linux: install wl-clipboard or xclip)",
+                    field(app, "clipboardNotice", String.class));
+        }
+    }
+
+    private static void awaitClipboardCompletion(TerminalApp app) throws Exception {
+        var queue = field(app, "completions", java.util.concurrent.ConcurrentLinkedQueue.class);
+        long end = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+        while (queue.isEmpty() && System.nanoTime() < end) Thread.sleep(10);
+        assertFalse(queue.isEmpty(), "Clipboard task must finish");
+        app.drainCompletions();
     }
 
     private static void escape(TerminalApp app, String sequence) throws Exception {
@@ -164,6 +265,7 @@ class ChatScrollTest {
         final ChatSession chat;
         final TerminalApp app;
         final ChatRenderer renderer = new ChatRenderer("/synthetic");
+        int cancellations;
 
         Fixture(Path root) throws Exception {
             services = new SessionFixture(root);
@@ -175,6 +277,12 @@ class ChatScrollTest {
                     new ChatSession(
                             new OllamaClient(services.config, services.mapper.instance()),
                             services.config) {
+                        @Override
+                        public synchronized boolean cancel() {
+                            cancellations++;
+                            return false;
+                        }
+
                         @Override
                         public synchronized ChatSnapshot snapshot() {
                             return new ChatSnapshot(
