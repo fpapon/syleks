@@ -75,9 +75,11 @@ class CommandToolTest {
         }
     }
 
-    @Test
-    void streamsOllamaToolsAndFeedsCommandOutputBackToTheModel() throws Exception {
-        var config = config(false, "{\"permission\":{\"bash\":\"allow\"}}");
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void streamsOllamaToolsAndFeedsCommandOutputBackToTheModel(boolean debug) throws Exception {
+        var config =
+                config(false, "{\"debug_llm\":" + debug + ",\"permission\":{\"bash\":\"allow\"}}");
         var requests = new LinkedBlockingQueue<Map<?, ?>>();
         var session =
                 new ChatSession(
@@ -108,6 +110,20 @@ class CommandToolTest {
         assertTrue(
                 session.history().stream()
                         .anyMatch(message -> message.content().contains("hellostderr")));
+        assertTrue(
+                session.snapshot().messages().stream()
+                        .anyMatch(message -> message.displayContent().contains("Need command")));
+        assertEquals(
+                debug,
+                session.snapshot().messages().stream()
+                        .anyMatch(message -> message.displayContent().contains("hellostderr")));
+        assertEquals(
+                debug,
+                session.snapshot().messages().stream()
+                        .anyMatch(
+                                message ->
+                                        message.displayContent().contains("Local command result")));
+        assertFalse(followup.toString().contains("### Reasoning"));
     }
 
     @Test
@@ -907,9 +923,11 @@ class CommandToolTest {
         assertTrue(session.history().getLast().content().contains("All done"));
     }
 
-    @Test
-    void summarizesReadActivityWhileKeepingSourceInModelContext() throws Exception {
-        var config = config(false, "{\"permission\":{\"read\":\"allow\"}}");
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void summarizesReadActivityWhileKeepingSourceInModelContext(boolean debug) throws Exception {
+        var config =
+                config(false, "{\"debug_llm\":" + debug + ",\"permission\":{\"read\":\"allow\"}}");
         var source = "public class PrivateSourceMarker {}";
         Files.writeString(project.resolve("Example.java"), source);
         var requests = new LinkedBlockingQueue<Map<?, ?>>();
@@ -926,10 +944,14 @@ class CommandToolTest {
         await(() -> !session.snapshot().busy());
         var activity =
                 session.history().stream()
-                        .filter(m -> m.displayContent().startsWith("✓ Read"))
+                        .filter(m -> m.content().contains(source))
                         .findFirst()
                         .orElseThrow();
-        assertEquals("✓ Read `Example.java`", activity.displayContent());
+        assertEquals(debug ? "✓ Read `Example.java`" : "", activity.displayContent());
+        assertEquals(
+                debug,
+                session.snapshot().messages().stream()
+                        .anyMatch(m -> m.displayContent().startsWith("✓ Read")));
         assertFalse(activity.displayContent().contains(source));
         assertTrue(activity.content().contains(source));
         requests.remove();
@@ -940,7 +962,7 @@ class CommandToolTest {
         var exported = directory.resolve("read-session.md");
         session.save(exported);
         assertFalse(Files.readString(exported).contains(source));
-        assertTrue(Files.readString(exported).contains("Read `Example.java`"));
+        assertEquals(debug, Files.readString(exported).contains("Read `Example.java`"));
     }
 
     private void await(BooleanSupplier condition) throws InterruptedException {

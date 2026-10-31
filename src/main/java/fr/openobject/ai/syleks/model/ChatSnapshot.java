@@ -28,7 +28,35 @@ public record ChatSnapshot(
         PermissionRequest permission,
         String sessionId,
         String sessionTitle,
-        String projectName) {
+        String projectName,
+        String elapsedTime) {
+    public ChatSnapshot(
+            List<ChatMessage> messages,
+            String model,
+            String status,
+            boolean busy,
+            String agent,
+            String providerName,
+            String modelName,
+            PermissionRequest permission,
+            String sessionId,
+            String sessionTitle,
+            String projectName) {
+        this(
+                messages,
+                model,
+                status,
+                busy,
+                agent,
+                providerName,
+                modelName,
+                permission,
+                sessionId,
+                sessionTitle,
+                projectName,
+                "");
+    }
+
     public ChatSnapshot(
             List<ChatMessage> messages,
             String model,

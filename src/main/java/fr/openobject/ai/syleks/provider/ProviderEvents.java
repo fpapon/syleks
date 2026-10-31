@@ -26,6 +26,11 @@ final class ProviderEvents {
     static OllamaClient.Observer observer(
             OllamaClient.Observer original, ChatEventListener listener) {
         return new OllamaClient.Observer() {
+            public void reasoning(String delta) {
+                if (original != null) original.reasoning(delta);
+                listener.onEvent(new ChatEvent(ChatEvent.Type.REASONING_DELTA, delta, null));
+            }
+
             public void state(AgentState state) {
                 if (original != null) original.state(state);
                 listener.onEvent(ChatEvent.state(state));

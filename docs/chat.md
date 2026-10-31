@@ -58,7 +58,7 @@ Use `/demo` to preview code cards, tool activity, and a Java diff. The preview u
 /save notes.md
 ```
 
-This exports the displayed conversation as Markdown and asks for approval if your `save` policy requires it. Relative paths start in the launch directory. Existing files are never overwritten. Read activity remains a short summary in this export.
+This exports the displayed conversation as Markdown and asks for approval if your `save` policy requires it. Relative paths start in the launch directory. Existing files are never overwritten. Tool activity is hidden by default. With `debug_llm: true`, read activity appears as a short summary in this export. See [LLM output settings](configuration.md#llm-output).
 
 For a complete structured export, use [session JSON export](sessions.md). Both formats can contain confidential information.
 
@@ -75,3 +75,11 @@ Start a submission with an ASCII space to exclude that entry from recall, includ
 Use `/history clear` or **Ctrl+X** in the composer to forget recalled entries and navigation snapshots. Ctrl+X preserves the currently visible text and cursor, including a recalled entry you are editing; erase that text separately if needed. `/history off` clears existing recall and saves a preference to disable further collection; `/history on` enables collection again without restoring old entries. `/history` reports the setting. Privacy commands never enter recall themselves. Clear and disable also prevent old recall entries from transferring through a later restart.
 
 These controls affect input recall only. Submitted prompts can still be sent to the provider and stored in the SQLite conversation, and conversation exports remain available through `/save`. Unsent drafts still survive session switches and restart. Clearing recall does not delete conversations, drafts or provider data, and Java immutable strings do not permit a memory-zeroization guarantee. See [configuration](configuration.md#input-recall) for the saved preference.
+
+## Live work and timers
+
+During a turn, the output panel describes the current activity: waiting for the model, reasoning, writing an answer, reading/searching files, using a tool, or delegating work. These short explanations remain visible with `debug_llm: false`; raw command output and tool dumps still require debug mode.
+
+Delegation shows the subagent name, the assigning agent, and a bounded explanation from the assigned task prompt. Parallel and nested tasks have independent activity rows and elapsed timers. When the provider supplies subagent reasoning, a short excerpt appears under that task. Completion notices show the outcome and elapsed time, including failures, denied tasks, and timeouts.
+
+The footer shows the current turn's elapsed time as `minutes:seconds`, updating without keyboard input and freezing at completion or cancellation. The live activity row also shows time in the current phase and accumulated reasoning/model-wait and task-execution time. Waiting for your permission or an answer counts toward total elapsed time but not reasoning or task totals. Parallel task time in the main row is wall-clock waiting time, not the sum of child execution times. These timers describe observed application activity, not provider-internal compute time. They reset for a new turn or a different session; live progress is not added to model context.

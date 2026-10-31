@@ -325,6 +325,11 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                                                             && event.detail()
                                                                     instanceof TokenUsage usage)
                                                         invocation.usage(usage);
+                                                    if (event.type()
+                                                                    == ChatEvent.Type
+                                                                            .REASONING_DELTA
+                                                            && request.observer() != null)
+                                                        request.observer().reasoning(event.text());
                                                     listener.onEvent(event);
                                                 },
                                                 response,
@@ -353,6 +358,7 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
             UsageInvocation invocation)
             throws Exception {
         var text = new StringBuilder();
+        var reasoning = new StringBuilder();
         var calls = new LinkedHashMap<String, ToolCall>();
         var data = new StringBuilder();
         String line;
@@ -366,13 +372,14 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                     if (event(
                             object(data.toString()),
                             text,
+                            reasoning,
                             calls,
                             listener,
                             response,
                             credentials,
                             invocation))
                         return new AgentRuntime.Turn(
-                                text.toString(), "", List.copyOf(calls.values()));
+                                text.toString(), reasoning.toString(), List.copyOf(calls.values()));
                     data.setLength(0);
                 }
             } else if (line.startsWith("data:")) {
@@ -384,12 +391,14 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                 && event(
                         object(data.toString()),
                         text,
+                        reasoning,
                         calls,
                         listener,
                         response,
                         credentials,
                         invocation))
-            return new AgentRuntime.Turn(text.toString(), "", List.copyOf(calls.values()));
+            return new AgentRuntime.Turn(
+                    text.toString(), reasoning.toString(), List.copyOf(calls.values()));
         throw new IOException(
                 "Responses stream ended without response.completed; partial output retained");
     }
@@ -398,6 +407,7 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
     private boolean event(
             Map<?, ?> event,
             StringBuilder text,
+            StringBuilder reasoning,
             Map<String, ToolCall> calls,
             ChatEventListener listener,
             HttpResponse<?> response,
@@ -422,6 +432,11 @@ public abstract class ResponsesLlmProvider implements LlmProvider {
                 && terminal.get("usage") instanceof Map<?, ?> usage)
             listener.onEvent(new ChatEvent(ChatEvent.Type.USAGE, "", TokenUsage.responses(usage)));
         switch (type) {
+            case "response.reasoning_text.delta", "response.reasoning_summary_text.delta" -> {
+                String delta = event.get("delta") instanceof String value ? value : "";
+                reasoning.append(delta);
+                listener.onEvent(new ChatEvent(ChatEvent.Type.REASONING_DELTA, delta, null));
+            }
             case "response.output_text.delta", "response.refusal.delta" -> {
                 if (!(event.get("delta") instanceof String delta))
                     throw new IOException("Invalid text delta");

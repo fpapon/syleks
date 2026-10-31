@@ -65,6 +65,20 @@ class AgentConfigTest {
     }
 
     @Test
+    void llmDebugOutputIsDisabledByDefaultAndRequiresABoolean() throws IOException {
+        assertFalse(config().debugLlm());
+        var file = home.resolve(".config/syleks/agent-config.json");
+        write(file, "{\"debug_llm\":true}");
+        assertTrue(config().debugLlm());
+        write(file, "{\"debug_llm\":false}");
+        assertFalse(config().debugLlm());
+        for (String invalid : List.of("null", "1", "\"true\"", "{}")) {
+            write(file, "{\"debug_llm\":" + invalid + "}");
+            assertThrows(IllegalArgumentException.class, this::config);
+        }
+    }
+
+    @Test
     void loadsDocumentedConfigurationsAndCompleteMarkdownDefinitions() throws IOException {
         for (var example :
                 List.of(

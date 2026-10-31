@@ -373,3 +373,17 @@ network under the user's OS permissions. [Restricted command isolation](command-
 adds the separate OS boundary. Windows command isolation is not claimed or tested.
 
 Custom provider keys and MCP header/environment values support destination-bound inline encryption (`syleks secrets encrypt`, using `SYLEKS_CONFIG_KEY`) and secret references. See [explicit migration, rotation and storage limits](secret-storage.md).
+
+## LLM output
+
+The output panel shows provider-supplied reasoning and assistant answers by default. Tool commands, call details and result dumps are hidden. Permission prompts, questions, and generation errors remain visible. Reasoning is shown only when the provider returns it; Syleks does not generate or infer missing reasoning.
+
+To show tool debug details, add this top-level setting in `~/.config/syleks/agent-config.json` and restart the chat:
+
+```json
+{
+  "debug_llm": true
+}
+```
+
+`debug_llm` defaults to `false` and must be a JSON boolean. It applies to live output and reopened sessions. Tool results still reach the model and remain in persistent session storage when hidden; reasoning remains separate from assistant answer text in model history. Internal context-summary reasoning is not displayed. Debug details may contain source files or command output.

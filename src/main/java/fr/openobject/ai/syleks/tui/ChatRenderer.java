@@ -301,7 +301,13 @@ public final class ChatRenderer {
                 snapshot.busy() || awaitingPermission || snapshot.status().equals("Denied")
                         ? YELLOW
                         : snapshot.status().startsWith("Error") ? RED : GREEN;
-        status = fit(status, Math.max(8, bodyWidth / 3));
+        int statusWidth = Math.max(8, bodyWidth / 3);
+        if (!snapshot.elapsedTime().isEmpty())
+            status =
+                    fit(status, Math.max(0, statusWidth - textWidth(snapshot.elapsedTime()) - 3))
+                            + " · "
+                            + snapshot.elapsedTime();
+        else status = fit(status, statusWidth);
         String shortcuts =
                 width >= 100
                         ? "Ctrl+P commands · Esc cancel · PgUp/PgDn scroll"

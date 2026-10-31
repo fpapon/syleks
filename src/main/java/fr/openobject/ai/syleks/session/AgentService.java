@@ -122,7 +122,7 @@ public class AgentService implements AutoCloseable {
     }
 
     public List<ChatMessage> history() {
-        return current == null ? List.of() : conversation.history(current.id());
+        return current == null ? List.of() : conversation.history(current.id(), config.debugLlm());
     }
 
     public Session create(String model) {

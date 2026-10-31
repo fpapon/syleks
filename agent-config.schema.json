@@ -28,6 +28,11 @@
         "$ref": "#/$defs/provider"
       }
     },
+    "debug_llm": {
+      "type": "boolean",
+      "default": false,
+      "description": "Show tool commands, calls and raw results in the output panel. Reasoning and assistant answers remain visible when false. Restart chats after changing this global setting."
+    },
     "default_agent": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",

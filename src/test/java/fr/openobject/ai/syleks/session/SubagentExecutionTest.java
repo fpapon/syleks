@@ -38,6 +38,101 @@ class SubagentExecutionTest {
     }
 
     @Test
+    void explainsParallelDelegatedTasksAndTheirLiveWorkWithDebugDisabled() throws Exception {
+        configure("{}");
+        try (var f = new SessionFixture(root)) {
+            var started = new CountDownLatch(2);
+            var release = new CountDownLatch(1);
+            var wire =
+                    streamer(
+                            f,
+                            (actor, history) -> {
+                                if (actor.equals("build")) {
+                                    if (history.getLast().get("role").equals("user"))
+                                        return calls(
+                                                new ToolCall(
+                                                        "parallel",
+                                                        "task",
+                                                        Map.of(
+                                                                "tasks",
+                                                                List.of(
+                                                                        Map.of(
+                                                                                "agent",
+                                                                                "explore",
+                                                                                "prompt",
+                                                                                "Inspect alpha"),
+                                                                        Map.of(
+                                                                                "agent",
+                                                                                "explore",
+                                                                                "prompt",
+                                                                                "Inspect beta")))));
+                                    return done("Both inspections complete");
+                                }
+                                started.countDown();
+                                release.await();
+                                return done("Inspection complete");
+                            });
+            var client =
+                    new OllamaClient(f.config, f.mapper.instance()) {
+                        public void streamPrepared(
+                                String model,
+                                String actor,
+                                List<Map<String, Object>> history,
+                                java.util.function.Consumer<String> receive,
+                                ToolHandler tools,
+                                Observer observer)
+                                throws Exception {
+                            if (actor.equals("explore"))
+                                observer.reasoning("Checking the assigned source");
+                            wire.stream(model, actor, null, history, tools, observer, receive);
+                        }
+                    };
+            var chat = new ChatSession(client, f.config);
+            chat.persistence(f.agent);
+            try {
+                assertFalse(f.config.debugLlm());
+                assertTrue(chat.send("Inspect both sources"));
+                assertTrue(started.await(5, TimeUnit.SECONDS));
+                String live =
+                        chat.snapshot().messages().stream()
+                                .map(m -> m.displayContent())
+                                .collect(java.util.stream.Collectors.joining("\n"));
+                assertTrue(live.contains("Delegating to subagent explore (from build)"));
+                assertTrue(live.contains("Task: Inspect alpha"));
+                assertTrue(live.contains("Task: Inspect beta"));
+                assertTrue(live.contains("Reasoning: Checking the assigned source"));
+                assertEquals(
+                        2,
+                        chat.snapshot().messages().stream()
+                                .filter(m -> m.displayContent().startsWith("◌ Subagent explore"))
+                                .count());
+                assertTrue(chat.snapshot().elapsedTime().matches("[0-9]+:[0-9]{2}"));
+                release.countDown();
+                awaitFinished(chat);
+                String complete = chat.snapshot().messages().toString();
+                assertTrue(complete.contains("Subagent explore · COMPLETED"));
+                assertTrue(complete.contains("Both inspections complete"));
+                assertFalse(complete.contains("◌ Subagent explore"));
+                assertTrue(
+                        f.context
+                                .reconstruct(f.agent.current(), "build")
+                                .messages()
+                                .toString()
+                                .contains("Inspection complete"));
+                assertFalse(
+                        f.context
+                                .reconstruct(f.agent.current(), "build")
+                                .messages()
+                                .toString()
+                                .contains("delegated by"));
+            } finally {
+                release.countDown();
+                chat.shutdown();
+            }
+        }
+    }
+
+    @Test
     void exploresInAnIsolatedPersistedChildRestoresNavigationAndCountsUsageOnlyOnce()
             throws Exception {
         configure(

@@ -46,6 +46,75 @@ class ResponsesProviderTest {
     }
 
     @Test
+    void streamsReasoningSeparatelyAndPreservesItInTheCompletedTurn() throws Exception {
+        try (var f = new AuthFixture(root)) {
+            var account = f.login(null);
+            f.responsesHandler.set(
+                    ex ->
+                            AuthFixture.respond(
+                                    ex,
+                                    200,
+                                    """
+                    data: {"type":"response.reasoning_summary_text.delta","delta":"Check "}
+
+                    data: {"type":"response.reasoning_summary_text.delta","delta":"the facts"}
+
+                    data: {"type":"response.output_text.delta","delta":"Answer"}
+
+                    data: {"type":"response.completed"}
+
+                    """));
+            var streamed = new StringBuilder();
+            var completed = new StringBuilder();
+            var observer =
+                    new fr.openobject.ai.syleks.ai.OllamaClient.Observer() {
+                        public void reasoning(String delta) {
+                            streamed.append(delta);
+                        }
+
+                        public void round(
+                                String content,
+                                String reasoning,
+                                List<fr.openobject.ai.syleks.ai.ToolCall> calls) {
+                            assertEquals("Answer", content);
+                            completed.append(reasoning);
+                        }
+
+                        public void toolResult(
+                                fr.openobject.ai.syleks.ai.ToolCall call, String result) {}
+
+                        public void nextRound() {}
+                    };
+            var base = request(account.account().id());
+            var events = new ArrayList<ChatEvent>();
+            new ProviderFixture(f)
+                    .chatgpt.chat(
+                            new ChatRequest(
+                                    base.model(),
+                                    base.agent(),
+                                    base.accountId(),
+                                    base.messages(),
+                                    base.tools(),
+                                    observer),
+                            events::add);
+            assertEquals("Check the facts", streamed.toString());
+            assertEquals("Check the facts", completed.toString());
+            assertEquals(
+                    "Answer",
+                    events.stream()
+                            .filter(e -> e.type() == ChatEvent.Type.TEXT_DELTA)
+                            .map(ChatEvent::text)
+                            .collect(java.util.stream.Collectors.joining()));
+            assertEquals(
+                    "Check the facts",
+                    events.stream()
+                            .filter(e -> e.type() == ChatEvent.Type.REASONING_DELTA)
+                            .map(ChatEvent::text)
+                            .collect(java.util.stream.Collectors.joining()));
+        }
+    }
+
+    @Test
     void rejectsRemoteDiscoveryAndChatBeforeCredentialLookupOrDelivery() throws Exception {
         try (var f = new AuthFixture(root)) {
             var provider =

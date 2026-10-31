@@ -68,6 +68,18 @@ public class SubagentExecutor {
                 throws Exception;
     }
 
+    public interface Progress {
+        Progress NONE = new Progress() {};
+
+        default void started(String id, String parent, String agent, String prompt) {}
+
+        default void phase(String id, String description) {}
+
+        default void reasoning(String id, String delta) {}
+
+        default void finished(String id, String status) {}
+    }
+
     private record Request(String agent, String prompt) {}
 
     private record Outcome(
@@ -105,6 +117,17 @@ public class SubagentExecutor {
             ToolCall call,
             Approval approval,
             Streamer streamer)
+            throws InterruptedException {
+        return execute(owner, parent, call, approval, streamer, Progress.NONE);
+    }
+
+    public ToolResult execute(
+            AgentService owner,
+            TaskScope parent,
+            ToolCall call,
+            Approval approval,
+            Streamer streamer,
+            Progress progress)
             throws InterruptedException {
         final List<Request> requests;
         final int timeout;
@@ -148,7 +171,9 @@ public class SubagentExecutor {
         try {
             for (Request request : requests) {
                 var worker =
-                        new Worker(owner, parent, call.id(), request, timeout, approval, streamer);
+                        new Worker(
+                                owner, parent, call.id(), request, timeout, approval, streamer,
+                                progress);
                 workers.add(worker);
                 worker.thread =
                         Thread.ofVirtual().name("subagent-" + request.agent()).unstarted(worker);
@@ -261,6 +286,8 @@ public class SubagentExecutor {
         private final String call;
         private final Approval approval;
         private final Streamer streamer;
+        private final Progress progress;
+        private final String activityId = UUID.randomUUID().toString();
         private Thread thread;
         private ScheduledFuture<?> timer;
         private Outcome outcome;
@@ -272,7 +299,9 @@ public class SubagentExecutor {
                 Request request,
                 int timeout,
                 Approval approval,
-                Streamer streamer) {
+                Streamer streamer,
+                Progress progress) {
+            this.progress = progress;
             this.owner = owner;
             this.parent = parent;
             this.call = call;
@@ -326,6 +355,8 @@ public class SubagentExecutor {
                                     ? "AWAITING_APPROVAL"
                                     : "POLICY_ALLOWED");
             if (decision == PermissionPolicy.Decision.DENY) return false;
+            if (decision == PermissionPolicy.Decision.ASK)
+                progress.phase(activityId, "Waiting for permission");
             boolean allowed =
                     decision == PermissionPolicy.Decision.ALLOW
                             || approval != null
@@ -338,6 +369,10 @@ public class SubagentExecutor {
                                             scope,
                                             call);
             scope.check();
+            if (decision == PermissionPolicy.Decision.ASK)
+                progress.phase(
+                        activityId,
+                        call == null ? "Continuing task execution" : WorkProgress.tool(call));
             service.authorization(
                     allowed
                             ? decision == PermissionPolicy.Decision.ASK
@@ -354,6 +389,7 @@ public class SubagentExecutor {
             AgentTask.Status status = AgentTask.Status.FAILED;
             String diagnostic = null, text = "";
             try {
+                progress.started(activityId, parent.actor(), request.agent(), request.prompt());
                 guard.check();
                 if (parent.actors.contains(request.agent())
                         || parent.actors.size() > config.subagentLimits().maxDepth())
@@ -439,7 +475,7 @@ public class SubagentExecutor {
                                 scope.check();
                                 if (call.name().equals("task"))
                                     return SubagentExecutor.this.execute(
-                                            service, scope, call, approval, streamer);
+                                            service, scope, call, approval, streamer, progress);
                                 tools.manager().acquire();
                                 try {
                                     scope.check();
@@ -468,9 +504,12 @@ public class SubagentExecutor {
                         session.accountId(),
                         g.context().messages(),
                         handler,
-                        g,
+                        observe(g),
                         delta -> {
-                            if (scope.stopped() == null) g.append(delta);
+                            if (scope.stopped() == null) {
+                                progress.phase(activityId, "Writing task result");
+                                g.append(delta);
+                            }
                         });
                 scope.check();
                 text = g.text();
@@ -525,9 +564,59 @@ public class SubagentExecutor {
                                         limit(text),
                                         diagnostic,
                                         text.codePointCount(0, text.length()) > 16000);
+                    progress.finished(activityId, outcome.status());
                     if (interrupted) Thread.currentThread().interrupt();
                 }
             }
+        }
+
+        private OllamaClient.Observer observe(AgentService.Generation downstream) {
+            return new OllamaClient.Observer() {
+                public void state(AgentState state) {
+                    if (state == AgentState.THINKING || state == AgentState.WAITING_PERMISSION)
+                        progress.phase(activityId, WorkProgress.state(state));
+                    downstream.state(state);
+                }
+
+                public void reasoning(String delta) {
+                    progress.reasoning(activityId, delta);
+                    downstream.reasoning(delta);
+                }
+
+                public void startTool(ToolCall call) {
+                    progress.phase(activityId, WorkProgress.tool(call));
+                    downstream.startTool(call);
+                }
+
+                public void round(String content, String reasoning, List<ToolCall> calls) {
+                    downstream.round(content, reasoning, calls);
+                }
+
+                public void usage(fr.openobject.ai.syleks.usage.LlmUsageEvent event) {
+                    downstream.usage(event);
+                }
+
+                public List<Map<String, Object>> prepareContext(
+                        List<Map<String, Object>> history, int overhead) throws Exception {
+                    return downstream.prepareContext(history, overhead);
+                }
+
+                public void contextLimited(int count) {
+                    downstream.contextLimited(count);
+                }
+
+                public void toolResult(ToolCall call, String result) {
+                    downstream.toolResult(call, result);
+                }
+
+                public void toolResult(ToolCall call, ToolResult result) {
+                    downstream.toolResult(call, result);
+                }
+
+                public void nextRound() {
+                    downstream.nextRound();
+                }
+            };
         }
     }
 

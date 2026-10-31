@@ -83,6 +83,12 @@ public class AppConfig {
     private final Map<String, AgentDefinition> agents;
     private final String defaultAgent;
     private final int maxRounds;
+    private final boolean debugLlm;
+
+    public boolean debugLlm() {
+        return debugLlm;
+    }
+
     private final PermissionPolicy globalPermissions;
     private final PermissionPolicy permissionCeiling;
     private final ProjectTrust projectTrust;
@@ -153,6 +159,10 @@ public class AppConfig {
                     "SYLEKS_RESPONSE_TOKENS must be smaller than SYLEKS_CONTEXT_WINDOW");
         var file = home.resolve(".config/syleks/agent-config.json");
         var settings = readSettings(json, file);
+        Object debug = settings.containsKey("debug_llm") ? settings.get("debug_llm") : false;
+        if (!(debug instanceof Boolean enabled))
+            throw new IllegalArgumentException("debug_llm must be a boolean");
+        this.debugLlm = enabled;
         this.commandSandbox =
                 fr.openobject.ai.syleks.sandbox.CommandSandboxPolicy.parse(
                         settings.containsKey("command_sandbox")

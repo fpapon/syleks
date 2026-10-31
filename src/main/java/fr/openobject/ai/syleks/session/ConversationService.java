@@ -108,12 +108,17 @@ public class ConversationService {
     }
 
     public List<ChatMessage> history(String session) {
+        return history(session, true);
+    }
+
+    public List<ChatMessage> history(String session, boolean debugLlm) {
         var result = new ArrayList<ChatMessage>();
         for (var message : messages(session)) {
             if (message.role().equals("system"))
                 continue; // Instructions belong to model context, not the transcript.
             var text = new StringBuilder();
             var visual = new StringBuilder();
+            var reasoning = new StringBuilder();
             for (var part : parts(message.id())) {
                 var payload = payload(part);
                 if (part.type() == PartType.TEXT) {
@@ -121,18 +126,24 @@ public class ConversationService {
                     text.append(value);
                     visual.append(value);
                 }
-                if (part.type() == PartType.TOOL_CALL)
+                if (part.type() == PartType.REASONING)
+                    reasoning.append(Objects.toString(payload.get("text"), ""));
+                if (debugLlm && part.type() == PartType.TOOL_CALL)
                     visual.append("\nTool · ").append(payload.get("name"));
                 if (part.type() == PartType.TOOL_RESULT) {
                     text.append("\n").append(payload.get("content"));
-                    visual.append("\n")
-                            .append(
-                                    payload.containsKey("display")
-                                            ? payload.get("display")
-                                            : payload.get("content"));
+                    if (debugLlm)
+                        visual.append("\n")
+                                .append(
+                                        payload.containsKey("display")
+                                                ? payload.get("display")
+                                                : payload.get("content"));
                 }
             }
-            String display = visual.toString();
+            String display =
+                    (reasoning.isEmpty() ? "" : "### Reasoning\n\n" + reasoning + "\n\n") + visual;
+            if (!debugLlm && display.isBlank() && message.status() == MessageStatus.COMPLETE)
+                continue;
             if (message.status() == MessageStatus.INTERRUPTED
                     || message.status() == MessageStatus.ERROR)
                 display += "\n[" + message.status() + "]";

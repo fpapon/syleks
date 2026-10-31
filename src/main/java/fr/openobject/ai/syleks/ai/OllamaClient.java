@@ -414,6 +414,9 @@ public class OllamaClient {
             calls.add(chunk.toolCalls());
             requestedTools |= chunk.toolRequested();
             thinking.append(chunk.thinking());
+            var observer = OllamaClient.this.observer.get();
+            if (observer != null && !chunk.thinking().isEmpty())
+                observer.reasoning(chunk.thinking());
             content.append(chunk.content());
             if (!chunk.content().isEmpty()) receive.accept(chunk.content());
             return chunk.done();

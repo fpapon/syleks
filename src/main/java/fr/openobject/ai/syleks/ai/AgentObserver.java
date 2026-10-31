@@ -20,6 +20,8 @@ import java.util.List;
 
 /** Typed execution notifications shared by persistence and provider event adapters. */
 public interface AgentObserver {
+    default void reasoning(String delta) {}
+
     default void state(AgentState state) {}
 
     default void startTool(ToolCall call) {}

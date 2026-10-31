@@ -59,6 +59,7 @@ public class ChatSession {
     @Injection SubagentExecutor subagents;
     private SubagentExecutor fallbackSubagents;
     private ToolExecutor fallbackExecutor;
+    private final WorkProgress work = new WorkProgress(System::nanoTime);
     private AgentState executionState = AgentState.IDLE;
     private String agent;
     private String runningAgent;
@@ -131,6 +132,10 @@ public class ChatSession {
 
     public synchronized ChatSnapshot snapshot() {
         var history = new ArrayList<>(preview.isEmpty() ? messages : preview);
+        history.removeIf(message -> message.displayContent().isEmpty());
+        if (task != null)
+            for (String activity : work.lines())
+                history.add(new ChatMessage("system", "", "", activity));
         if (task != null)
             history.add(
                     ChatMessage.now(
@@ -182,7 +187,8 @@ public class ChatSession {
                                 pendingPermission.tool() != null),
                 sessionId,
                 sessionTitle,
-                projectName);
+                projectName,
+                work.elapsed());
     }
 
     public synchronized boolean send(String text) {
@@ -290,6 +296,7 @@ public class ChatSession {
                             () -> {},
                             null);
             status = "Awaiting permission";
+            work.phase("Waiting for permission", "waiting");
             executionState = AgentState.WAITING_PERMISSION;
             info(
                     "Permission required: "
@@ -467,6 +474,7 @@ public class ChatSession {
         runningModel = selectedModel;
         status = prefix.isEmpty() ? "Generating" : "Subagent " + selectedAgent;
         executionState = AgentState.THINKING;
+        work.start(selectedAgent);
         var id = ++revision;
         task =
                 Thread.ofVirtual()
@@ -685,7 +693,8 @@ public class ChatSession {
                     summary.append(delta);
                 },
                 ToolHandler.NONE,
-                observer);
+                observer,
+                false);
         return summary.toString();
     }
 
@@ -697,7 +706,19 @@ public class ChatSession {
             ToolHandler tools,
             OllamaClient.Observer observer)
             throws Exception {
-        observer = observe(observer);
+        streamPrepared(model, agent, history, receive, tools, observer, true);
+    }
+
+    private void streamPrepared(
+            String model,
+            String agent,
+            List<java.util.Map<String, Object>> history,
+            java.util.function.Consumer<String> receive,
+            ToolHandler tools,
+            OllamaClient.Observer observer,
+            boolean transcript)
+            throws Exception {
+        observer = observe(observer, transcript);
         if (providers == null) {
             ollama.streamPrepared(model, agent, history, receive, tools, observer);
             return;
@@ -719,12 +740,41 @@ public class ChatSession {
     }
 
     private OllamaClient.Observer observe(OllamaClient.Observer downstream) {
+        return observe(downstream, true);
+    }
+
+    private OllamaClient.Observer observe(OllamaClient.Observer downstream, boolean transcript) {
+        final long id;
+        synchronized (this) {
+            id = revision;
+        }
         return new OllamaClient.Observer() {
+            private final StringBuilder reasoning = new StringBuilder();
+            private int reasoningIndex = -1;
+
+            public void reasoning(String delta) {
+                synchronized (ChatSession.this) {
+                    if (transcript && revision == id && !Thread.currentThread().isInterrupted()) {
+                        work.phase("Reasoning about your request", "reasoning");
+                        reasoning.append(delta);
+                        var message =
+                                ChatMessage.now("system", "", "### Reasoning\n\n" + reasoning);
+                        if (reasoningIndex < 0) {
+                            reasoningIndex = messages.size();
+                            messages.add(message);
+                        } else messages.set(reasoningIndex, message);
+                    }
+                }
+                if (downstream != null) downstream.reasoning(delta);
+            }
+
             public void state(AgentState value) {
                 synchronized (ChatSession.this) {
                     if (Thread.currentThread().isInterrupted())
                         executionState = AgentState.CANCELLED;
                     else executionState = value;
+                    if (transcript && revision == id && value == AgentState.THINKING)
+                        work.phase("Reasoning about your request / waiting for model", "reasoning");
                 }
                 if (downstream != null) downstream.state(value);
             }
@@ -746,10 +796,24 @@ public class ChatSession {
             }
 
             public void round(String content, String reasoning, List<ToolCall> calls) {
+                synchronized (ChatSession.this) {
+                    if (transcript && revision == id && !Thread.currentThread().isInterrupted()) {
+                        if (reasoningIndex < 0 && !reasoning.isEmpty()) reasoning(reasoning);
+                        if (!pending.isEmpty()) {
+                            messages.add(ChatMessage.now("assistant", responsePrefix + pending));
+                            pending = new StringBuilder();
+                        }
+                        this.reasoning.setLength(0);
+                        reasoningIndex = -1;
+                    }
+                }
                 if (downstream != null) downstream.round(content, reasoning, calls);
             }
 
             public void startTool(ToolCall call) {
+                synchronized (ChatSession.this) {
+                    if (transcript && revision == id) work.phase(WorkProgress.tool(call), "task");
+                }
                 if (downstream != null) downstream.startTool(call);
             }
 
@@ -793,6 +857,7 @@ public class ChatSession {
                                     synchronized (this) {
                                         checkActive(id);
                                         executionState = AgentState.WAITING_TOOL;
+                                        work.phase(WorkProgress.tool(call), "task");
                                         if (call.name().equals("bash")) {
                                             activeCommand =
                                                     String.valueOf(call.arguments().get("command"));
@@ -801,9 +866,13 @@ public class ChatSession {
                                                     ChatMessage.now(
                                                             "system",
                                                             "◌ Running command\n"
-                                                                    + fenced(
-                                                                            activeCommand,
-                                                                            "bash")));
+                                                                    + fenced(activeCommand, "bash"),
+                                                            config.debugLlm()
+                                                                    ? "◌ Running command\n"
+                                                                            + fenced(
+                                                                                    activeCommand,
+                                                                                    "bash")
+                                                                    : ""));
                                             status = "Running command";
                                         }
                                     }
@@ -821,8 +890,14 @@ public class ChatSession {
                                 + "\n"
                                 + fenced(result.content(), "text");
                 if (commandLogIndex >= 0)
-                    messages.set(commandLogIndex, ChatMessage.now("assistant", formatted));
-                else messages.add(ChatMessage.now("assistant", formatted));
+                    messages.set(
+                            commandLogIndex,
+                            ChatMessage.now(
+                                    "assistant", formatted, config.debugLlm() ? formatted : ""));
+                else
+                    messages.add(
+                            ChatMessage.now(
+                                    "assistant", formatted, config.debugLlm() ? formatted : ""));
                 commandLogIndex = -1;
             } else {
                 var target =
@@ -853,7 +928,8 @@ public class ChatSession {
                                     + result.content();
                 else if (call.name().equals("websearch"))
                     display = formatted = title + result.content();
-                messages.add(ChatMessage.now("assistant", formatted, display));
+                messages.add(
+                        ChatMessage.now("assistant", formatted, config.debugLlm() ? display : ""));
             }
             if (pendingPermission == null) status = "Generating";
         }
@@ -923,6 +999,44 @@ public class ChatSession {
                                     if (event.type() == ChatEvent.Type.TEXT_DELTA)
                                         receive.accept(event.text());
                                 });
+                },
+                new SubagentExecutor.Progress() {
+                    public void started(String key, String parent, String child, String prompt) {
+                        synchronized (ChatSession.this) {
+                            if (revision != id) return;
+                            work.childStarted(key, parent, child, prompt);
+                            messages.add(
+                                    ChatMessage.now(
+                                            "system",
+                                            "Delegating to subagent "
+                                                    + child
+                                                    + " (from "
+                                                    + parent
+                                                    + ")\nTask: "
+                                                    + WorkProgress.brief(prompt)));
+                        }
+                    }
+
+                    public void phase(String key, String description) {
+                        synchronized (ChatSession.this) {
+                            if (revision == id) work.childPhase(key, description);
+                        }
+                    }
+
+                    public void reasoning(String key, String delta) {
+                        synchronized (ChatSession.this) {
+                            if (revision == id) work.childReasoning(key, delta);
+                        }
+                    }
+
+                    public void finished(String key, String outcome) {
+                        synchronized (ChatSession.this) {
+                            if (revision != id) return;
+                            String description = work.childFinished(key, outcome);
+                            if (!description.isEmpty())
+                                messages.add(ChatMessage.now("system", description));
+                        }
+                    }
                 });
     }
 
@@ -961,6 +1075,7 @@ public class ChatSession {
             pendingQuestion = answer;
             questionOptions = options;
             status = "Awaiting answer";
+            work.phase("Waiting for your answer", "waiting");
             executionState = AgentState.WAITING_TOOL;
             var display = new StringBuilder("Question / " + actor + "\n" + text);
             for (int i = 0; i < options.size(); i++)
@@ -984,6 +1099,13 @@ public class ChatSession {
     }
 
     private void updateQuestionStatus() {
+        work.phase(
+                pendingPermission != null
+                        ? "Waiting for permission"
+                        : pendingQuestion != null
+                                ? "Waiting for your answer"
+                                : "Continuing task execution",
+                pendingPermission != null || pendingQuestion != null ? "waiting" : "task");
         status =
                 pendingPermission != null
                         ? "Awaiting permission"
@@ -1183,6 +1305,7 @@ public class ChatSession {
                             rememberable ? new ToolGrant(key, toolGrants.now()) : null);
             promptId = pendingPermission.id();
             status = "Awaiting permission";
+            work.phase("Waiting for permission", "waiting");
             executionState = AgentState.WAITING_PERMISSION;
             info(
                     "Permission required: "
@@ -1225,6 +1348,10 @@ public class ChatSession {
                     pendingPermission == null
                             ? AgentState.WAITING_TOOL
                             : AgentState.WAITING_PERMISSION;
+            if (pendingPermission == null && pendingQuestion == null)
+                work.phase(
+                        call == null ? "Continuing task execution" : WorkProgress.tool(call),
+                        "task");
         }
         return allowed;
     }
@@ -1305,11 +1432,15 @@ public class ChatSession {
     }
 
     private synchronized void append(long id, String delta) {
-        if (revision == id) pending.append(delta);
+        if (revision == id) {
+            work.phase("Writing the answer", "answer");
+            pending.append(delta);
+        }
     }
 
     private synchronized void finish(long id, String error) {
         if (revision != id) return;
+        work.stop();
         if (!pending.isEmpty())
             messages.add(ChatMessage.now("assistant", responsePrefix + pending));
         if (error != null) messages.add(ChatMessage.now("system", error));
@@ -1344,12 +1475,17 @@ public class ChatSession {
             return hadPermissionRequest;
         }
         var previous = task;
+        work.stop();
         ++revision;
         if (commandLogIndex >= 0 && commandLogIndex < messages.size()) {
             messages.set(
                     commandLogIndex,
                     ChatMessage.now(
-                            "system", "Command cancelled\n```bash\n" + activeCommand + "\n```"));
+                            "system",
+                            "Command cancelled",
+                            config.debugLlm()
+                                    ? "Command cancelled\n```bash\n" + activeCommand + "\n```"
+                                    : "Command cancelled"));
             commandLogIndex = -1;
         }
         if (!pending.isEmpty())
@@ -1520,6 +1656,12 @@ public class ChatSession {
                     runningModel = selectedModel;
                     status = operation.equals("compact") ? "Summarizing" : "Restoring files";
                     executionState = AgentState.THINKING;
+                    work.start(actor);
+                    work.phase(
+                            operation.equals("compact")
+                                    ? "Summarizing session history"
+                                    : "Restoring files",
+                            operation.equals("compact") ? "reasoning" : "task");
                     long id = ++revision;
                     task =
                             Thread.ofVirtual()
@@ -1645,6 +1787,7 @@ public class ChatSession {
         var restored = service.history();
         synchronized (this) {
             messages.clear();
+            work.reset();
             messages.addAll(restored);
             preview = List.of();
             pending = new StringBuilder();

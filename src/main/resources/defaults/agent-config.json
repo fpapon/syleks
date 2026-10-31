@@ -20,6 +20,7 @@
   "web_private_origins": [],
   "command_environment": { "pass_env": [], "trusted_path": ["/usr/bin", "/bin"] },
   "command_sandbox": { "mode": "restricted", "network": "deny", "memory_mib": 1024, "processes": 64, "cpu_percent": 100 },
+  "debug_llm": false,
   "max_rounds": 20,
   "subagents": {
     "max_depth": 3,

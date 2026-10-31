@@ -35,6 +35,56 @@ class PersistentStreamingTest {
     @TempDir Path root;
 
     @Test
+    void displaysReasoningBeforeTheAnswerArrives() throws Exception {
+        try (var f = new SessionFixture(root)) {
+            var started = new CountDownLatch(1);
+            var release = new CountDownLatch(1);
+            var client =
+                    new OllamaClient(f.config, f.mapper.instance()) {
+                        @Override
+                        public void streamPrepared(
+                                String model,
+                                String agent,
+                                List<Map<String, Object>> messages,
+                                java.util.function.Consumer<String> receive,
+                                ToolHandler tools,
+                                Observer observer)
+                                throws Exception {
+                            observer.reasoning("Consider ");
+                            observer.reasoning("the request");
+                            started.countDown();
+                            release.await();
+                            receive.accept("Final answer");
+                            observer.round("Final answer", "Consider the request", List.of());
+                        }
+                    };
+            var chat = new ChatSession(client, f.config);
+            chat.persistence(f.agent);
+            try {
+                chat.send("question");
+                assertTrue(started.await(5, TimeUnit.SECONDS));
+                assertTrue(chat.snapshot().busy());
+                assertEquals(
+                        1,
+                        chat.snapshot().messages().stream()
+                                .filter(m -> m.displayContent().contains("Consider the request"))
+                                .count());
+                release.countDown();
+                await(chat);
+                assertEquals(
+                        1,
+                        chat.snapshot().messages().stream()
+                                .filter(m -> m.displayContent().contains("Consider the request"))
+                                .count());
+                assertEquals("Final answer", chat.snapshot().messages().getLast().content());
+            } finally {
+                release.countDown();
+                chat.shutdown();
+            }
+        }
+    }
+
+    @Test
     void cancellationWinsEvenWhenTransportReturnsNormallyAfterClearingInterrupt() throws Exception {
         try (var f = new SessionFixture(root)) {
             var started = new CountDownLatch(1);
@@ -188,22 +238,23 @@ class PersistentStreamingTest {
         }
     }
 
-    @Test
-    void persistsToolCallsResultsAndExecutionStatusAndRestoresTheirNativeProtocol()
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void persistsToolCallsResultsAndExecutionStatusAndRestoresTheirNativeProtocol(boolean debug)
             throws Exception {
         Files.createDirectories(root.resolve("project"));
         Files.writeString(root.resolve("project/source.txt"), "verified source");
         Files.createDirectories(root.resolve("home/.config/syleks"));
         Files.writeString(
                 root.resolve("home/.config/syleks/agent-config.json"),
-                "{\"permission\":{\"read\":\"allow\"}}");
+                "{\"debug_llm\":" + debug + ",\"permission\":{\"read\":\"allow\"}}");
         try (var f = new SessionFixture(root)) {
             var requests = new LinkedBlockingQueue<Map<?, ?>>();
             var chat =
                     chat(
                             f,
                             requests,
-                            "{\"message\":{\"tool_calls\":[{\"function\":{\"name\":\"read\",\"arguments\":{\"path\":\"source.txt\"}}}]},\"done\":true}\n",
+                            "{\"message\":{\"thinking\":\"Inspect the source first\",\"tool_calls\":[{\"function\":{\"name\":\"read\",\"arguments\":{\"path\":\"source.txt\"}}}]},\"done\":true}\n",
                             "{\"message\":{\"content\":\"read complete\"},\"done\":true}\n");
             chat.send("inspect source");
             await(chat);
@@ -226,6 +277,27 @@ class PersistentStreamingTest {
             assertTrue(
                     f.conversation.history(id).stream()
                             .anyMatch(m -> m.displayContent().equals("\n✓ Read `source.txt`")));
+            for (var history : List.of(chat.snapshot().messages(), f.agent.history())) {
+                assertTrue(
+                        history.stream()
+                                .anyMatch(
+                                        m ->
+                                                m.displayContent()
+                                                        .contains("Inspect the source first")));
+                assertTrue(
+                        history.stream()
+                                .anyMatch(m -> m.displayContent().contains("read complete")));
+                assertEquals(
+                        debug,
+                        history.stream().anyMatch(m -> m.displayContent().contains("✓ Read")));
+                assertFalse(
+                        history.stream()
+                                .anyMatch(m -> m.displayContent().contains("verified source")));
+            }
+            assertTrue(
+                    f.conversation.messages(id).stream()
+                            .flatMap(m -> f.conversation.parts(m.id()).stream())
+                            .anyMatch(p -> p.type() == PartType.REASONING));
             chat.shutdown();
         }
     }

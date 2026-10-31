@@ -36,6 +36,7 @@ public record ChatEvent(Type type, String text, Object detail) {
 
     public enum Type {
         TEXT_DELTA,
+        REASONING_DELTA,
         TOOL_CALL,
         TOOL_RESULT,
         ERROR,

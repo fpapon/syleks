@@ -26,6 +26,33 @@ import org.junit.jupiter.api.Test;
 
 class CanvasTest {
     @Test
+    void showsElapsedTimerDuringWorkAndAfterCompletionAtNarrowAndWideSizes() {
+        for (int width : new int[] {35, 60, 100}) {
+            for (boolean busy : new boolean[] {true, false}) {
+                var snapshot =
+                        new ChatSnapshot(
+                                List.of(),
+                                "qwen3",
+                                busy ? "Generating" : "Ready",
+                                busy,
+                                "build",
+                                "Local",
+                                "Qwen3",
+                                null,
+                                null,
+                                null,
+                                null,
+                                "01:23");
+                var canvas =
+                        new ChatRenderer()
+                                .render(snapshot, new Editor(), width, 30, 0, false)
+                                .canvas();
+                assertTrue(row(canvas, 28).contains("01:23"));
+            }
+        }
+    }
+
+    @Test
     void labelsExplicitInvisiblePolicyAndPreservesOrdinaryUnicode() {
         var ordinary = "العربية שלום e\u0301 🧪 ❤️";
         assertEquals(ordinary, SecurityText.present(ordinary));
