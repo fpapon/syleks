@@ -39,6 +39,35 @@ public final class SecureFiles {
         }
     }
 
+    public record Entry(Path name, boolean directory, long size) {}
+
+    /** Bounded metadata listing through the same no-follow directory traversal as reads. */
+    public static List<Entry> list(Path directory, int limit) throws IOException {
+        try (var parent = parent(directory.resolve(".syleks-list"))) {
+            var entries = new ArrayList<Entry>();
+            int visited = 0;
+            for (var path : parent.directory) {
+                if (++visited > limit)
+                    throw new IOException("Directory exceeds " + limit + " entries");
+                var name = path.getFileName();
+                try {
+                    var attributes =
+                            parent.directory
+                                    .getFileAttributeView(
+                                            name,
+                                            BasicFileAttributeView.class,
+                                            LinkOption.NOFOLLOW_LINKS)
+                                    .readAttributes();
+                    if (attributes.isDirectory() || attributes.isRegularFile())
+                        entries.add(new Entry(name, attributes.isDirectory(), attributes.size()));
+                } catch (NoSuchFileException removed) {
+                    // A file removed during listing is no longer a candidate.
+                }
+            }
+            return List.copyOf(entries);
+        }
+    }
+
     public static String utf8(byte[] bytes) throws java.nio.charset.CharacterCodingException {
         return java.nio.charset.StandardCharsets.UTF_8
                 .newDecoder()

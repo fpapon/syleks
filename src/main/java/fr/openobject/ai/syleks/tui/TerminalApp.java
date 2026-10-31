@@ -52,6 +52,7 @@ public class TerminalApp implements AutoCloseable {
 
     private UsageModal usageModal;
     private DiffModal diffModal;
+    private FileBrowser fileBrowser;
 
     boolean diffOpen() {
         return diffModal != null;
@@ -101,7 +102,8 @@ public class TerminalApp implements AutoCloseable {
     private int terminalWidth = 100, terminalHeight = 30;
 
     private boolean outputFocused() {
-        return diffModal == null
+        return fileBrowser == null
+                && diffModal == null
                 && usageModal == null
                 && providerModal == null
                 && configurationModal == null
@@ -288,6 +290,10 @@ public class TerminalApp implements AutoCloseable {
                                     session.contextLimits(selection));
                 }
                 if (diffModal != null) screen = diffModal.paint(screen.canvas());
+                if (fileBrowser != null) {
+                    fileBrowser.paint(screen.canvas());
+                    screen = new ChatRenderer.Screen(screen.canvas(), 0, 0, false);
+                }
                 paintClipboardNotice(screen.canvas(), System.nanoTime());
                 painter.paint(terminal, screen);
                 int input = reader.read(70);
@@ -372,6 +378,40 @@ public class TerminalApp implements AutoCloseable {
         }
         if (sessionLoading) {
             if (key == 4 || key == 3) running = false;
+            return;
+        }
+        if (fileBrowser != null) {
+            if (key == 27) {
+                handleEscape(reader);
+                return;
+            }
+            if (paste) return;
+            if (key == 3) {
+                fileBrowser = null;
+                return;
+            }
+            if (key == 4) {
+                running = false;
+                return;
+            }
+            try {
+                if (key == '\r' || key == '\n') {
+                    if (fileBrowser.marked().isEmpty() && fileBrowser.selectedDirectory())
+                        fileBrowser.open();
+                    else {
+                        var paths = fileBrowser.chosen();
+                        if (!paths.isEmpty()) {
+                            appendAttachments(paths);
+                            fileBrowser = null;
+                        }
+                    }
+                } else if (key == 32) fileBrowser.toggle();
+                else if (key == 8) fileBrowser.toggleHidden();
+                else if (key == 127) fileBrowser.backspace();
+                else if (key >= 32) fileBrowser.type(key);
+            } catch (java.io.IOException ex) {
+                fileBrowser.error(ex.getMessage());
+            }
             return;
         }
         if (sessionPicker.isOpen()) {
@@ -466,6 +506,10 @@ public class TerminalApp implements AutoCloseable {
             editor.insertCodepoint(key == '\r' ? '\n' : key);
             return;
         }
+        if (key == 6) {
+            openFiles("");
+            return;
+        }
         if (key == 24) {
             editor.clearPromptHistory();
             session.info(
@@ -494,6 +538,10 @@ public class TerminalApp implements AutoCloseable {
     private void handleEscape(NonBlockingReader reader) throws Exception {
         int second = reader.read(20);
         if (second != '[' && second != 'O') {
+            if (fileBrowser != null) {
+                if (!paste && !fileBrowser.dismissPreview()) fileBrowser = null;
+                return;
+            }
             if (outputFocused() && outputSelection.active()) {
                 outputSelection.clear();
                 return;
@@ -557,6 +605,18 @@ public class TerminalApp implements AutoCloseable {
         }
         var navigation = sequence.toString();
         if (navigation.matches("[56];[2-8]~")) navigation = navigation.charAt(0) + "~";
+        if (fileBrowser != null) {
+            if (navigation.equals("200~")) paste = true;
+            else if (navigation.equals("201~")) paste = false;
+            else if (!paste) {
+                try {
+                    fileBrowser.sequence(navigation);
+                } catch (java.io.IOException ex) {
+                    fileBrowser.error(ex.getMessage());
+                }
+            }
+            return;
+        }
         if (diffModal != null) {
             if (navigation.equals("200~")) paste = true;
             else if (navigation.equals("201~")) paste = false;
@@ -714,7 +774,8 @@ public class TerminalApp implements AutoCloseable {
         int wheel = button & ~28;
         if (wheel != 64 && wheel != 65) return;
         int delta = wheel == 64 ? -3 : 3;
-        if (diffModal != null) diffModal.move(delta);
+        if (fileBrowser != null) fileBrowser.move(delta);
+        else if (diffModal != null) diffModal.move(delta);
         else if (usageModal != null) usageModal.move(delta);
         else if (palette) {
             for (int i = 0; i < 3; i++) helpModal.sequence(delta < 0 ? "A" : "B");
@@ -779,6 +840,18 @@ public class TerminalApp implements AutoCloseable {
         String arg = parts.length == 2 ? parts[1].strip() : "";
         try {
             switch (name) {
+                case "/files" -> openFiles(arg);
+                case "/attach" -> {
+                    if (arg.isBlank()) openFiles("");
+                    else {
+                        try {
+                            var attachments = new FileAttachments(session.workspace());
+                            appendAttachments(java.util.List.of(attachments.resolve(arg)));
+                        } catch (java.io.IOException ex) {
+                            session.info(ex.getMessage());
+                        }
+                    }
+                }
                 case "/connect" -> openProviderModal(ProviderModal.Kind.CONNECT);
                 case "/providers" -> {
                     if (arg.isBlank()) openProviderModal(ProviderModal.Kind.PROVIDERS);
@@ -890,6 +963,22 @@ public class TerminalApp implements AutoCloseable {
         } catch (IllegalArgumentException | IllegalStateException ex) {
             session.info(ex.getMessage());
         }
+    }
+
+    FileBrowser fileBrowser() {
+        return fileBrowser;
+    }
+
+    private void openFiles(String start) {
+        try {
+            fileBrowser = new FileBrowser(new FileAttachments(session.workspace()), start);
+        } catch (java.io.IOException | IllegalArgumentException ex) {
+            session.info(ex.getMessage());
+        }
+    }
+
+    private void appendAttachments(java.util.List<Path> paths) throws java.io.IOException {
+        editor.setText(new FileAttachments(session.workspace()).append(editor.text(), paths));
     }
 
     private void openHelp() {

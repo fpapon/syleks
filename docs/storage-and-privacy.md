@@ -28,7 +28,7 @@ The session database is independent of your current repository. Its data-directo
 
 For example, `SYLEKS_DATA_DIR=/private/local-data/syleks syleks` uses `/private/local-data/syleks/syleks.db`. Choose a local directory outside Git working trees; Syleks refuses session storage inside a repository. Changing this variable selects a different database and does not move old sessions automatically.
 
-Syleks creates the required directories, including `attachments/`, `tool-outputs/`, `backups/`, and `locks/`. Some are reserved for larger stored content; their presence does not imply automatic attachments or backups. SQLite may also create `syleks.db-wal` and `syleks.db-shm` while running.
+Syleks creates the required directories, including `attachments/`, `tool-outputs/`, `backups/`, and `locks/`. Some are reserved for larger stored content; their presence does not imply automatic attachments or backups. `/files` and `/attach` insert explicit UTF-8 snapshots into the draft; sent snapshots are ordinary message text in SQLite, provider requests, prompt recall and exports. They do not create separate files in `attachments/`. SQLite may also create `syleks.db-wal` and `syleks.db-shm` while running.
 
 New data/configuration files use private permissions where the filesystem supports POSIX permissions (directories `0700`, files `0600`). Other filesystems use their own access controls. Configuration home uses `HOME` with a Java user-home fallback; session storage's fallback specifically uses Java's user home.
 

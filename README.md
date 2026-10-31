@@ -333,6 +333,33 @@ AgentRuntime -> ToolExecutor -> native tools / MCP / Java extensions
 - Session messages and structured tool history are saved locally in SQLite and restored on resume. Unsent drafts remain in memory only.
 - ANSI escape bytes from model output are replaced by spaces, not interpreted by the terminal.
 
+## File browsing and attachments
+
+Use `/files [DIRECTORY]` to browse the configured workspace, or **Ctrl+F** to open
+it while keeping your draft. Type to filter the current directory. Arrow keys,
+PgUp/PgDn and Home/End navigate; Right opens a directory or previews a file, and
+Left returns to the parent. Space marks files across directories. Enter attaches
+the marked files, or the current file when nothing is marked. Ctrl+H toggles hidden
+entries; Backspace removes a filter character. Esc closes a preview first, then
+the browser. Closing the browser discards its selections and keeps the draft.
+
+`/attach PATH` adds a file directly; paths with spaces need no quotes. `/attach`
+opens the browser. Relative paths start at the workspace, and absolute paths must
+remain inside it. Symlinks, including symlinked parent directories, are rejected.
+The browser lists at most 10,000 entries per directory, with directories first.
+
+Attachments are UTF-8 text snapshots inserted into the editable draft with their
+workspace-relative names. Each file may contain up to 8,000 bytes, and the complete
+draft must fit within 12,000 characters. Binary files and unsupported filesystem
+providers are rejected. A failed attachment leaves the draft and selections intact.
+Review, edit or remove the inserted text before sending with Enter. Files changed
+after attachment do not change the snapshot. Images and other binary uploads are
+not supported.
+
+Sent attachment text follows ordinary conversation handling: it goes to the selected
+provider, is saved in session history, can enter prompt recall, and appears in
+exports. Unsent snapshots follow drafts across session switches and `/restart`.
+
 ## Current feature boundaries
 
 The app supports streaming conversations, persisted root/child sessions, declared agents, bounded parallel delegation, permission-checked native tools, MCP servers and Java tool extensions. Unknown tool names are reported to the model without execution. The `/demo` entries remain synthetic and do not run tools. Markdown styling is deliberately lightweight (highlighted fenced code, headings, emphasis, inline code, links, pipe tables, and line prefixes) and is not yet a complete CommonMark implementation. Unicode display-width handling is approximate, particularly for combining grapheme clusters.
@@ -350,8 +377,7 @@ The app supports streaming conversations, persisted root/child sessions, declare
 ## Suggested next increments
 
 1. Encryption at rest.
-2. Richer file browsing and attachment workflows.
-3. Additional command sandbox backends and richer change review.
-4. File picker, fuzzy search, configurable keymap, terminal themes.
+2. Additional command sandbox backends and richer change review.
+3. Fuzzy search, configurable keymap, terminal themes.
 
 Licensed Apache-2.0 (see LICENSE).

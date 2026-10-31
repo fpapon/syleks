@@ -50,6 +50,16 @@ final class HelpModal {
                     new Entry(
                             "/undo, /redo",
                             "Restore recorded files after checking for external edits."),
+                    new Entry("Files & attachments", ""),
+                    new Entry(
+                            "/files [DIRECTORY] · Ctrl+F",
+                            "Browse workspace files; Ctrl+F keeps your draft."),
+                    new Entry(
+                            "/attach [PATH]",
+                            "Append a UTF-8 file snapshot to the editable draft; no path opens the browser."),
+                    new Entry(
+                            "File browser",
+                            "Type to filter; arrows and PgUp/PgDn navigate; Right previews/opens, Left goes up; Space marks files across directories; Enter attaches; Ctrl+H toggles hidden files; Esc closes preview/browser."),
                     new Entry("Models & accounts", ""),
                     new Entry("/connect", "Connect a provider or account."),
                     new Entry("/providers [ID]", "Choose a provider."),

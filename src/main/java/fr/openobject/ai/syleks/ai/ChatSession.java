@@ -191,6 +191,10 @@ public class ChatSession {
                 work.elapsed());
     }
 
+    public java.nio.file.Path workspace() {
+        return config.workspace();
+    }
+
     public synchronized boolean send(String text) {
         if (pendingQuestion != null) {
             answer(text);

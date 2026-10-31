@@ -32,7 +32,7 @@ class HelpModalTest {
         assertTrue(text.contains("Chat & sessions"));
         assertTrue(text.contains("/new · /clear"));
         assertTrue(text.contains("Start a new chat; keep the previous session."));
-        assertTrue(text.contains("Models & accounts"));
+        assertTrue(text.contains("Files & attachments"));
         assertTrue(text.contains("More below"));
         assertTrue(text.contains("Esc/Enter Close"));
         assertFalse(screen.cursorVisible());
@@ -48,6 +48,9 @@ class HelpModalTest {
         }
         for (var command :
                 new String[] {
+                    "Models & accounts",
+                    "/files [DIRECTORY]",
+                    "/attach [PATH]",
                     "/save PATH",
                     "/config [init|edit]",
                     "/help",
