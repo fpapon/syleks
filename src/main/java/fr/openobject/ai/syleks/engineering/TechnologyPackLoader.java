@@ -15,7 +15,7 @@
  */
 package fr.openobject.ai.syleks.engineering;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import fr.openobject.ai.syleks.json.JsonValue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CodingErrorAction;
@@ -33,7 +33,7 @@ final class TechnologyPackLoader {
         }
     }
 
-    Snapshot load(JsonNode reference) throws IOException {
+    Snapshot load(JsonValue reference) throws IOException {
         Path root = Path.of(reference.path("local_path").asText()).toAbsolutePath().normalize();
         byte[] bytes =
                 EngineeringDocuments.read(

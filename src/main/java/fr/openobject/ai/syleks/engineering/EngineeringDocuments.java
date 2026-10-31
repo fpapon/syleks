@@ -15,15 +15,9 @@
  */
 package fr.openobject.ai.syleks.engineering;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.StreamReadConstraints;
-import com.fasterxml.jackson.core.StreamReadFeature;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
+import fr.openobject.ai.syleks.json.SchemaValidator;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CodingErrorAction;
@@ -39,19 +33,8 @@ import java.util.Set;
 /** Internal validation implementation. The v1 wire contract awaits human approval. */
 final class EngineeringDocuments {
     static final int MAX_BYTES = 1024 * 1024;
-    private static final ObjectMapper JSON =
-            new ObjectMapper(
-                            JsonFactory.builder()
-                                    .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
-                                    .streamReadConstraints(
-                                            StreamReadConstraints.builder()
-                                                    .maxNestingDepth(32)
-                                                    .maxStringLength(131072)
-                                                    .maxNumberLength(32)
-                                                    .build())
-                                    .build())
-                    .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
-    private static final JsonSchema SCHEMA = schema();
+    private static final JsonIO JSON = new JsonIO(32, 131072, 32);
+    private static final SchemaValidator SCHEMA = schema();
 
     private EngineeringDocuments() {}
 
@@ -59,23 +42,22 @@ final class EngineeringDocuments {
         return new IOException("Engineering: " + code);
     }
 
-    private static JsonSchema schema() {
+    private static SchemaValidator schema() {
         try (var in =
                 EngineeringDocuments.class.getResourceAsStream(
                         "/engineering/contracts-v1.schema.json")) {
             if (in == null) throw new IllegalStateException("Missing Engineering contract schema");
-            return JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
-                    .getSchema(JSON.readTree(in));
+            return new SchemaValidator(JSON.parse(in));
         } catch (IOException e) {
             throw new IllegalStateException("Cannot load Engineering contract schema", e);
         }
     }
 
-    static JsonNode parse(byte[] bytes, String kind) throws IOException {
+    static JsonValue parse(byte[] bytes, String kind) throws IOException {
         if (Thread.currentThread().isInterrupted())
             throw new java.io.InterruptedIOException("Engineering: CANCELLED");
         if (bytes.length > MAX_BYTES) throw error("DOCUMENT_TOO_LARGE");
-        final JsonNode value;
+        final JsonValue value;
         try {
             String text =
                     StandardCharsets.UTF_8
@@ -84,7 +66,7 @@ final class EngineeringDocuments {
                             .onUnmappableCharacter(CodingErrorAction.REPORT)
                             .decode(ByteBuffer.wrap(bytes))
                             .toString();
-            value = JSON.readTree(text);
+            value = JSON.parse(text);
         } catch (IOException | RuntimeException e) {
             throw error("INVALID_DOCUMENT"); // Never include rejected input in diagnostics.
         }
@@ -97,7 +79,7 @@ final class EngineeringDocuments {
         return value;
     }
 
-    private static void semantics(JsonNode value) throws IOException {
+    private static void semantics(JsonValue value) throws IOException {
         switch (value.path("kind").asText()) {
             case "project_registry" -> {
                 unique(value.path("projects"), "id");
@@ -173,7 +155,7 @@ final class EngineeringDocuments {
         }
     }
 
-    private static Set<String> unique(JsonNode values, String key) throws IOException {
+    private static Set<String> unique(JsonValue values, String key) throws IOException {
         var seen = new HashSet<String>();
         for (var entry : values)
             if (!seen.add(entry.path(key).asText())) throw error("DUPLICATE_IDENTITY");

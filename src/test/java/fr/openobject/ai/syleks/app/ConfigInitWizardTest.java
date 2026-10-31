@@ -17,9 +17,8 @@ package fr.openobject.ai.syleks.app;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.SchemaValidator;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -39,11 +38,11 @@ class ConfigInitWizardTest {
         try (var container = ConfiguringContainer.of().start();
                 var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
             var wizard = new ConfigInitWizard(mapper.instance());
-            var fresh = new ObjectMapper().readTree(wizard.form(null).configuration());
+            var fresh = new JsonIO().parse(wizard.form(null).configuration());
             assertEquals("restricted", fresh.path("command_sandbox").path("mode").asText());
             assertEquals("deny", fresh.path("command_sandbox").path("network").asText());
             var existing = "{\"command_sandbox\":{\"mode\":\"unrestricted\"}}";
-            var saved = new ObjectMapper().readTree(wizard.form(existing).configuration());
+            var saved = new JsonIO().parse(wizard.form(existing).configuration());
             assertEquals("unrestricted", saved.path("command_sandbox").path("mode").asText());
         }
     }
@@ -58,7 +57,7 @@ class ConfigInitWizardTest {
             form.value(2, "http://reviewed.example:8000/v1");
             assertEquals("", form.validation(2));
             assertTrue(form.warning().contains("INSECURE HTTP: http://reviewed.example:8000"));
-            var saved = new ObjectMapper().readTree(form.configuration());
+            var saved = new JsonIO().parse(form.configuration());
             assertEquals(
                     "http://reviewed.example:8000",
                     saved.path("insecure_http_origins").get(0).asText());
@@ -83,7 +82,7 @@ class ConfigInitWizardTest {
                 form.value(field, "-1");
                 assertEquals("", form.validation(field));
             }
-            var config = new ObjectMapper().readTree(form.configuration());
+            var config = new JsonIO().parse(form.configuration());
             assertEquals(-1, config.path("max_rounds").asInt());
             assertEquals(-1, config.path("agent").path("plan").path("max_rounds").asInt());
             assertEquals(-1, config.path("agent").path("build").path("max_rounds").asInt());
@@ -113,7 +112,7 @@ class ConfigInitWizardTest {
                                             "",
                                             ""),
                                     new PrintStream(output));
-            var root = new ObjectMapper().readTree(content);
+            var root = new JsonIO().parse(content);
             assertEquals("local/qwen3.8-27b", root.path("model").asText());
             var provider = root.path("provider").path("local");
             assertEquals("@ai-sdk/openai-compatible", provider.path("npm").asText());
@@ -136,8 +135,8 @@ class ConfigInitWizardTest {
             assertEquals("ask", root.path("permission").path("task").path("reviewer").asText());
             assertFalse(output.toString().contains("sk-local"));
             var schema =
-                    JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
-                            .getSchema(Path.of("agent-config.schema.json").toUri());
+                    new SchemaValidator(
+                            new JsonIO().parse(Path.of("agent-config.schema.json").toFile()));
             assertTrue(schema.validate(root).isEmpty());
             new ConfigInitializer().initialize(home, content);
             var config = new AppConfig(mapper.instance(), home, Map.of(), home.resolve("project"));
@@ -181,7 +180,7 @@ class ConfigInitWizardTest {
                                             "0.3",
                                             "15"),
                                     new PrintStream(new ByteArrayOutputStream()));
-            var config = new ObjectMapper().readTree(content);
+            var config = new JsonIO().parse(content);
             assertEquals("team/team/reasoner", config.path("model").asText());
             var provider = config.path("provider").path("team");
             assertEquals("My \"server\"", provider.path("name").asText());
@@ -225,7 +224,7 @@ class ConfigInitWizardTest {
                                             "0",
                                             ""),
                                     new PrintStream(output));
-            var config = new ObjectMapper().readTree(content);
+            var config = new JsonIO().parse(content);
             assertFalse(config.path("provider").path("local").path("options").has("apiKey"));
             assertEquals(20, config.path("max_rounds").asInt());
             assertTrue(output.toString().contains("Enter an HTTPS URL"));

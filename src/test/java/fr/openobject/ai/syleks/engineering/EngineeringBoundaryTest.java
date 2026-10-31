@@ -108,9 +108,8 @@ class EngineeringBoundaryTest {
                                                     null))
                             .getMessage()
                             .contains("OFFICIAL_SUBSCRIPTION_REQUIRED"));
-        var registry = EngineeringFixtures.JSON.readTree(Files.readString(file));
-        ((com.fasterxml.jackson.databind.node.ObjectNode) registry)
-                .put("release_id", "forged-approval");
+        var registry = EngineeringFixtures.JSON.parse(Files.readString(file));
+        (registry).put("release_id", "forged-approval");
         Files.writeString(file, registry.toString());
         assertThrows(
                 IllegalStateException.class,
@@ -142,7 +141,7 @@ class EngineeringBoundaryTest {
         Path marker = root.resolve("mcp-started");
         Files.writeString(
                 settings,
-                EngineeringFixtures.JSON.writeValueAsString(
+                EngineeringFixtures.JSON.write(
                         Map.of(
                                 "permission",
                                 "allow",

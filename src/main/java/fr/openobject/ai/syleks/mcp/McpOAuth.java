@@ -15,9 +15,9 @@
  */
 package fr.openobject.ai.syleks.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.net.httpserver.HttpServer;
 import fr.openobject.ai.syleks.fs.SecureFiles;
+import fr.openobject.ai.syleks.json.JsonValue;
 import java.io.*;
 import java.net.*;
 import java.net.http.*;
@@ -107,23 +107,21 @@ public final class McpOAuth implements AutoCloseable {
                                                     .header("Content-Type", "application/json")
                                                     .POST(
                                                             HttpRequest.BodyPublishers.ofString(
-                                                                    McpConnection.JSON
-                                                                            .writeValueAsString(
-                                                                                    Map.of(
-                                                                                            "client_name",
-                                                                                            "Syleks",
-                                                                                            "redirect_uris",
-                                                                                            List.of(
-                                                                                                    redirect),
-                                                                                            "grant_types",
-                                                                                            List.of(
-                                                                                                    "authorization_code",
-                                                                                                    "refresh_token"),
-                                                                                            "response_types",
-                                                                                            List.of(
-                                                                                                    "code"),
-                                                                                            "token_endpoint_auth_method",
-                                                                                            "none")))));
+                                                                    McpConnection.JSON.write(
+                                                                            Map.of(
+                                                                                    "client_name",
+                                                                                    "Syleks",
+                                                                                    "redirect_uris",
+                                                                                    List.of(
+                                                                                            redirect),
+                                                                                    "grant_types",
+                                                                                    List.of(
+                                                                                            "authorization_code",
+                                                                                            "refresh_token"),
+                                                                                    "response_types",
+                                                                                    List.of("code"),
+                                                                                    "token_endpoint_auth_method",
+                                                                                    "none")))));
                             client = required(registration, "client_id");
                         }
                         var params = new LinkedHashMap<String, String>();
@@ -178,8 +176,7 @@ public final class McpOAuth implements AutoCloseable {
                         throw new IOException("MCP authorization server changed; login required");
                     // A crash or failed response after refresh cannot safely replay a rotating
                     // refresh token.
-                    ((com.fasterxml.jackson.databind.node.ObjectNode) record)
-                            .put("refresh_pending", true);
+                    (record).put("refresh_pending", true);
                     write(record);
                     var tokens =
                             post(
@@ -259,14 +256,14 @@ public final class McpOAuth implements AutoCloseable {
                         : null);
     }
 
-    private JsonNode post(URI endpoint, Map<String, String> values) throws Exception {
+    private JsonValue post(URI endpoint, Map<String, String> values) throws Exception {
         return json(
                 HttpRequest.newBuilder(endpoint)
                         .header("Content-Type", "application/x-www-form-urlencoded")
                         .POST(HttpRequest.BodyPublishers.ofString(form(values))));
     }
 
-    private JsonNode json(HttpRequest.Builder builder) throws Exception {
+    private JsonValue json(HttpRequest.Builder builder) throws Exception {
         // ofByteArray would accumulate unbounded data; bound both body size and total read time.
         var response =
                 http.send(
@@ -286,14 +283,14 @@ public final class McpOAuth implements AutoCloseable {
             }
             if (response.statusCode() < 200 || response.statusCode() >= 300 || bytes.length > 65536)
                 throw new IOException("MCP OAuth request rejected");
-            var result = McpConnection.JSON.readTree(bytes);
+            var result = McpConnection.JSON.parse(bytes);
             if (result == null || !result.isObject())
                 throw new IOException("Invalid MCP OAuth response");
             return result;
         }
     }
 
-    private void save(JsonNode tokens, Metadata metadata, String client, String previousRefresh)
+    private void save(JsonValue tokens, Metadata metadata, String client, String previousRefresh)
             throws Exception {
         required(tokens, "access_token");
         if (!tokens.path("token_type").asText().equalsIgnoreCase("Bearer")
@@ -302,7 +299,7 @@ public final class McpOAuth implements AutoCloseable {
                 || tokens.path("expires_in").asLong() <= 0
                 || tokens.path("expires_in").asLong() > 31536000)
             throw new IOException("Invalid MCP OAuth token response");
-        var value = McpConnection.JSON.createObjectNode();
+        var value = McpConnection.JSON.object();
         value.put("access_token", required(tokens, "access_token"));
         value.put(
                 "refresh_token",
@@ -314,7 +311,7 @@ public final class McpOAuth implements AutoCloseable {
         write(value);
     }
 
-    private static String required(JsonNode node, String name) throws IOException {
+    private static String required(JsonValue node, String name) throws IOException {
         if (!node.path(name).isTextual()
                 || node.path(name).asText().isBlank()
                 || node.path(name).asText().length() > 16384
@@ -372,18 +369,16 @@ public final class McpOAuth implements AutoCloseable {
                 throw new IOException("Unsafe MCP credential directory");
     }
 
-    private JsonNode read() throws IOException {
+    private JsonValue read() throws IOException {
         Path path = directory.resolve(key + ".json");
         var bytes = SecureFiles.optional(path, 65536);
-        return bytes == null ? null : McpConnection.JSON.readTree(bytes);
+        return bytes == null ? null : McpConnection.JSON.parse(bytes);
     }
 
-    private void write(JsonNode value) throws Exception {
+    private void write(JsonValue value) throws Exception {
         Path path = directory.resolve(key + ".json");
         SecureFiles.commitPrivate(
-                path,
-                SecureFiles.optional(path, 65536),
-                McpConnection.JSON.writeValueAsBytes(value));
+                path, SecureFiles.optional(path, 65536), McpConnection.JSON.bytes(value));
     }
 
     private static java.nio.file.attribute.FileAttribute<?>[] permissions(

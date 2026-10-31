@@ -15,9 +15,9 @@
  */
 package fr.openobject.ai.syleks.ai;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.fs.SecureFiles;
+import fr.openobject.ai.syleks.json.JsonIO;
 import fr.openobject.ai.syleks.session.repository.TodoRepository;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +28,7 @@ import java.util.*;
 final class AuxiliaryTools {
     static final Set<String> NAMES =
             Set.of("apply_patch", "skill", "todoread", "todowrite", "question");
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
     private final AppConfig config;
     private final TodoRepository todos;
 
@@ -168,7 +168,7 @@ final class AuxiliaryTools {
                     for (var item : items)
                         if (!ids.add(((Map<?, ?>) item).get("id")))
                             throw new IOException("Todo IDs must be unique");
-                    String value = JSON.writeValueAsString(items);
+                    String value = JSON.write(items);
                     if (value.getBytes(StandardCharsets.UTF_8).length > 30000)
                         throw new IOException("Todo list exceeds 30000 bytes");
                     todos.write(context.sessionId(), value);
@@ -185,7 +185,7 @@ final class AuxiliaryTools {
                 String answer = context.questions().ask(text, List.copyOf(options));
                 if (answer == null || answer.isBlank() || answer.length() > 4000)
                     throw new IOException("Invalid question answer");
-                yield ToolResult.success(JSON.writeValueAsString(Map.of("answer", answer)));
+                yield ToolResult.success(JSON.write(Map.of("answer", answer)));
             }
             default -> throw new IOException("Unsupported auxiliary tool");
         };
@@ -245,7 +245,7 @@ final class AuxiliaryTools {
                 }
             }
         }
-        return ToolResult.success(JSON.writeValueAsString(Map.of("skills", names)));
+        return ToolResult.success(JSON.write(Map.of("skills", names)));
     }
 
     private static void checkPath(Path path) throws IOException {

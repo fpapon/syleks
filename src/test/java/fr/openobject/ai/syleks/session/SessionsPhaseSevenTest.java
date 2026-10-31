@@ -17,9 +17,8 @@ package fr.openobject.ai.syleks.session;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.node.*;
 import fr.openobject.ai.syleks.ai.*;
+import fr.openobject.ai.syleks.json.JsonIO;
 import fr.openobject.ai.syleks.session.model.*;
 import fr.openobject.ai.syleks.usage.*;
 import java.nio.file.*;
@@ -31,7 +30,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class SessionsPhaseSevenTest {
     @TempDir Path root;
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
 
     private void configure(String value) throws Exception {
         Path file = root.resolve("home/.config/syleks/agent-config.json");
@@ -393,18 +392,15 @@ class SessionsPhaseSevenTest {
                         IllegalArgumentException.class, () -> f.sessions.importArchive(invalid));
             for (String mode :
                     List.of("project", "duplicate", "position", "part-version", "role", "usage")) {
-                var node = (ObjectNode) JSON.readTree(exported);
+                var node = JSON.parse(exported);
                 switch (mode) {
                     case "project" -> node.put("projectRoot", root.resolve("another").toString());
-                    case "duplicate" ->
-                            ((ArrayNode) node.path("messages")).add(node.path("messages").get(0));
-                    case "position" ->
-                            ((ObjectNode) node.path("messages").get(0)).put("position", 999);
+                    case "duplicate" -> (node.path("messages")).add(node.path("messages").get(0));
+                    case "position" -> (node.path("messages").get(0)).put("position", 999);
                     case "part-version" ->
-                            ((ObjectNode) node.path("messages").get(0).path("parts").get(0))
+                            (node.path("messages").get(0).path("parts").get(0))
                                     .put("schemaVersion", 2);
-                    case "role" ->
-                            ((ObjectNode) node.path("messages").get(0)).put("role", "developer");
+                    case "role" -> (node.path("messages").get(0)).put("role", "developer");
                     case "usage" -> node.putArray("usage").addObject().put("request_id", "bad");
                 }
                 assertThrows(
@@ -446,19 +442,17 @@ class SessionsPhaseSevenTest {
                     f.repositories.listExecutions(id).getFirst().messageId(),
                     payload.get("callMessageId"));
             for (String mode : List.of("result", "execution", "duplicate-execution")) {
-                var node = (ObjectNode) JSON.readTree(archive);
+                var node = JSON.parse(archive);
                 if (mode.equals("result")) {
                     for (var m : node.path("messages"))
                         for (var p : m.path("parts"))
                             if (p.path("type").asText().equals("TOOL_RESULT"))
-                                ((ObjectNode) p.path("payload"))
+                                (p.path("payload"))
                                         .put("callMessageId", UUID.randomUUID().toString());
                 } else if (mode.equals("execution"))
-                    ((ObjectNode) node.path("toolExecutions").get(0))
+                    (node.path("toolExecutions").get(0))
                             .put("messageId", UUID.randomUUID().toString());
-                else
-                    ((ArrayNode) node.path("toolExecutions"))
-                            .add(node.path("toolExecutions").get(0));
+                else (node.path("toolExecutions")).add(node.path("toolExecutions").get(0));
                 int count = f.sessions.list().size();
                 assertThrows(
                         IllegalArgumentException.class,

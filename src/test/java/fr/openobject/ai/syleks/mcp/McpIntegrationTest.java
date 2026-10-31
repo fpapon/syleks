@@ -17,9 +17,10 @@ package fr.openobject.ai.syleks.mcp;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.*;
 import com.sun.net.httpserver.HttpServer;
 import fr.openobject.ai.syleks.ai.*;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
 import fr.openobject.ai.syleks.session.SessionFixture;
 import java.net.*;
 import java.nio.file.*;
@@ -31,13 +32,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 class McpIntegrationTest {
     @TempDir Path root;
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
 
     private void configure(Map<String, Object> servers, Object permission) throws Exception {
         Path file = root.resolve("home/.config/syleks/agent-config.json");
         Files.createDirectories(file.getParent());
-        Files.writeString(
-                file, JSON.writeValueAsString(Map.of("mcp", servers, "permission", permission)));
+        Files.writeString(file, JSON.write(Map.of("mcp", servers, "permission", permission)));
     }
 
     private Map<String, Object> stdio(String id, int timeout) {
@@ -291,7 +291,7 @@ class McpIntegrationTest {
                             exchange.sendResponseHeaders(204, -1);
                             return;
                         }
-                        var request = JSON.readTree(exchange.getRequestBody());
+                        var request = JSON.parse(exchange.getRequestBody());
                         String method = request.path("method").asText();
                         methods.add(method);
                         if (!method.equals("initialize")) {
@@ -348,7 +348,7 @@ class McpIntegrationTest {
                             sse = true;
                         }
                         String response =
-                                JSON.writeValueAsString(
+                                JSON.write(
                                         Map.of(
                                                 "jsonrpc",
                                                 "2.0",
@@ -419,12 +419,12 @@ class McpIntegrationTest {
     @Test
     void llmRoundTripPersistsMcpResultAndResumesItAfterRestart() throws Exception {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        var requests = new CopyOnWriteArrayList<JsonNode>();
+        var requests = new CopyOnWriteArrayList<JsonValue>();
         server.createContext(
                 "/api/chat",
                 exchange -> {
                     try (exchange) {
-                        var request = JSON.readTree(exchange.getRequestBody());
+                        var request = JSON.parse(exchange.getRequestBody());
                         requests.add(request);
                         String content =
                                 requests.size() == 1

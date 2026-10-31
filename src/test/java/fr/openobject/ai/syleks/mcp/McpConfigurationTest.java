@@ -17,8 +17,8 @@ package fr.openobject.ai.syleks.mcp;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.*;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.SchemaValidator;
 import fr.openobject.ai.syleks.session.SessionFixture;
 import java.nio.file.*;
 import java.util.*;
@@ -30,10 +30,10 @@ class McpConfigurationTest {
 
     @Test
     void rejectsMalformedConfigurationAndValidatesSchema() throws Exception {
-        var json = new ObjectMapper();
+        var json = new JsonIO();
         var schema =
-                JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
-                        .getSchema(Path.of("agent-config.schema.json").toUri());
+                new SchemaValidator(
+                        new JsonIO().parse(Path.of("agent-config.schema.json").toFile()));
         for (String invalid :
                 List.of(
                         "{\"type\":\"sse\",\"url\":\"http://localhost/mcp\"}",
@@ -43,13 +43,13 @@ class McpConfigurationTest {
                         "{\"type\":\"http\",\"url\":\"http://localhost/mcp\",\"timeout_seconds\":1.5}",
                         "{\"type\":\"stdio\",\"command\":[\"server\"],\"enabled\":null}",
                         "{\"type\":\"stdio\",\"command\":[\"server\"],\"unknown\":true}")) {
-            Map<?, ?> value = json.readValue(invalid, Map.class);
+            Map<?, ?> value = json.read(invalid, Map.class);
             assertThrows(
                     IllegalStateException.class,
                     () -> McpServerConfig.parse(Map.of("fixture", value), root),
                     invalid);
             assertFalse(
-                    schema.validate(json.readTree("{\"mcp\":{\"fixture\":" + invalid + "}}"))
+                    schema.validate(json.parse("{\"mcp\":{\"fixture\":" + invalid + "}}"))
                             .isEmpty(),
                     invalid);
         }
@@ -70,7 +70,7 @@ class McpConfigurationTest {
         }
         String valid =
                 "{\"mcp\":{\"remote\":{\"type\":\"http\",\"url\":\"https://mcp.example/mcp\",\"bearer_token_env\":\"MCP_TOKEN\",\"resources\":true}},\"permission\":{\"mcp_*\":\"ask\",\"mcp_remote__t_echo\":\"allow\"}}";
-        assertTrue(schema.validate(json.readTree(valid)).isEmpty());
+        assertTrue(schema.validate(json.parse(valid)).isEmpty());
     }
 
     @Test

@@ -15,8 +15,8 @@
  */
 package fr.openobject.ai.syleks.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.openobject.ai.syleks.fs.SecureFiles;
+import fr.openobject.ai.syleks.json.JsonIO;
 import fr.openobject.ai.syleks.mcp.McpServerConfig;
 import java.io.IOException;
 import java.net.URI;
@@ -27,7 +27,7 @@ import java.util.*;
 /** Opaque configuration references. Only transports should resolve these values. */
 public final class ConfigSecrets {
     public static final String PREFIX = "syleks-secret:";
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
     private final Path directory;
     private final CredentialVault vault;
     private final boolean fileAllowed;
@@ -116,11 +116,7 @@ public final class ConfigSecrets {
         try {
             var bytes = SecureFiles.read(path(reference), SecureFiles.LIMIT);
             SecureFiles.protect(path(reference), false);
-            Map<String, Object> record =
-                    JSON.readValue(
-                            bytes,
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    Map<String, Object>>() {});
+            Map<String, Object> record = JSON.read(bytes, Map.class);
             if (record == null || !(record.get("scope") instanceof String))
                 throw new IOException("Invalid secret record");
             if (record.containsKey("vault_ref")
@@ -151,7 +147,7 @@ public final class ConfigSecrets {
             try {
                 // Bind the vault payload too: tampering with a disk reference cannot rebind a
                 // secret.
-                var payload = JSON.readTree(vault.get(id));
+                var payload = JSON.parse(vault.get(id));
                 if (!scope.equals(payload.path("scope").asText())
                         || !payload.path("secret").isTextual())
                     throw new IOException("Secret destination mismatch");
@@ -187,7 +183,7 @@ public final class ConfigSecrets {
         record.put("scope", scope);
         if (vault != null) {
             try {
-                vault.put(id, JSON.writeValueAsString(Map.of("scope", scope, "secret", secret)));
+                vault.put(id, JSON.write(Map.of("scope", scope, "secret", secret)));
             } catch (IOException | RuntimeException e) {
                 try {
                     vault.delete(id);
@@ -202,7 +198,7 @@ public final class ConfigSecrets {
             record.put("secret", secret);
         }
         try {
-            SecureFiles.commitPrivate(path(reference), null, JSON.writeValueAsBytes(record));
+            SecureFiles.commitPrivate(path(reference), null, JSON.bytes(record));
         } catch (IOException | RuntimeException e) {
             if (vault != null)
                 try {

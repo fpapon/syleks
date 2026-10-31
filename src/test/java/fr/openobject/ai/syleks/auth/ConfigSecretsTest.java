@@ -17,7 +17,7 @@ package fr.openobject.ai.syleks.auth;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import fr.openobject.ai.syleks.json.JsonIO;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.*;
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.io.TempDir;
 class ConfigSecretsTest {
     @TempDir Path root;
     private static final String TOKEN = "synthetic-secret-SEC08";
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
 
     private static class Vault implements CredentialVault {
         final Map<String, String> values = new HashMap<>();
@@ -75,13 +75,13 @@ class ConfigSecretsTest {
                         "auth/config-secrets/"
                                 + ref.substring(ConfigSecrets.PREFIX.length())
                                 + ".json");
-        var record = JSON.readValue(Files.readString(file), Map.class);
+        var record = JSON.read(Files.readString(file), Map.class);
         assertFalse(Files.readString(file).contains(TOKEN));
         record.put("vault_ref", other.substring(ConfigSecrets.PREFIX.length()));
-        Files.writeString(file, JSON.writeValueAsString(record));
+        Files.writeString(file, JSON.write(record));
         assertThrows(IOException.class, () -> store.resolve(ref, scope("first")));
         record.put("vault_ref", TOKEN);
-        Files.writeString(file, JSON.writeValueAsString(record));
+        Files.writeString(file, JSON.write(record));
         var invalid = assertThrows(IOException.class, () -> store.revoke(ref));
         assertFalse(invalid.toString().contains(TOKEN));
         assertEquals(TOKEN, store.resolve(TOKEN, scope("first"))); // literal compatibility
@@ -198,7 +198,7 @@ class ConfigSecretsTest {
         assertEquals(0, migration.encrypt(file));
         assertEquals(0, migration.migrate(file));
         String encrypted =
-                JSON.readTree(Files.readString(file))
+                JSON.parse(Files.readString(file))
                         .path("provider")
                         .path("custom")
                         .path("options")
@@ -207,7 +207,7 @@ class ConfigSecretsTest {
         assertEquals(TOKEN, store.resolve(encrypted, scope("custom")));
         assertEquals(1, migration.rotate(file, encrypted, "replacement"));
         String rotated =
-                JSON.readTree(Files.readString(file))
+                JSON.parse(Files.readString(file))
                         .path("provider")
                         .path("custom")
                         .path("options")
@@ -257,7 +257,7 @@ class ConfigSecretsTest {
         assertFalse(text.contains("synthetic-env"));
         assertEquals(0, migration.migrate(file));
         String ref =
-                JSON.readTree(text)
+                JSON.parse(text)
                         .path("provider")
                         .path("custom")
                         .path("options")
@@ -266,7 +266,7 @@ class ConfigSecretsTest {
         assertEquals(TOKEN, store.resolve(ref, scope("custom")));
         assertEquals(1, migration.rotate(file, ref, "replacement-secret"));
         String replacement =
-                JSON.readTree(Files.readString(file))
+                JSON.parse(Files.readString(file))
                         .path("provider")
                         .path("custom")
                         .path("options")
@@ -300,7 +300,7 @@ class ConfigSecretsTest {
         assertEquals(3, migration.migrate(file));
         String committed = Files.readString(file);
         String ref =
-                JSON.readTree(committed)
+                JSON.parse(committed)
                         .path("provider")
                         .path("custom")
                         .path("options")
@@ -345,7 +345,7 @@ class ConfigSecretsTest {
                                         .migrate(file));
         assertFalse(error.toString().contains(TOKEN));
         String body =
-                JSON.writeValueAsString(
+                JSON.write(
                         Map.of(
                                 "error",
                                 Map.of(

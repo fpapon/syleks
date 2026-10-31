@@ -15,14 +15,14 @@
  */
 package fr.openobject.ai.syleks.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import fr.openobject.ai.syleks.json.JsonIO;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /** Bounded diagnostic-only redaction, never used for requests or user-authored exports. */
 public final class SecretRedaction {
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
 
     private SecretRedaction() {}
 
@@ -53,7 +53,7 @@ public final class SecretRedaction {
         if (value == null) return "Transport operation failed";
         String result = value;
         try {
-            result = JSON.writeValueAsString(structured(JSON.readValue(value, Object.class)));
+            result = JSON.write(structured(JSON.read(value, Object.class)));
         } catch (Exception ignored) {
         }
         // Replace before bounding: truncation must not expose the beginning of a credential.
@@ -65,7 +65,7 @@ public final class SecretRedaction {
                                         URLEncoder.encode(secret, StandardCharsets.UTF_8),
                                         "[redacted]");
                 try {
-                    String quoted = JSON.writeValueAsString(secret);
+                    String quoted = JSON.write(secret);
                     result = result.replace(quoted.substring(1, quoted.length() - 1), "[redacted]");
                 } catch (Exception ignored) {
                 }

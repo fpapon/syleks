@@ -17,9 +17,10 @@ package fr.openobject.ai.syleks.session;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.*;
 import com.sun.net.httpserver.HttpServer;
 import fr.openobject.ai.syleks.ai.*;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
 import fr.openobject.ai.syleks.session.model.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -32,7 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class SessionWirePhaseSevenTest {
     @TempDir Path root;
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
 
     private void waitFor(ChatSession chat) throws Exception {
         long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
@@ -45,12 +46,12 @@ class SessionWirePhaseSevenTest {
             generatedSummaryReachesActualNextProviderRequestWithoutRawOlderTurnsOrToolDeclarationsOnSummaryCall()
                     throws Exception {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        var requests = new CopyOnWriteArrayList<JsonNode>();
+        var requests = new CopyOnWriteArrayList<JsonValue>();
         server.createContext(
                 "/api/chat",
                 exchange -> {
                     try (exchange) {
-                        var request = JSON.readTree(exchange.getRequestBody());
+                        var request = JSON.parse(exchange.getRequestBody());
                         requests.add(request);
                         boolean summary =
                                 request.path("messages")
@@ -63,7 +64,7 @@ class SessionWirePhaseSevenTest {
                                         ? "GENERATED SUMMARY: keep Unicode support"
                                         : "resumed answer";
                         byte[] bytes =
-                                JSON.writeValueAsBytes(
+                                JSON.bytes(
                                         Map.of(
                                                 "message",
                                                 Map.of("content", text),
@@ -141,12 +142,12 @@ class SessionWirePhaseSevenTest {
     void automaticallySummarizesBeforeSendingAndRestoresToolsAndUsageOnMainRequest()
             throws Exception {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        var requests = new CopyOnWriteArrayList<JsonNode>();
+        var requests = new CopyOnWriteArrayList<JsonValue>();
         server.createContext(
                 "/api/chat",
                 exchange -> {
                     try (exchange) {
-                        var request = JSON.readTree(exchange.getRequestBody());
+                        var request = JSON.parse(exchange.getRequestBody());
                         requests.add(request);
                         boolean summary =
                                 request.path("messages")
@@ -155,7 +156,7 @@ class SessionWirePhaseSevenTest {
                                         .asText()
                                         .startsWith("Summarize the archived conversation");
                         byte[] bytes =
-                                JSON.writeValueAsBytes(
+                                JSON.bytes(
                                         Map.of(
                                                 "message",
                                                 Map.of(

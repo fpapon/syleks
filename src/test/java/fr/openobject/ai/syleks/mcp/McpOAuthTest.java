@@ -17,8 +17,8 @@ package fr.openobject.ai.syleks.mcp;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import fr.openobject.ai.syleks.json.JsonIO;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
@@ -34,7 +34,7 @@ class McpOAuthTest {
 
     @Test
     void discoversPkceAuthorizesBindsResourceRefreshesAndSeparatesCredentials() throws Exception {
-        var json = new ObjectMapper();
+        var json = new JsonIO();
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
         var challenge = new AtomicReference<String>();
@@ -77,7 +77,7 @@ class McpOAuthTest {
                                             "code_challenge_methods_supported",
                                             List.of("S256"));
                         else if (path.equals("/register")) {
-                            var registration = json.readTree(exchange.getRequestBody());
+                            var registration = json.parse(exchange.getRequestBody());
                             assertEquals(
                                     "none",
                                     registration.path("token_endpoint_auth_method").asText());
@@ -134,7 +134,7 @@ class McpOAuthTest {
                                                 3600);
                             }
                         } else throw new AssertionError("Unexpected OAuth path " + path);
-                        byte[] bytes = json.writeValueAsBytes(result);
+                        byte[] bytes = json.bytes(result);
                         exchange.sendResponseHeaders(200, bytes.length);
                         exchange.getResponseBody().write(bytes);
                     } catch (Throwable e) {

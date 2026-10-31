@@ -15,7 +15,7 @@
  */
 package fr.openobject.ai.syleks.engineering;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import fr.openobject.ai.syleks.json.JsonValue;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -47,7 +47,7 @@ public final class EngineeringBoundary {
     private final String registryHash;
     private final boolean active;
     private final boolean allowCloud;
-    private final List<JsonNode> routes;
+    private final List<JsonValue> routes;
 
     public EngineeringBoundary(Path home, Path workspace) {
         registryFile =
@@ -80,7 +80,7 @@ public final class EngineeringBoundary {
             }
             active = enrolled;
             allowCloud = cloud;
-            var local = new ArrayList<JsonNode>();
+            var local = new ArrayList<JsonValue>();
             registry.path("local_routes").forEach(local::add);
             routes = List.copyOf(local);
         } catch (IOException | RuntimeException e) {

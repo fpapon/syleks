@@ -15,18 +15,20 @@
  */
 package fr.openobject.ai.syleks.ai;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.*;
 import fr.openobject.ai.syleks.app.AppConfig;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
+import fr.openobject.ai.syleks.json.SchemaValidator;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import java.util.*;
 
 /** One catalogue for declarations and execution. Registrations are bounded and collisions fail closed. */
 @ApplicationScoped
 public class ToolRegistry {
-    private record Entry(ToolDefinition definition, JsonSchema validator, CustomTool handler) {}
+    private record Entry(
+            ToolDefinition definition, SchemaValidator validator, CustomTool handler) {}
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
     private final AppConfig config;
     private final List<CustomTool> extensions;
     private boolean initialized;
@@ -128,7 +130,7 @@ public class ToolRegistry {
                 || definition.description().isBlank()
                 || definition.description().length() > 4000)
             throw new IllegalArgumentException("Tool catalogue or description exceeds limits");
-        var tree = JSON.valueToTree(definition.parameters());
+        var tree = JSON.tree(definition.parameters());
         int characters = tree.toString().length() + definition.description().length();
         if (tree.toString().length() > 32000
                 || schemaCharacters + characters > 131072
@@ -136,10 +138,9 @@ public class ToolRegistry {
             throw new IllegalArgumentException("Tool schema must be a bounded object schema");
         // Never resolve network/filesystem references when compiling an extension schema.
         checkReferences(tree);
-        var validator =
-                JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(tree);
+        var validator = new SchemaValidator(tree);
         @SuppressWarnings("unchecked")
-        Map<String, Object> frozen = JSON.convertValue(tree, Map.class);
+        Map<String, Object> frozen = JSON.convert(tree, Map.class);
         // Keep schema snapshots private; forAgent() returns detached JSON snapshots.
         schemaCharacters += characters;
         entries.put(
@@ -154,7 +155,7 @@ public class ToolRegistry {
                         handler));
     }
 
-    private static void checkReferences(com.fasterxml.jackson.databind.JsonNode node) {
+    private static void checkReferences(JsonValue node) {
         if (node.isObject())
             node.fields()
                     .forEachRemaining(
@@ -176,7 +177,7 @@ public class ToolRegistry {
             throw new IllegalArgumentException("Cannot remove a native tool");
         if (entry != null)
             schemaCharacters -=
-                    JSON.valueToTree(entry.definition().parameters()).toString().length()
+                    JSON.tree(entry.definition().parameters()).toString().length()
                             + entry.definition().description().length();
         entries.remove(name);
     }
@@ -193,7 +194,7 @@ public class ToolRegistry {
             var entry = entries.get(call.name());
             if (entry == null)
                 throw new IllegalArgumentException("Unsupported tool: " + call.name());
-            var arguments = JSON.valueToTree(call.arguments());
+            var arguments = JSON.tree(call.arguments());
             if (arguments.toString().length() > 1100000)
                 throw new IllegalArgumentException("Tool arguments exceed limits");
             var errors = entry.validator().validate(arguments);
@@ -215,8 +216,8 @@ public class ToolRegistry {
                         : config.toolAvailable(actor, name)) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> snapshot =
-                            JSON.convertValue(
-                                    JSON.valueToTree(
+                            JSON.convert(
+                                    JSON.tree(
                                             name.equals("task")
                                                     ? ToolSchemas.task(config, actor)
                                                     : entry.definition().schema()),

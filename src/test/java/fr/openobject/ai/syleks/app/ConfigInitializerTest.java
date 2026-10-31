@@ -17,9 +17,8 @@ package fr.openobject.ai.syleks.app;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.SchemaValidator;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.json.JsonMapper;
 import java.nio.file.Files;
@@ -40,12 +39,10 @@ class ConfigInitializerTest {
         assertTrue(results.stream().allMatch(ConfigInitializer.Result::created));
         var directory = home.resolve(".config/syleks");
         var schema =
-                JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
-                        .getSchema(directory.resolve("agent-config.schema.json").toUri());
+                new SchemaValidator(
+                        new JsonIO().parse(directory.resolve("agent-config.schema.json").toFile()));
         assertTrue(
-                schema.validate(
-                                new ObjectMapper()
-                                        .readTree(directory.resolve("agent-config.json").toFile()))
+                schema.validate(new JsonIO().parse(directory.resolve("agent-config.json").toFile()))
                         .isEmpty());
         try (var container = ConfiguringContainer.of().start();
                 var mapper = container.lookup(JsonMapper.class)) {

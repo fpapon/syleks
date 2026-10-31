@@ -42,7 +42,7 @@ class TechnologyPackLoaderTest {
         Files.write(root.resolve("pack.json"), EngineeringFixtures.bytes(manifest));
         var ref =
                 EngineeringFixtures.JSON
-                        .createObjectNode()
+                        .object()
                         .put("id", "test-pack")
                         .put("version", "1.0.0")
                         .put("local_path", root.toString())

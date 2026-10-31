@@ -103,9 +103,7 @@ class EngineeringDocumentsTest {
                         EngineeringDocuments.parse(
                                 EngineeringFixtures.bytes(budget), "token_budget"));
         var workflow = EngineeringFixtures.document("workflow_definition");
-        ((com.fasterxml.jackson.databind.node.ArrayNode)
-                        workflow.path("stages").get(0).path("depends_on"))
-                .add("review");
+        (workflow.path("stages").get(0).path("depends_on")).add("review");
         assertThrows(
                 IOException.class,
                 () ->

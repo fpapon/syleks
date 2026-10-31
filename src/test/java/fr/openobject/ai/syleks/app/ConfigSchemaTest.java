@@ -18,29 +18,27 @@ package fr.openobject.ai.syleks.app;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
+import fr.openobject.ai.syleks.json.SchemaValidator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ConfigSchemaTest {
-    private final ObjectMapper json = new ObjectMapper();
-    private final JsonSchema schema =
-            JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
-                    .getSchema(Path.of("agent-config.schema.json").toUri());
+    private final JsonIO json = new JsonIO();
+    private final SchemaValidator schema =
+            new SchemaValidator(json.parse(Path.of("agent-config.schema.json").toFile()));
+
+    ConfigSchemaTest() throws Exception {}
 
     @Test
     void validatesSandboxPolicyAndRejectsUnknownCapabilitiesOrUnboundedResources()
             throws Exception {
         for (String mode : List.of("restricted", "unrestricted"))
             assertTrue(
-                    schema.validate(
-                                    json.readTree(
-                                            "{\"command_sandbox\":{\"mode\":\"" + mode + "\"}}"))
+                    schema.validate(json.parse("{\"command_sandbox\":{\"mode\":\"" + mode + "\"}}"))
                             .isEmpty());
         for (String settings :
                 List.of(
@@ -54,8 +52,7 @@ class ConfigSchemaTest {
                         "{\"cpu_percent\":1000}",
                         "{\"memory_mib\":64.5}"))
             assertFalse(
-                    schema.validate(json.readTree("{\"command_sandbox\":" + settings + "}"))
-                            .isEmpty(),
+                    schema.validate(json.parse("{\"command_sandbox\":" + settings + "}")).isEmpty(),
                     settings);
     }
 
@@ -63,7 +60,7 @@ class ConfigSchemaTest {
     void validatesWebServiceGrantsAndRejectsWildcardsPathsAndCredentials() throws Exception {
         assertTrue(
                 schema.validate(
-                                json.readTree(
+                                json.parse(
                                         "{\"web_private_origins\":[\"https://intranet.example:8443\",\"http://[::1]:8000\"]}"))
                         .isEmpty());
         for (String value :
@@ -72,7 +69,7 @@ class ConfigSchemaTest {
                         "http://*.example",
                         "http://user:fake@localhost",
                         "http://localhost/path")) {
-            var settings = json.createObjectNode();
+            var settings = json.object();
             settings.putArray("web_private_origins").add(value);
             assertFalse(schema.validate(settings).isEmpty(), value);
         }
@@ -82,8 +79,7 @@ class ConfigSchemaTest {
     void acceptsExplicitGlobalOriginDeclarationsAndRejectsBroadOrSecretBearingValues()
             throws Exception {
         var config =
-                json.readTree(
-                        Files.readString(Path.of("examples/agent-config-insecure-http.json")));
+                json.parse(Files.readString(Path.of("examples/agent-config-insecure-http.json")));
         assertTrue(schema.validate(config).isEmpty(), () -> schema.validate(config).toString());
         for (String origin :
                 List.of(
@@ -92,7 +88,7 @@ class ConfigSchemaTest {
                         "https://example.com",
                         "http://example.com/path",
                         "http://user:key@example.com")) {
-            var invalid = json.createObjectNode();
+            var invalid = json.object();
             invalid.putArray("insecure_http_origins").add(origin);
             assertFalse(schema.validate(invalid).isEmpty(), origin);
         }
@@ -101,8 +97,8 @@ class ConfigSchemaTest {
     @Test
     void enforcesTheTransportPolicyForProvidersAndMcpInTheSchema() {
         for (String kind : List.of("local", "ollama", "mcp")) {
-            var config = json.createObjectNode();
-            com.fasterxml.jackson.databind.node.ObjectNode endpoint;
+            var config = json.object();
+            JsonValue endpoint;
             String key;
             if (kind.equals("mcp")) {
                 endpoint = config.putObject("mcp").putObject("fixture");
@@ -147,9 +143,9 @@ class ConfigSchemaTest {
                         "openrouter",
                         "opencode",
                         "google")) {
-            var options = json.createObjectNode();
+            var options = json.object();
             if (id.equals("local")) options.put("baseURL", "https://llm.example.com/v1");
-            var config = json.createObjectNode();
+            var config = json.object();
             config.putObject("provider").putObject(id).set("options", options);
             for (String proxy : List.of("http://proxy.example.com:8080", "http://[::1]:3128/")) {
                 options.put("proxy", proxy);
@@ -177,7 +173,7 @@ class ConfigSchemaTest {
     void validatesExamplesAndSupportedConfigurationVariants() throws Exception {
         try (var files = Files.list(Path.of("examples"))) {
             for (var file : files.filter(path -> path.toString().endsWith(".json")).toList()) {
-                var errors = schema.validate(json.readTree(Files.readString(file)));
+                var errors = schema.validate(json.parse(Files.readString(file)));
                 assertTrue(errors.isEmpty(), () -> file + ": " + errors);
             }
         }
@@ -193,7 +189,7 @@ class ConfigSchemaTest {
                         "{\"permission\":\"ALLOW\",\"max_rounds\":1000}",
                         "{\"agent\":{\"reviewer\":{\"mode\":\"SUBAGENT\",\"model\":\"qwen3:8b\",\"prompt\":\"Review code\",\"max_rounds\":1,\"permission\":{\"*\":{\"*\":\"DENY\"}}}}}",
                         "{\"provider\":{\"local\":{\"options\":{\"baseURL\":\"http://[::1]:8000/v1/\"},\"models\":{\"team/model\":{}}}}}")) {
-            var errors = schema.validate(json.readTree(content));
+            var errors = schema.validate(json.parse(content));
             assertTrue(errors.isEmpty(), () -> content + ": " + errors);
         }
     }
@@ -229,7 +225,7 @@ class ConfigSchemaTest {
                         "{\"agent\":{\"build\":{\"unknown\":true}}}",
                         "{\"provider\":{\"bad/id\":{}}}",
                         "{\"provider\":{\"local\":{\"models\":{}}}}")) {
-            assertFalse(schema.validate(json.readTree(content)).isEmpty(), content);
+            assertFalse(schema.validate(json.parse(content)).isEmpty(), content);
         }
     }
 
@@ -249,7 +245,7 @@ class ConfigSchemaTest {
                         "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"model\":{\"limit\":{\"output\":0}}}}",
                         "{\"options\":{\"baseURL\":\"http://localhost/v1\"},\"models\":{\"model\":{\"limit\":{\"context\":2147483648}}}}")) {
             assertFalse(
-                    schema.validate(json.readTree("{\"provider\":{\"local\":" + provider + "}}"))
+                    schema.validate(json.parse("{\"provider\":{\"local\":" + provider + "}}"))
                             .isEmpty(),
                     provider);
         }

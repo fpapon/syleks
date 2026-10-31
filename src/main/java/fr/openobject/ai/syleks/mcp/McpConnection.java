@@ -15,7 +15,8 @@
  */
 package fr.openobject.ai.syleks.mcp;
 
-import com.fasterxml.jackson.databind.*;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
 import java.io.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /** A serialized JSON-RPC session. Each exchange has one deadline including streaming body reads. */
 final class McpConnection implements AutoCloseable {
-    static final ObjectMapper JSON = new ObjectMapper();
+    static final JsonIO JSON = new JsonIO();
     static final String VERSION = "2025-06-18";
     private static final int LIMIT = 1024 * 1024;
     private final McpServerConfig config;
@@ -48,7 +49,7 @@ final class McpConnection implements AutoCloseable {
     private volatile InputStream body;
     private final java.util.concurrent.atomic.AtomicBoolean dirty =
             new java.util.concurrent.atomic.AtomicBoolean();
-    private final BlockingQueue<JsonNode> incoming = new ArrayBlockingQueue<>(8);
+    private final BlockingQueue<JsonValue> incoming = new ArrayBlockingQueue<>(8);
     private volatile String oauthToken;
     private final java.util.concurrent.ExecutorService io =
             Executors.newVirtualThreadPerTaskExecutor();
@@ -136,12 +137,12 @@ final class McpConnection implements AutoCloseable {
                                     () -> {
                                         try {
                                             for (String line; (line = line(stdout)) != null; ) {
-                                                var message = JSON.readTree(line);
+                                                var message = JSON.parse(line);
                                                 if (!serverMessage(message)) incoming.put(message);
                                             }
                                         } catch (Exception ignored) {
                                         } finally {
-                                            incoming.offer(JSON.nullNode());
+                                            incoming.offer(JSON.nullValue());
                                         }
                                     });
         } else {
@@ -162,7 +163,7 @@ final class McpConnection implements AutoCloseable {
                 : value;
     }
 
-    JsonNode initialize() throws Exception {
+    JsonValue initialize() throws Exception {
         var result =
                 request(
                         "initialize",
@@ -190,13 +191,13 @@ final class McpConnection implements AutoCloseable {
         return dirty.getAndSet(false);
     }
 
-    JsonNode request(String method, Map<String, Object> params) throws Exception {
+    JsonValue request(String method, Map<String, Object> params) throws Exception {
         lock.lockInterruptibly();
         try {
             if (closed) throw new IOException("MCP connection is closed");
             long id = ids.incrementAndGet();
             var message = Map.of("jsonrpc", "2.0", "id", id, "method", method, "params", params);
-            if (JSON.writeValueAsBytes(message).length > LIMIT)
+            if (JSON.bytes(message).length > LIMIT)
                 throw new IOException("MCP request exceeds limit");
             var pending = io.submit(() -> exchange(message, id));
             try {
@@ -239,25 +240,23 @@ final class McpConnection implements AutoCloseable {
         }
     }
 
-    private JsonNode exchange(Map<String, Object> message, long id) throws Exception {
+    private JsonValue exchange(Map<String, Object> message, long id) throws Exception {
         if (http == null) {
             write(message);
             int total = 0;
             while (true) {
-                JsonNode messageNode = incoming.take();
+                JsonValue messageNode = incoming.take();
                 if (messageNode.isNull()) throw new EOFException();
                 total += messageNode.toString().length();
                 if (total > LIMIT) throw new IOException("MCP response exceeds limit");
-                JsonNode result = accept(messageNode, id);
+                JsonValue result = accept(messageNode, id);
                 if (result != null) return result;
             }
         }
         var response =
                 http.send(
                         builder()
-                                .POST(
-                                        HttpRequest.BodyPublishers.ofString(
-                                                JSON.writeValueAsString(message)))
+                                .POST(HttpRequest.BodyPublishers.ofString(JSON.write(message)))
                                 .build(),
                         HttpResponse.BodyHandlers.ofInputStream());
         try (var input = response.body()) {
@@ -278,7 +277,7 @@ final class McpConnection implements AutoCloseable {
             if (contentType.startsWith("application/json")) {
                 byte[] bytes = input.readNBytes(LIMIT + 1);
                 if (bytes.length > LIMIT) throw new IOException("MCP response exceeds limit");
-                var result = accept(JSON.readTree(bytes), id);
+                var result = accept(JSON.parse(bytes), id);
                 if (result == null) throw new IOException("Missing MCP response");
                 return result;
             }
@@ -290,7 +289,7 @@ final class McpConnection implements AutoCloseable {
                 total += line.length();
                 if (total > LIMIT) throw new IOException("MCP stream exceeds limit");
                 if (line.isEmpty() && !data.isEmpty()) {
-                    var result = accept(JSON.readTree(data.toString()), id);
+                    var result = accept(JSON.parse(data.toString()), id);
                     data.setLength(0);
                     if (result != null) return result;
                 } else if (line.startsWith("data:")) {
@@ -304,7 +303,7 @@ final class McpConnection implements AutoCloseable {
         }
     }
 
-    private JsonNode accept(JsonNode node, long id) throws Exception {
+    private JsonValue accept(JsonValue node, long id) throws Exception {
         if (node == null || !node.isObject() || !node.path("jsonrpc").asText().equals("2.0"))
             throw new IOException("Invalid MCP message");
         if (serverMessage(node)) return null;
@@ -315,7 +314,7 @@ final class McpConnection implements AutoCloseable {
         return node.get("result");
     }
 
-    private boolean serverMessage(JsonNode node) throws Exception {
+    private boolean serverMessage(JsonValue node) throws Exception {
         if (node == null || !node.isObject() || !node.path("jsonrpc").asText().equals("2.0"))
             throw new IOException("Invalid MCP message");
         if (node.has("method")) {
@@ -365,9 +364,7 @@ final class McpConnection implements AutoCloseable {
         var response =
                 http.send(
                         builder()
-                                .POST(
-                                        HttpRequest.BodyPublishers.ofString(
-                                                JSON.writeValueAsString(message)))
+                                .POST(HttpRequest.BodyPublishers.ofString(JSON.write(message)))
                                 .build(),
                         HttpResponse.BodyHandlers.discarding());
         if (response.statusCode() != 202 && response.statusCode() != 204)
@@ -375,7 +372,7 @@ final class McpConnection implements AutoCloseable {
     }
 
     private synchronized void write(Map<String, Object> message) throws IOException {
-        stdin.write(JSON.writeValueAsBytes(message));
+        stdin.write(JSON.bytes(message));
         stdin.write('\n');
         stdin.flush();
     }
@@ -395,9 +392,7 @@ final class McpConnection implements AutoCloseable {
                 http.sendAsync(
                         builder(false)
                                 .timeout(Duration.ofSeconds(1))
-                                .POST(
-                                        HttpRequest.BodyPublishers.ofString(
-                                                JSON.writeValueAsString(message)))
+                                .POST(HttpRequest.BodyPublishers.ofString(JSON.write(message)))
                                 .build(),
                         HttpResponse.BodyHandlers.discarding());
             // Closing stdio terminates the entire operation, including its subprocess tree.

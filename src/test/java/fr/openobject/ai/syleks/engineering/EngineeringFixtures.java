@@ -15,18 +15,18 @@
  */
 package fr.openobject.ai.syleks.engineering;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 final class EngineeringFixtures {
-    static final ObjectMapper JSON = new ObjectMapper();
+    static final JsonIO JSON = new JsonIO();
     static final String HASH = "a".repeat(64);
 
-    static ObjectNode document(String kind) {
-        var n = JSON.createObjectNode().put("schema_version", 1).put("kind", kind);
+    static JsonValue document(String kind) {
+        var n = JSON.object().put("schema_version", 1).put("kind", kind);
         switch (kind) {
             case "token_budget" ->
                     n.put("id", "budget")
@@ -104,7 +104,7 @@ final class EngineeringFixtures {
         return n;
     }
 
-    static byte[] bytes(ObjectNode n) {
+    static byte[] bytes(JsonValue n) {
         return n.toString().getBytes(StandardCharsets.UTF_8);
     }
 

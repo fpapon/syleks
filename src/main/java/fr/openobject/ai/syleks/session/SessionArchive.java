@@ -15,9 +15,8 @@
  */
 package fr.openobject.ai.syleks.session;
 
-import com.fasterxml.jackson.core.*;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.databind.node.*;
+import fr.openobject.ai.syleks.json.JsonIO;
+import fr.openobject.ai.syleks.json.JsonValue;
 import fr.openobject.ai.syleks.session.model.*;
 import fr.openobject.ai.syleks.session.repository.*;
 import fr.openobject.ai.syleks.session.storage.*;
@@ -29,17 +28,7 @@ import java.util.*;
 /** Versioned, bounded data archives. Imports remap identity and never restore execution authority. */
 final class SessionArchive {
     private static final int LIMIT = 32 * 1024 * 1024;
-    private static final ObjectMapper JSON =
-            new ObjectMapper(
-                            JsonFactory.builder()
-                                    .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
-                                    .streamReadConstraints(
-                                            StreamReadConstraints.builder()
-                                                    .maxNestingDepth(64)
-                                                    .maxStringLength(LIMIT)
-                                                    .build())
-                                    .build())
-                    .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+    private static final JsonIO JSON = new JsonIO(64, LIMIT, 1000);
     private static final List<String> USAGE_COLUMNS =
             List.of(
                     "id",
@@ -130,13 +119,13 @@ final class SessionArchive {
         return List.copyOf(result);
     }
 
-    private ObjectNode document(String id) {
+    private JsonValue document(String id) {
         try {
-            var node = (ObjectNode) JSON.readTree(service.exportOne(id));
+            var node = JSON.parse(service.exportOne(id));
             service.summaries()
                     .find(id)
                     .ifPresent(s -> node.put("summaryThroughPosition", s.throughPosition()));
-            node.set("todos", JSON.readTree(service.todos().read(id)));
+            node.set("todos", JSON.parse(service.todos().read(id)));
             var usage = node.putArray("usage");
             database.read(
                     c -> {
@@ -148,7 +137,7 @@ final class SessionArchive {
                                 while (r.next()) {
                                     var row = usage.addObject();
                                     for (String column : USAGE_COLUMNS)
-                                        row.set(column, JSON.valueToTree(r.getObject(column)));
+                                        row.set(column, JSON.tree(r.getObject(column)));
                                 }
                             }
                         }
@@ -188,9 +177,9 @@ final class SessionArchive {
     Session importArchive(String content) {
         if (content == null || content.getBytes(StandardCharsets.UTF_8).length > LIMIT)
             throw invalid("Archive exceeds 32 MiB");
-        final JsonNode root;
+        final JsonValue root;
         try {
-            root = JSON.readTree(content);
+            root = JSON.parse(content);
         } catch (java.io.IOException e) {
             throw invalid("Expected valid JSON without duplicate fields");
         }
@@ -200,7 +189,7 @@ final class SessionArchive {
                 ? !projects.current().rootPath().equals(text(root, "projectRoot", 8192))
                 : !projects.currentId().equals(text(root.path("session"), "projectId", 36)))
             throw invalid("Archive belongs to another project");
-        var documents = new ArrayList<JsonNode>();
+        var documents = new ArrayList<JsonValue>();
         documents.add(root);
         if (root.has("children")) {
             for (var child : array(root, "children", 127)) documents.add(child);
@@ -300,7 +289,7 @@ final class SessionArchive {
     }
 
     private void validate(
-            JsonNode doc, Set<String> identities, Set<String> allMessages, String project) {
+            JsonValue doc, Set<String> identities, Set<String> allMessages, String project) {
         if (!doc.isObject()) throw invalid("Invalid session document");
         integer(doc, "schemaVersion", 1, 2);
         var meta = doc.path("session");
@@ -315,7 +304,7 @@ final class SessionArchive {
         if (summary != null && summary.getBytes(StandardCharsets.UTF_8).length > 16000)
             throw invalid("Summary exceeds limit");
         if (meta.hasNonNull("parentSessionId")) uuid(meta, "parentSessionId");
-        var calls = new HashMap<String, JsonNode>();
+        var calls = new HashMap<String, JsonValue>();
         var results = new HashSet<String>();
         var localMessages = new HashSet<String>();
         int position = 0;
@@ -481,7 +470,7 @@ final class SessionArchive {
             }
     }
 
-    private void install(JsonNode doc, Map<String, String> mapping, String originalRoot) {
+    private void install(JsonValue doc, Map<String, String> mapping, String originalRoot) {
         var meta = doc.path("session");
         String old = uuid(meta, "id"), id = mapping.get(old);
         String parent = mapping.get(nullable(meta, "parentSessionId"));
@@ -509,7 +498,7 @@ final class SessionArchive {
             for (var part : message.path("parts")) {
                 var payload = part.path("payload").deepCopy();
                 if (part.path("type").asText().equals("TOOL_RESULT")) {
-                    var object = (ObjectNode) payload;
+                    var object = payload;
                     if (payload.hasNonNull("callMessageId"))
                         object.put(
                                 "callMessageId",
@@ -613,7 +602,7 @@ final class SessionArchive {
                                 else if (column.equals("status")
                                         && row.path(column).asText().equals("RUNNING"))
                                     value = "INTERRUPTED";
-                                else value = JSON.convertValue(row.get(column), Object.class);
+                                else value = JSON.convert(row.get(column), Object.class);
                                 s.setObject(i + 1, value);
                             }
                             s.executeUpdate();
@@ -655,13 +644,13 @@ final class SessionArchive {
                 });
     }
 
-    private static ArrayNode array(JsonNode node, String field, int maximum) {
+    private static JsonValue array(JsonValue node, String field, int maximum) {
         var value = node.path(field);
         if (!value.isArray() || value.size() > maximum) throw invalid("Invalid array: " + field);
-        return (ArrayNode) value;
+        return value;
     }
 
-    private static String text(JsonNode node, String field, int maximum) {
+    private static String text(JsonValue node, String field, int maximum) {
         var value = node.path(field);
         if (!value.isTextual()
                 || value.asText().isBlank()
@@ -670,14 +659,14 @@ final class SessionArchive {
         return value.asText();
     }
 
-    private static String nullable(JsonNode node, String field) {
+    private static String nullable(JsonValue node, String field) {
         var value = node.path(field);
         if (value.isMissingNode() || value.isNull()) return null;
         if (!value.isTextual()) throw invalid("Invalid field: " + field);
         return value.asText();
     }
 
-    private static String uuid(JsonNode node, String field) {
+    private static String uuid(JsonValue node, String field) {
         String id = text(node, field, 36);
         if (!UUID.fromString(id).toString().equals(id)) throw invalid("Invalid UUID");
         return id;
@@ -687,7 +676,7 @@ final class SessionArchive {
         if (!ids.add(id)) throw invalid("Duplicate archive identity");
     }
 
-    private static int integer(JsonNode node, String field, int minimum, int maximum) {
+    private static int integer(JsonValue node, String field, int minimum, int maximum) {
         var value = node.path(field);
         if (!value.isIntegralNumber()
                 || !value.canConvertToInt()
@@ -696,11 +685,11 @@ final class SessionArchive {
         return value.asInt();
     }
 
-    private static void timestamp(JsonNode node, String field) {
+    private static void timestamp(JsonValue node, String field) {
         Instant.parse(text(node, field, 64));
     }
 
-    private static byte[] blob(JsonNode node, String field) {
+    private static byte[] blob(JsonValue node, String field) {
         String value = nullable(node, field);
         if (value == null) return null;
         if (value.length() > 1333340) throw invalid("File snapshot exceeds 1 MB");

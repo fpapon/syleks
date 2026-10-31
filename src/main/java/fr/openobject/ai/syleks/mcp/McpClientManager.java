@@ -15,9 +15,9 @@
  */
 package fr.openobject.ai.syleks.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import fr.openobject.ai.syleks.ai.*;
 import fr.openobject.ai.syleks.app.AppConfig;
+import fr.openobject.ai.syleks.json.JsonValue;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -122,7 +122,7 @@ public final class McpClientManager implements AutoCloseable {
     }
 
     private List<CustomTool> discover(
-            Server server, McpConnection connection, JsonNode capabilities) throws Exception {
+            Server server, McpConnection connection, JsonValue capabilities) throws Exception {
         var result = new ArrayList<CustomTool>();
         boolean tools = capabilities == null || capabilities.has("tools");
         if (tools) {
@@ -145,7 +145,7 @@ public final class McpClientManager implements AutoCloseable {
                     String remote = tool.get("name").asText();
                     @SuppressWarnings("unchecked")
                     Map<String, Object> schema =
-                            McpConnection.JSON.convertValue(tool.get("inputSchema"), Map.class);
+                            McpConnection.JSON.convert(tool.get("inputSchema"), Map.class);
                     result.add(
                             handler(
                                     server,
@@ -322,16 +322,16 @@ public final class McpClientManager implements AutoCloseable {
                 false);
     }
 
-    private static String content(JsonNode response) throws Exception {
+    private static String content(JsonValue response) throws Exception {
         // Binary blocks are represented by metadata instead of embedding base64 in model context.
         var copy = response.deepCopy();
         stripBinary(copy);
-        return McpConnection.JSON.writeValueAsString(copy);
+        return McpConnection.JSON.write(copy);
     }
 
-    private static void stripBinary(JsonNode node) {
+    private static void stripBinary(JsonValue node) {
         if (node.isObject()) {
-            var obj = (com.fasterxml.jackson.databind.node.ObjectNode) node;
+            var obj = node;
             if (obj.has("blob")) {
                 obj.remove("blob");
                 obj.put("binaryOmitted", true);

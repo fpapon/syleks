@@ -15,14 +15,14 @@
  */
 package fr.openobject.ai.syleks.mcp;
 
-import com.fasterxml.jackson.databind.*;
+import fr.openobject.ai.syleks.json.JsonIO;
 import java.nio.file.*;
 import java.util.*;
 
 /** A real newline JSON-RPC child process; never needs a model or an installed MCP server. */
 public final class McpTestServer {
     public static void main(String[] args) throws Exception {
-        var json = new ObjectMapper();
+        var json = new JsonIO();
         Files.writeString(Path.of(args[0]), Long.toString(ProcessHandle.current().pid()));
         if (args.length > 1 && args[1].equals("child")) {
             Thread.sleep(60000);
@@ -31,7 +31,7 @@ public final class McpTestServer {
         boolean initialized = false;
         var input = new java.io.BufferedReader(new java.io.InputStreamReader(System.in));
         for (String line; (line = input.readLine()) != null; ) {
-            var request = json.readTree(line);
+            var request = json.parse(line);
             String method = request.path("method").asText();
             if (method.equals("notifications/initialized")) {
                 initialized = true;
@@ -141,14 +141,13 @@ public final class McpTestServer {
             }
             if (method.equals("tools/list")
                     && "external-ref".equals(System.getenv("SYLEKS_MCP_FIXTURE_MODE"))) {
-                var tree = json.valueToTree(result);
-                ((com.fasterxml.jackson.databind.node.ObjectNode)
-                                tree.path("tools").get(0).path("inputSchema"))
+                var tree = json.tree(result);
+                (tree.path("tools").get(0).path("inputSchema"))
                         .put("$ref", "https://fixture.invalid/schema");
                 result = tree;
             }
             System.out.println(
-                    json.writeValueAsString(
+                    json.write(
                             Map.of("jsonrpc", "2.0", "id", request.get("id"), "result", result)));
             System.out.flush();
         }

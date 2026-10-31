@@ -187,7 +187,7 @@ class McpTransportTest {
                             exchange.sendResponseHeaders(307, -1);
                             return;
                         }
-                        var request = McpConnection.JSON.readTree(exchange.getRequestBody());
+                        var request = McpConnection.JSON.parse(exchange.getRequestBody());
                         Object id = mode.get().equals("id") ? 999 : request.get("id");
                         Object response =
                                 mode.get().equals("error")
@@ -215,7 +215,7 @@ class McpTransportTest {
                                                         Map.of(),
                                                         "serverInfo",
                                                         Map.of("name", "fixture", "version", "1")));
-                        byte[] bytes = McpConnection.JSON.writeValueAsBytes(response);
+                        byte[] bytes = McpConnection.JSON.bytes(response);
                         exchange.getResponseHeaders().add("Content-Type", "application/json");
                         exchange.sendResponseHeaders(200, bytes.length);
                         exchange.getResponseBody().write(bytes);
@@ -281,7 +281,7 @@ class McpTransportTest {
                     "/mcp",
                     exchange -> {
                         try (exchange) {
-                            var request = McpConnection.JSON.readTree(exchange.getRequestBody());
+                            var request = McpConnection.JSON.parse(exchange.getRequestBody());
                             if (request.path("method").asText().equals("notifications/cancelled")) {
                                 cancellations.countDown();
                                 exchange.sendResponseHeaders(202, -1);
@@ -365,7 +365,7 @@ class McpTransportTest {
             Files.createDirectories(config.getParent());
             Files.writeString(
                     config,
-                    McpConnection.JSON.writeValueAsString(
+                    McpConnection.JSON.write(
                             Map.of(
                                     "mcp",
                                     Map.of(

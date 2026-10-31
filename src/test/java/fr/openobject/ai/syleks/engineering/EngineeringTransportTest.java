@@ -64,7 +64,7 @@ class EngineeringTransportTest {
             Path settings = root.resolve("home/.config/syleks/agent-config.json");
             Files.writeString(
                     settings,
-                    EngineeringFixtures.JSON.writeValueAsString(
+                    EngineeringFixtures.JSON.write(
                             Map.of(
                                     "permission",
                                     Map.of("read", "allow", "bash", "deny", "task", "deny"),

@@ -15,8 +15,8 @@
  */
 package fr.openobject.ai.syleks.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import fr.openobject.ai.syleks.fs.SecureFiles;
+import fr.openobject.ai.syleks.json.JsonIO;
 import fr.openobject.ai.syleks.mcp.McpServerConfig;
 import fr.openobject.ai.syleks.net.TransportSecurity;
 import java.io.IOException;
@@ -26,7 +26,7 @@ import java.util.*;
 
 /** Explicit user-only migration/rotation of global configuration. No backup contains plaintext. */
 public final class SecretConfiguration {
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final JsonIO JSON = new JsonIO();
     private final ConfigSecrets secrets;
 
     public SecretConfiguration(ConfigSecrets secrets) {
@@ -77,7 +77,7 @@ public final class SecretConfiguration {
         final Map<String, Object> config;
         var fields = new ArrayList<Field>();
         try {
-            config = object(JSON.readValue(before, Object.class));
+            config = object(JSON.read(before, Object.class));
             var policy =
                     TransportSecurity.Policy.parse(
                             config.getOrDefault("insecure_http_origins", List.of()));
@@ -133,8 +133,7 @@ public final class SecretConfiguration {
             }
             if (rotate != null && created.isEmpty())
                 throw new IOException("Reference is not used by global configuration");
-            if (!created.isEmpty())
-                SecureFiles.commitPrivate(file, before, JSON.writeValueAsBytes(config));
+            if (!created.isEmpty()) SecureFiles.commitPrivate(file, before, JSON.bytes(config));
         } catch (IOException | RuntimeException e) {
             for (String reference : created)
                 if (ConfigSecrets.reference(reference))
