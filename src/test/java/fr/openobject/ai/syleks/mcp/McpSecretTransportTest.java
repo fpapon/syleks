@@ -26,8 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.*;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class McpSecretTransportTest {
     @TempDir Path root;
@@ -47,8 +48,10 @@ class McpSecretTransportTest {
                 secrets);
     }
 
-    @Test
-    void httpResolvesHeadersOnlyForBoundServerAndSuppressesServerErrorEchoes() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void httpResolvesHeadersOnlyForBoundServerAndSuppressesServerErrorEchoes(boolean encrypted)
+            throws Exception {
         String token = "synthetic-header-secret";
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         var requests = new AtomicInteger();
@@ -69,11 +72,12 @@ class McpSecretTransportTest {
         try {
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/mcp";
             var definition = new LinkedHashMap<String, Object>(Map.of("type", "http", "url", url));
-            var secrets = SecretFixtures.files(root.resolve("secrets"));
-            String ref =
-                    secrets.create(
-                            ConfigSecrets.mcpScope(parse(definition), "headers", "X-Api-Key"),
-                            token);
+            var secrets =
+                    encrypted
+                            ? SecretFixtures.encrypted(root.resolve("secrets"))
+                            : SecretFixtures.files(root.resolve("secrets"));
+            String scope = ConfigSecrets.mcpScope(parse(definition), "headers", "X-Api-Key");
+            String ref = encrypted ? secrets.encrypt(scope, token) : secrets.create(scope, token);
             definition.put("headers", Map.of("X-Api-Key", ref));
             try (var connection = connect(parse(definition), secrets)) {
                 var error = assertThrows(IOException.class, connection::initialize);
@@ -94,8 +98,10 @@ class McpSecretTransportTest {
         }
     }
 
-    @Test
-    void stdioSecretReachesOnlyConfiguredChildAndChangedCommandCannotReuseIt() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void stdioSecretReachesOnlyConfiguredChildAndChangedCommandCannotReuseIt(boolean encrypted)
+            throws Exception {
         Path marker = root.resolve("secret-result");
         Path inherited = root.resolve("host-result");
         var command =
@@ -108,12 +114,13 @@ class McpSecretTransportTest {
                         inherited.toString());
         var definition =
                 new LinkedHashMap<String, Object>(Map.of("type", "stdio", "command", command));
-        var secrets = SecretFixtures.files(root.resolve("secrets"));
+        var secrets =
+                encrypted
+                        ? SecretFixtures.encrypted(root.resolve("secrets"))
+                        : SecretFixtures.files(root.resolve("secrets"));
         String token = "synthetic-stdio-secret";
-        String ref =
-                secrets.create(
-                        ConfigSecrets.mcpScope(parse(definition), "environment", "APP_TOKEN", root),
-                        token);
+        String scope = ConfigSecrets.mcpScope(parse(definition), "environment", "APP_TOKEN", root);
+        String ref = encrypted ? secrets.encrypt(scope, token) : secrets.create(scope, token);
         definition.put("environment", Map.of("APP_TOKEN", ref));
         try (var connection = connect(parse(definition), secrets)) {
             assertThrows(
@@ -125,7 +132,7 @@ class McpSecretTransportTest {
         assertEquals("unset", Files.readString(inherited));
         var baseline =
                 fr.openobject.ai.syleks.app.SubprocessEnvironment.baseline(
-                        Map.of("HOST_SECRET", token), root);
+                        Map.of("HOST_SECRET", token, "SYLEKS_CONFIG_KEY", token), root);
         var child = new ProcessBuilder("/usr/bin/env");
         child.environment().clear();
         child.environment().putAll(baseline);

@@ -1,6 +1,39 @@
-# Secret references and migration
+# Encrypted configuration and secret references
 
-Custom provider `options.apiKey`, MCP HTTP `headers` and MCP stdio `environment` values accept either a literal or an opaque `syleks-secret:UUID` reference. The prefix is reserved. References contain no secret and resolve only inside the destination transport, after endpoint validation. Configuration setup masks its API key/reference field and never resolves it. Blank optional provider keys remain absent.
+Custom provider `options.apiKey`, MCP HTTP `headers` and MCP stdio `environment` values accept a literal, an inline `syleks-encrypted:v1:...` encrypted value, or an opaque `syleks-secret:UUID` reference. Both prefixes are reserved. References contain no secret and resolve only inside the destination transport, after endpoint validation. Configuration setup masks its API key/reference field and never resolves it. Blank optional provider keys remain absent.
+
+## Encrypt values in agent-config.json
+
+Close active chats, review `~/.config/syleks/agent-config.json`, and provide a Base64-encoded random 32-byte key in `SYLEKS_CONFIG_KEY`. For example, to generate a new key for initial setup:
+
+```sh
+export SYLEKS_CONFIG_KEY="$(openssl rand -base64 32)"
+syleks secrets encrypt
+syleks chat
+```
+
+**Keep this key in a password manager or another secure location outside the configuration file.** Supply the same key in the environment whenever starting Syleks. The example generates a new key each time; do not rerun the generation step when opening an already encrypted configuration. Losing the key makes the encrypted values unrecoverable. Do not commit the key or put it in shell history. Syleks does not generate a key file or pass this host variable to tool subprocesses by default.
+
+`secrets encrypt` replaces every nonempty literal custom-provider `options.apiKey`, MCP HTTP header, and MCP stdio environment value in the global file with inline ciphertext. Existing encrypted values and keyring references are preserved. Other settings are unchanged. Encryption uses AES-256-GCM, a fresh random 96-bit nonce, and a 128-bit authentication tag. The version and destination scope are authenticated. No keyring or sidecar secret records are needed. As with migration, the configuration update is locked and atomic, concurrent edits are preserved, and no plaintext backup is created.
+
+For example, the resulting provider configuration has this shape (the ciphertext below is a placeholder):
+
+```json
+{
+  "provider": {
+    "custom": {
+      "options": {
+        "baseURL": "https://provider.example/v1",
+        "apiKey": "syleks-encrypted:v1:BASE64_NONCE_AND_CIPHERTEXT"
+      }
+    }
+  }
+}
+```
+
+Only the destination transport decrypts the value. A missing/invalid key, wrong key, malformed ciphertext, modified ciphertext, or changed destination refuses access before sending credentials or launching an MCP child. Destination bindings are the same as secret references, described below. Plaintext and references remain supported alongside encrypted values. The setup wizard preserves encrypted values and masks the key field; after entering a new literal, run `secrets encrypt` again.
+
+`secrets rotate <encrypted-value>` reads a new credential using the same masked console/stdin flow as reference rotation and stores new ciphertext under the current encryption key. Remove encrypted values directly from configuration to stop using them; `secrets revoke` applies only to stored references. Old ciphertext remains decryptable with its original key, so revoke superseded API keys at the provider. To change the encryption key, obtain fresh credentials, replace encrypted fields with those literals, then run `secrets encrypt` with the new key and restart chats. This encrypts supported secret fields, not the whole JSON document or OAuth account storage. Anyone with both the configuration and the key can decrypt it; protect the host and key separately.
 
 ## Explicit migration and rotation
 

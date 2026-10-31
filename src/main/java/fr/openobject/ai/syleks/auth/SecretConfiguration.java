@@ -34,12 +34,17 @@ public final class SecretConfiguration {
     }
 
     public int migrate(Path file) throws IOException {
-        return update(file, null, null);
+        return update(file, null, null, false);
+    }
+
+    public int encrypt(Path file) throws IOException {
+        return update(file, null, null, true);
     }
 
     public int rotate(Path file, String reference, String replacement) throws IOException {
-        if (!ConfigSecrets.reference(reference)) throw new IOException("Invalid secret reference");
-        return update(file, reference, replacement);
+        if (!ConfigSecrets.protectedValue(reference))
+            throw new IOException("Invalid secret reference");
+        return update(file, reference, replacement, false);
     }
 
     private record Field(Map<String, Object> values, String key, String scope) {}
@@ -50,7 +55,8 @@ public final class SecretConfiguration {
         return (Map<String, Object>) value;
     }
 
-    private int update(Path file, String rotate, String replacement) throws IOException {
+    private int update(Path file, String rotate, String replacement, boolean encrypt)
+            throws IOException {
         try (var channel = SecureFiles.lockChannel(file.resolveSibling(".agent-config.lock"))) {
             java.nio.channels.FileLock lock;
             try {
@@ -60,12 +66,13 @@ public final class SecretConfiguration {
             }
             if (lock == null) throw new IOException("Configuration update in progress");
             try (lock) {
-                return commit(file, rotate, replacement);
+                return commit(file, rotate, replacement, encrypt);
             }
         }
     }
 
-    private int commit(Path file, String rotate, String replacement) throws IOException {
+    private int commit(Path file, String rotate, String replacement, boolean encrypt)
+            throws IOException {
         byte[] before = SecureFiles.read(file, SecureFiles.LIMIT);
         final Map<String, Object> config;
         var fields = new ArrayList<Field>();
@@ -111,12 +118,18 @@ public final class SecretConfiguration {
             for (var field : fields) {
                 String old = (String) field.values.get(field.key);
                 if (old.isEmpty()) continue;
-                if (rotate == null ? ConfigSecrets.reference(old) : !rotate.equals(old)) continue;
+                if (rotate == null ? ConfigSecrets.protectedValue(old) : !rotate.equals(old))
+                    continue;
                 if (rotate != null) secrets.resolve(old, field.scope);
-                String reference = secrets.create(field.scope, rotate == null ? old : replacement);
+                boolean inline = encrypt || EncryptedConfigValue.matches(old);
+                String value = rotate == null ? old : replacement;
+                String reference =
+                        inline
+                                ? secrets.encrypt(field.scope, value)
+                                : secrets.create(field.scope, value);
                 created.add(reference);
                 field.values.put(field.key, reference);
-                if (rotate != null) retired.add(old);
+                if (rotate != null && ConfigSecrets.reference(old)) retired.add(old);
             }
             if (rotate != null && created.isEmpty())
                 throw new IOException("Reference is not used by global configuration");
@@ -124,10 +137,11 @@ public final class SecretConfiguration {
                 SecureFiles.commitPrivate(file, before, JSON.writeValueAsBytes(config));
         } catch (IOException | RuntimeException e) {
             for (String reference : created)
-                try {
-                    secrets.revoke(reference);
-                } catch (IOException ignored) {
-                }
+                if (ConfigSecrets.reference(reference))
+                    try {
+                        secrets.revoke(reference);
+                    } catch (IOException ignored) {
+                    }
             throw new IOException(
                     "Secret configuration update failed; original configuration retained");
         }

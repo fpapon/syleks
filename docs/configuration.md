@@ -237,7 +237,7 @@ There are no `providers`, `tools`, `system_prompt`, `instructions` or `agents` t
 | `name` | Optional nonblank display label; defaults to the provider ID |
 | `npm` | Optional `@ai-sdk/openai-compatible`; protocol selector only |
 | `options.baseURL` | Required for custom providers; HTTP(S) API base without credentials, query or fragment |
-| `options.apiKey` | Optional nonblank literal Bearer token; omit it for unauthenticated servers |
+| `options.apiKey` | Optional nonblank Bearer token, `syleks-encrypted:v1:...` ciphertext, or `syleks-secret:UUID` reference; omit it for unauthenticated servers |
 | `options.proxy` | Optional `http://HOST:PORT`; no credentials; port 1–65535 |
 | `models.MODEL.name` | Optional display label; defaults to the raw model ID |
 | `models.MODEL.limit.context` | Optional positive integer up to 2147483647 |
@@ -372,4 +372,4 @@ a same-user host attacker. Unrestricted commands may read files, execute scripts
 network under the user's OS permissions. [Restricted command isolation](command-sandbox.md)
 adds the separate OS boundary. Windows command isolation is not claimed or tested.
 
-Custom provider keys and MCP header/environment values support destination-bound secret references. See [explicit migration, rotation and storage limits](secret-storage.md).
+Custom provider keys and MCP header/environment values support destination-bound inline encryption (`syleks secrets encrypt`, using `SYLEKS_CONFIG_KEY`) and secret references. See [explicit migration, rotation and storage limits](secret-storage.md).

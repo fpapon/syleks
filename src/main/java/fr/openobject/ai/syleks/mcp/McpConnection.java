@@ -153,7 +153,7 @@ final class McpConnection implements AutoCloseable {
     }
 
     private String resolve(String value, String field, String name) throws IOException {
-        return fr.openobject.ai.syleks.auth.ConfigSecrets.reference(value)
+        return fr.openobject.ai.syleks.auth.ConfigSecrets.protectedValue(value)
                 ? (secrets == null ? fr.openobject.ai.syleks.auth.ConfigSecrets.open() : secrets)
                         .resolve(
                                 value,

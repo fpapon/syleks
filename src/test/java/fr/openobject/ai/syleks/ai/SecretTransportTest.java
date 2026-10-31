@@ -28,14 +28,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.*;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SecretTransportTest {
     @TempDir Path root;
 
-    @Test
-    void resolvesOnlyAtRequestBoundaryAndRedactsHttpStreamingAndParserErrors() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void resolvesOnlyAtRequestBoundaryAndRedactsHttpStreamingAndParserErrors(boolean encrypted)
+            throws Exception {
         String token = "synthetic-transport-token";
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         URI endpoint =
@@ -43,8 +46,12 @@ class SecretTransportTest {
                         "http://127.0.0.1:"
                                 + server.getAddress().getPort()
                                 + "/v1/chat/completions");
-        var secrets = SecretFixtures.files(root.resolve("secrets"));
-        String ref = secrets.create(ConfigSecrets.providerScope("custom", endpoint), token);
+        var secrets =
+                encrypted
+                        ? SecretFixtures.encrypted(root.resolve("secrets"))
+                        : SecretFixtures.files(root.resolve("secrets"));
+        String scope = ConfigSecrets.providerScope("custom", endpoint);
+        String ref = encrypted ? secrets.encrypt(scope, token) : secrets.create(scope, token);
         var requestToken = new AtomicReference<String>();
         var requestBody = new AtomicReference<String>();
         var reply = new AtomicReference<String>("{\"error\":{\"message\":\"" + token + "\"}}");
@@ -111,6 +118,7 @@ class SecretTransportTest {
                     assertFalse(requestBody.get().contains(ref));
                     status.set(200);
                 }
+                if (encrypted) return;
                 secrets.revoke(ref);
                 requestToken.set(null);
                 assertThrows(

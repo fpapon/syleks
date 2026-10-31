@@ -154,12 +154,15 @@ class LocalCommandRunnerTest {
 
     @Test
     void timesOutAndTerminatesTheCommandTree() throws Exception {
+        var pidFile = directory.resolve("child.pid");
         var result =
                 unrestricted(directory)
-                        .execute("sleep 30 & child=$!; printf '%s' \"$child\"; wait", 1);
+                        .execute(
+                                "sleep 30 & child=$!; printf '%s' \"$child\" > child.pid; wait", 1);
         assertTrue(result.timedOut());
         assertEquals(-1, result.exitCode());
-        long child = Long.parseLong(result.output().strip());
+        // Bash can append a job-termination diagnostic to the merged output during cleanup.
+        long child = Long.parseLong(Files.readString(pidFile).strip());
         awaitDead(child);
     }
 

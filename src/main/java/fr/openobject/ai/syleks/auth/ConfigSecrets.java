@@ -31,6 +31,7 @@ public final class ConfigSecrets {
     private final Path directory;
     private final CredentialVault vault;
     private final boolean fileAllowed;
+    private final java.util.function.Supplier<String> encryptionKey;
 
     public static ConfigSecrets open() {
         return new ConfigSecrets(
@@ -40,9 +41,18 @@ public final class ConfigSecrets {
     }
 
     ConfigSecrets(Path root, CredentialVault vault, boolean fileAllowed) {
+        this(root, vault, fileAllowed, () -> System.getenv("SYLEKS_CONFIG_KEY"));
+    }
+
+    ConfigSecrets(
+            Path root,
+            CredentialVault vault,
+            boolean fileAllowed,
+            java.util.function.Supplier<String> encryptionKey) {
         directory = root.toAbsolutePath().normalize().resolve("auth/config-secrets");
         this.vault = vault;
         this.fileAllowed = fileAllowed;
+        this.encryptionKey = encryptionKey;
     }
 
     public static String providerScope(String id, URI endpoint) {
@@ -74,6 +84,15 @@ public final class ConfigSecrets {
 
     public static boolean reference(String value) {
         return value != null && value.startsWith(PREFIX);
+    }
+
+    public static boolean protectedValue(String value) {
+        return reference(value) || EncryptedConfigValue.matches(value);
+    }
+
+    public String encrypt(String scope, String secret) throws IOException {
+        validate(secret);
+        return EncryptedConfigValue.encrypt(secret, scope, encryptionKey.get());
     }
 
     private Path path(String reference) throws IOException {
@@ -116,6 +135,11 @@ public final class ConfigSecrets {
     }
 
     public String resolve(String value, String scope) throws IOException {
+        if (EncryptedConfigValue.matches(value)) {
+            String secret = EncryptedConfigValue.decrypt(value, scope, encryptionKey.get());
+            validate(secret);
+            return secret;
+        }
         if (!reference(value)) return value;
         var record = read(value);
         if (!scope.equals(record.get("scope")))

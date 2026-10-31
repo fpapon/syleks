@@ -132,6 +132,106 @@ class ConfigSecretsTest {
         assertEquals("outside marker", Files.readString(outside));
     }
 
+    private static final String KEY = Base64.getEncoder().encodeToString(new byte[32]);
+
+    @Test
+    void encryptsInlineWithRandomNoncesAndAuthenticatesDestinationAndCiphertext() throws Exception {
+        var store = new ConfigSecrets(root, null, false, () -> KEY);
+        String encrypted = store.encrypt(scope("first"), TOKEN);
+        assertTrue(encrypted.startsWith("syleks-encrypted:v1:"));
+        assertTrue(ConfigSecrets.protectedValue(encrypted));
+        assertFalse(ConfigSecrets.reference(encrypted));
+        assertFalse(encrypted.contains(TOKEN));
+        assertNotEquals(encrypted, store.encrypt(scope("first"), TOKEN));
+        assertEquals(TOKEN, store.resolve(encrypted, scope("first")));
+        assertThrows(IOException.class, () -> store.resolve(encrypted, scope("second")));
+        var payload =
+                Base64.getDecoder().decode(encrypted.substring("syleks-encrypted:v1:".length()));
+        payload[payload.length - 1] ^= 1;
+        String tampered = "syleks-encrypted:v1:" + Base64.getEncoder().encodeToString(payload);
+        assertThrows(IOException.class, () -> store.resolve(tampered, scope("first")));
+        assertFalse(Files.exists(root.resolve("auth")));
+    }
+
+    @Test
+    void rejectsMissingWrongAndMalformedEncryptionKeysAndPayloadsWithoutEchoingValues()
+            throws Exception {
+        var store = new ConfigSecrets(root, null, false, () -> KEY);
+        String encrypted = store.encrypt(scope("first"), TOKEN);
+        for (String key :
+                Arrays.asList(
+                        null,
+                        "",
+                        TOKEN,
+                        Base64.getEncoder().encodeToString(new byte[16]),
+                        Base64.getEncoder().encodeToString(new byte[33]),
+                        Base64.getEncoder()
+                                .encodeToString(
+                                        "11111111111111111111111111111111"
+                                                .getBytes(
+                                                        java.nio.charset.StandardCharsets
+                                                                .UTF_8)))) {
+            var invalid = new ConfigSecrets(root, null, false, () -> key);
+            var error =
+                    assertThrows(
+                            IOException.class, () -> invalid.resolve(encrypted, scope("first")));
+            assertFalse(error.toString().contains(TOKEN));
+            assertNull(error.getCause());
+        }
+        for (String value :
+                List.of(
+                        "syleks-encrypted:v2:" + TOKEN,
+                        "syleks-encrypted:v1:!" + TOKEN,
+                        "syleks-encrypted:v1:AAAA")) {
+            var error = assertThrows(IOException.class, () -> store.resolve(value, scope("first")));
+            assertFalse(error.toString().contains(TOKEN));
+            assertNull(error.getCause());
+        }
+    }
+
+    @Test
+    void encryptsConfigurationWithoutSidecarSecretsAndRotatesInlineValues() throws Exception {
+        Path file = configuration();
+        var store = new ConfigSecrets(root, null, false, () -> KEY);
+        var migration = new SecretConfiguration(store);
+        assertEquals(3, migration.encrypt(file));
+        assertEquals(0, migration.encrypt(file));
+        assertEquals(0, migration.migrate(file));
+        String encrypted =
+                JSON.readTree(Files.readString(file))
+                        .path("provider")
+                        .path("custom")
+                        .path("options")
+                        .path("apiKey")
+                        .asText();
+        assertEquals(TOKEN, store.resolve(encrypted, scope("custom")));
+        assertEquals(1, migration.rotate(file, encrypted, "replacement"));
+        String rotated =
+                JSON.readTree(Files.readString(file))
+                        .path("provider")
+                        .path("custom")
+                        .path("options")
+                        .path("apiKey")
+                        .asText();
+        assertEquals("replacement", store.resolve(rotated, scope("custom")));
+        assertFalse(Files.exists(root.resolve("auth/config-secrets")));
+        assertEquals(
+                PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(file));
+        try (var files = Files.walk(root)) {
+            for (Path path : files.filter(Files::isRegularFile).toList())
+                assertFalse(Files.readString(path).contains(TOKEN));
+        }
+    }
+
+    @Test
+    void missingEncryptionKeyLeavesOriginalConfigurationUntouched() throws Exception {
+        Path file = configuration();
+        String original = Files.readString(file);
+        var migration = new SecretConfiguration(new ConfigSecrets(root, null, false, () -> null));
+        assertThrows(IOException.class, () -> migration.encrypt(file));
+        assertEquals(original, Files.readString(file));
+    }
+
     private Path configuration() throws Exception {
         var file = root.resolve("agent-config.json");
         Files.writeString(

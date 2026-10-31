@@ -20,6 +20,14 @@ import java.nio.file.Path;
 public final class SecretFixtures {
     private SecretFixtures() {}
 
+    public static ConfigSecrets encrypted(Path root) {
+        return new ConfigSecrets(
+                root,
+                null,
+                false,
+                () -> java.util.Base64.getEncoder().encodeToString(new byte[32]));
+    }
+
     public static ConfigSecrets files(Path root) {
         return new ConfigSecrets(root, null, true);
     }

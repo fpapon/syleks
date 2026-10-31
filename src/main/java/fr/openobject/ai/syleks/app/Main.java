@@ -72,8 +72,9 @@ public final class Main {
                         Usage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]
                                syleks config init [--defaults]
                                syleks config update
-                               syleks secrets migrate
-                               syleks secrets rotate|revoke <syleks-secret:uuid>
+                               syleks secrets migrate|encrypt
+                               syleks secrets rotate <reference-or-encrypted-value>
+                               syleks secrets revoke <syleks-secret:uuid>
                                syleks trust inspect|revoke
                                syleks trust grant <reviewed-sha256>
                                syleks session list
@@ -97,6 +98,7 @@ public final class Main {
                         In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
                         Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
                         Secrets: migrate global provider keys/MCP headers and environment to destination-bound references.
+                        encrypt stores inline ciphertext using the Base64 32-byte key in SYLEKS_CONFIG_KEY.
                         rotate reads a replacement from the console (masked) or one line on stdin; revoke is local removal.
                         Keyring required for new references unless SYLEKS_CREDENTIAL_BACKEND=file explicitly permits unencrypted files.
                         Restart chats after migration/rotation/revocation. See docs/secret-storage.md.
@@ -113,7 +115,7 @@ public final class Main {
             }
             if (args.length > 0 && args[0].equals("secrets")) {
                 require(
-                        args.length == 2 && args[1].equals("migrate")
+                        args.length == 2 && java.util.Set.of("migrate", "encrypt").contains(args[1])
                                 || args.length == 3
                                         && java.util.Set.of("rotate", "revoke").contains(args[1]));
                 var secrets = fr.openobject.ai.syleks.auth.ConfigSecrets.open();
@@ -145,7 +147,12 @@ public final class Main {
                     }
                     migration.rotate(file, args[2], value);
                     out.println("Secret rotated. Restart active chats.");
-                } else
+                } else if (args[1].equals("encrypt"))
+                    out.println(
+                            "Encrypted "
+                                    + migration.encrypt(file)
+                                    + " values. Restart active chats.");
+                else
                     out.println(
                             "Migrated "
                                     + migration.migrate(file)

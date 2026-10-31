@@ -44,6 +44,25 @@ class ProviderCliTest {
         assertFalse(Files.exists(root.resolve("config/syleks/auth/accounts")));
     }
 
+    @Test
+    void cliEncryptsProviderKeyInGlobalConfigurationAndPreservesCiphertextOnRepeat()
+            throws Exception {
+        Path file = root.resolve("home/.config/syleks/agent-config.json");
+        Files.createDirectories(file.getParent());
+        Files.writeString(
+                file,
+                """
+                {"provider":{"custom":{"options":{"baseURL":"https://provider.example/v1","apiKey":"synthetic-cli-secret"}}}}
+                """);
+        assertTrue(run("secrets", "encrypt").contains("Encrypted 1 values"));
+        String encrypted = Files.readString(file);
+        assertTrue(encrypted.contains("syleks-encrypted:v1:"));
+        assertFalse(encrypted.contains("synthetic-cli-secret"));
+        assertTrue(run("secrets", "encrypt").contains("Encrypted 0 values"));
+        assertEquals(encrypted, Files.readString(file));
+        assertTrue(run("secrets", "migrate").contains("Migrated 0 values"));
+    }
+
     private String run(String... args) throws Exception {
         Files.createDirectories(root.resolve("home"));
         var command =
@@ -59,6 +78,8 @@ class ProviderCliTest {
         builder.environment().put("HOME", root.resolve("home").toString());
         builder.environment().put("XDG_CONFIG_HOME", root.resolve("config").toString());
         builder.environment().put("SYLEKS_CREDENTIAL_BACKEND", "file");
+        builder.environment()
+                .put("SYLEKS_CONFIG_KEY", Base64.getEncoder().encodeToString(new byte[32]));
         for (String name :
                 List.of(
                         "OLLAMA_URL",

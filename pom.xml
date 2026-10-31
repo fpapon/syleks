@@ -302,7 +302,6 @@ under the License.
                         </executions>
                         <configuration>
                             <main>fr.openobject.ai.syleks.app.Main</main>
-<!--                            <nativeImage>${arthur.nativeImage}</nativeImage>-->
                             <graalDownloadUrl>https://gds.oracle.com/download/graal/25i4/latest/graalvm-jdk-25i4-25_linux-x64_bin.tar.gz</graalDownloadUrl>
                             <graalVersion>${graalvm.version}</graalVersion>
                             <output>${project.build.directory}/syleks</output>

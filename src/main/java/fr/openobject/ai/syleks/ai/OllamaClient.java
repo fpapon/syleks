@@ -316,7 +316,7 @@ public class OllamaClient {
                                         payload(connection, model, agent, messages, definitions),
                                         StandardCharsets.UTF_8));
         String apiKey = connection.apiKey();
-        if (fr.openobject.ai.syleks.auth.ConfigSecrets.reference(apiKey))
+        if (fr.openobject.ai.syleks.auth.ConfigSecrets.protectedValue(apiKey))
             apiKey =
                     (secrets == null ? fr.openobject.ai.syleks.auth.ConfigSecrets.open() : secrets)
                             .resolve(
