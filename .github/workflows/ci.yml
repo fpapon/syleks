@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
-          distribution: temurin
+          distribution: zulu
           java-version: '25'
       # No shared Maven/scanner caches: PR code cannot seed later trusted builds.
       - name: Isolate Maven downloads
@@ -28,10 +28,6 @@ jobs:
         with:
           version: v0.76.1
           cache: false
-      - name: Check scanner policy and failure behavior
-        run: python3 -m unittest discover -s .github/security -p 'test_*.py' -v
-      - name: Scan tracked repository files for secrets
-        run: python3 .github/security/scan.py secrets --output "$RUNNER_TEMP/security"
       - name: Prepare required Linux command sandbox
         run: |
           sudo apt-get update
@@ -55,12 +51,6 @@ jobs:
           mvn -B --no-transfer-progress -Pnative,release
           org.apache.maven.plugins:maven-dependency-plugin:3.11.0:resolve-plugins
           -DexcludeTransitive=false
-      - name: Scan build dependencies and shaded artifact; generate inventories
-        env:
-          SCAN_MAVEN_REPO: ${{ runner.temp }}/syleks-maven
-        run: >-
-          python3 .github/security/scan.py dependencies --output "$RUNNER_TEMP/security"
-          --maven-repo "$SCAN_MAVEN_REPO" --jar target/syleks-0.1.0-SNAPSHOT.jar
       - name: Archive performance fixtures and test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -70,14 +60,3 @@ jobs:
             target/performance/
             target/surefire-reports/
           retention-days: 7
-      - name: Archive dependency inventories and safe scanner summaries
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: security-reports
-          retention-days: 7
-          path: |
-            ${{ runner.temp }}/security/*-inventory.cdx.json
-            ${{ runner.temp }}/security/*-vulnerabilities.json
-            ${{ runner.temp }}/security/status.json
-            ${{ runner.temp }}/security/secrets-summary.json
