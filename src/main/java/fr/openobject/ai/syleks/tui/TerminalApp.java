@@ -51,6 +51,12 @@ public class TerminalApp implements AutoCloseable {
     }
 
     private UsageModal usageModal;
+    private DiffModal diffModal;
+
+    boolean diffOpen() {
+        return diffModal != null;
+    }
+
     private ProviderModal providerModal;
     private java.util.concurrent.Future<?> providerTask;
     private long providerRevision;
@@ -95,7 +101,8 @@ public class TerminalApp implements AutoCloseable {
     private int terminalWidth = 100, terminalHeight = 30;
 
     private boolean outputFocused() {
-        return usageModal == null
+        return diffModal == null
+                && usageModal == null
                 && providerModal == null
                 && configurationModal == null
                 && !palette
@@ -280,6 +287,7 @@ public class TerminalApp implements AutoCloseable {
                                     slash < 0 ? selection : selection.substring(slash + 1),
                                     session.contextLimits(selection));
                 }
+                if (diffModal != null) screen = diffModal.paint(screen.canvas());
                 paintClipboardNotice(screen.canvas(), System.nanoTime());
                 painter.paint(terminal, screen);
                 int input = reader.read(70);
@@ -292,6 +300,16 @@ public class TerminalApp implements AutoCloseable {
     }
 
     void handle(int key, NonBlockingReader reader) throws Exception {
+        if (diffModal != null) {
+            if (key == 27) handleEscape(reader);
+            else if (!paste) {
+                if (key == 4) running = false;
+                else if (key == 3 || key == 'q') diffModal = null;
+                else diffModal.key(key);
+            }
+            return;
+        }
+
         if (usageModal != null) {
             if (key == 27) handleEscape(reader);
             else if (key == 3 || key == 16 || key == '\r' || key == '\n') usageModal = null;
@@ -480,6 +498,10 @@ public class TerminalApp implements AutoCloseable {
                 outputSelection.clear();
                 return;
             }
+            if (diffModal != null) {
+                if (!paste) diffModal = null;
+                return;
+            }
             if (usageModal != null) {
                 usageModal = null;
                 return;
@@ -535,6 +557,12 @@ public class TerminalApp implements AutoCloseable {
         }
         var navigation = sequence.toString();
         if (navigation.matches("[56];[2-8]~")) navigation = navigation.charAt(0) + "~";
+        if (diffModal != null) {
+            if (navigation.equals("200~")) paste = true;
+            else if (navigation.equals("201~")) paste = false;
+            else if (!paste) diffModal.sequence(navigation);
+            return;
+        }
         if (usageModal != null) {
             switch (navigation) {
                 case "A" -> usageModal.move(-1);
@@ -686,7 +714,8 @@ public class TerminalApp implements AutoCloseable {
         int wheel = button & ~28;
         if (wheel != 64 && wheel != 65) return;
         int delta = wheel == 64 ? -3 : 3;
-        if (usageModal != null) usageModal.move(delta);
+        if (diffModal != null) diffModal.move(delta);
+        else if (usageModal != null) usageModal.move(delta);
         else if (palette) {
             for (int i = 0; i < 3; i++) helpModal.sequence(delta < 0 ? "A" : "B");
         } else if (providerModal != null) providerModal.move(delta);
@@ -811,7 +840,7 @@ public class TerminalApp implements AutoCloseable {
                 case "/import" -> changeSession("import", arg);
                 case "/messages" -> changeSession("messages", "");
                 case "/changes" -> changeSession("changes", "");
-                case "/diff" -> changeSession("diff", "");
+                case "/diff" -> openDiff();
                 case "/compact" -> session.maintainSession("compact");
                 case "/undo" -> session.maintainSession("undo");
                 case "/redo" -> session.maintainSession("redo");
@@ -1495,6 +1524,34 @@ public class TerminalApp implements AutoCloseable {
                         completions.add(
                                 () -> {
                                     sessionPicker.deletionFailed(e.getMessage());
+                                    sessionLoading = false;
+                                });
+                    }
+                });
+    }
+
+    private void openDiff() {
+        if (session.snapshot().busy() || session.snapshot().permission() != null) {
+            session.info("Finish generation or resolve its permission before inspecting changes.");
+            return;
+        }
+        sessionLoading = true;
+        sessionWorker.submit(
+                () -> {
+                    try {
+                        var service = session.persistence();
+                        if (service.current() == null)
+                            throw new IllegalStateException("No active session");
+                        var modal = new DiffModal(service.sessions().diff(service.current().id()));
+                        completions.add(
+                                () -> {
+                                    diffModal = modal;
+                                    sessionLoading = false;
+                                });
+                    } catch (RuntimeException e) {
+                        completions.add(
+                                () -> {
+                                    session.info(e.getMessage());
                                     sessionLoading = false;
                                 });
                     }

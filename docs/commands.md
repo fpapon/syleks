@@ -55,7 +55,8 @@ Type a command into the composer and press Enter. Internal commands are handled 
 | `/messages` | Show message UUIDs for selecting a fork boundary |
 | `/compact` | Generate a summary for future requests, keeping the full transcript |
 | `/import PATH` | Import a validated session archive and open its root |
-| `/changes`, `/diff` | Inspect native file snapshots |
+| `/changes` | List recorded native file changes |
+| `/diff` | Open source-colored snapshot viewer; n/p change blocks, N/P files, arrows scroll/pan, Esc closes |
 | `/undo`, `/redo` | Restore recorded file contents through the active agent's write policy |
 | `/model MODEL` | Select a configured `provider/model` or a bare Ollama model ID |
 | `/agents` | List agents and their modes |

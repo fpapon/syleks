@@ -257,7 +257,9 @@ Shell execution defaults to restricted Linux isolation: writable workspace, priv
 
 Successful `read` calls show a short **Read path** activity entry instead of dumping the source file into the terminal. Full read results still reach the model and remain available to later turns. `/save` exports the displayed transcript, including read summaries. The default assistant prompt requests concise Markdown responses and relevant snippets rather than full-file echoes.
 
-Responses render headings, lists, block quotes, horizontal rules, **bold**, *emphasis*, inline code, and links. Tool results use Markdown headings and code cards; web search results are linked lists. Language-tagged fenced code blocks receive lexical syntax coloring for Java, JavaScript/TypeScript, Markdown, AsciiDoc, XML/HTML, JSON, YAML, TOML, CSS, Python, Ruby, Kotlin, Go, Rust, C/C++, C#, SQL, Bash, and diffs. Common aliases such as `js`, `ts`, `md`, `adoc`, `py`, `sh`, and filenames such as `pom.xml` are recognized. Unknown languages use plain text.
+Responses render headings, lists, block quotes, horizontal rules, **bold**, *emphasis*, inline code, links, and pipe tables. Tables support left/center/right alignment, styled headers, inline formatting, escaped pipes, pipes inside code spans, and wrapped cells. Tables stack into labelled cells when the terminal is too narrow for all columns. Tool results use Markdown headings and code cards; web search results are linked lists. Language-tagged fenced code blocks receive lexical syntax coloring for Java, JavaScript/TypeScript, Markdown, AsciiDoc, XML/HTML, JSON, YAML, TOML, CSS, Python, Ruby, Kotlin, Go, Rust, C/C++, C#, SQL, Bash, and diffs. Common aliases such as `js`, `ts`, `md`, `adoc`, `py`, `sh`, and filenames such as `pom.xml` are recognized. Unknown languages use plain text.
+
+`/diff` opens a read-only viewer of recorded native file snapshots, including child-task changes. Source filenames select lexical highlighting; additions and removals retain distinct markers and backgrounds, with before/after line numbers. Press `n`/`p` (or `]`/`[`) to jump between change blocks and `N`/`P` (or `}`/`{`) between files. Arrows scroll vertically or pan horizontally; PgUp/PgDn and Home/End navigate; Esc or `q` closes the viewer. Snapshot diffs show whole before/after files, rather than a minimal patch. Inspection does not add messages to the conversation or change files.
 
 Use a language label when asking for snippets, for example:
 
@@ -333,7 +335,7 @@ AgentRuntime -> ToolExecutor -> native tools / MCP / Java extensions
 
 ## Current feature boundaries
 
-The app supports streaming conversations, persisted root/child sessions, declared agents, bounded parallel delegation, permission-checked native tools, MCP servers and Java tool extensions. Unknown tool names are reported to the model without execution. The `/demo` entries remain synthetic and do not run tools. Markdown styling is deliberately lightweight (highlighted fenced code, headings, emphasis, inline code, links, and line prefixes) and is not yet a complete CommonMark implementation. Unicode display-width handling is approximate, particularly for combining grapheme clusters.
+The app supports streaming conversations, persisted root/child sessions, declared agents, bounded parallel delegation, permission-checked native tools, MCP servers and Java tool extensions. Unknown tool names are reported to the model without execution. The `/demo` entries remain synthetic and do not run tools. Markdown styling is deliberately lightweight (highlighted fenced code, headings, emphasis, inline code, links, pipe tables, and line prefixes) and is not yet a complete CommonMark implementation. Unicode display-width handling is approximate, particularly for combining grapheme clusters.
 
 ## Security notes
 
@@ -348,9 +350,8 @@ The app supports streaming conversations, persisted root/child sessions, declare
 ## Suggested next increments
 
 1. Encryption at rest.
-2. Syntax-aware diff navigation and richer Markdown tables.
-3. Richer file browsing and attachment workflows.
-4. Additional command sandbox backends and richer change review.
-5. File picker, fuzzy search, configurable keymap, terminal themes.
+2. Richer file browsing and attachment workflows.
+3. Additional command sandbox backends and richer change review.
+4. File picker, fuzzy search, configurable keymap, terminal themes.
 
 Licensed Apache-2.0 (see LICENSE).

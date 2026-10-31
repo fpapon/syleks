@@ -591,7 +591,9 @@ public final class ChatRenderer {
             String fence = "";
             SyntaxHighlighter highlighter = new SyntaxHighlighter("text");
             boolean info = message.role().equals("system");
-            for (var physical : message.displayContent().split("\n", -1)) {
+            var physicalLines = message.displayContent().split("\n", -1);
+            for (int physicalIndex = 0; physicalIndex < physicalLines.length; physicalIndex++) {
+                var physical = physicalLines[physicalIndex];
                 var marker = FENCE.matcher(physical);
                 boolean candidate = marker.matches();
                 boolean closing =
@@ -637,7 +639,22 @@ public final class ChatRenderer {
                     } else tokens.addAll(highlighter.highlight(source));
                     appendColored(lines, tokens, width - 4, CODE, 2, false);
                 } else {
-                    appendProse(lines, physical, width, info);
+                    var table = MarkdownTable.parse(physicalLines, physicalIndex);
+                    if (table != null) {
+                        for (var row : MarkdownTable.render(table, width))
+                            lines.add(
+                                    coloredLine(
+                                            row.stream()
+                                                    .map(
+                                                            t ->
+                                                                    new Span(
+                                                                            t.text(), t.color(),
+                                                                            t.bold()))
+                                                    .toList(),
+                                            BG,
+                                            0));
+                        physicalIndex = table.end() - 1;
+                    } else appendProse(lines, physical, width, info);
                 }
             }
             if (code) lines.add(line("", SUB, CODE, 2, false, false));

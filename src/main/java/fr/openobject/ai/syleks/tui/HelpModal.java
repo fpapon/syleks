@@ -43,7 +43,10 @@ final class HelpModal {
                     new Entry("/messages", "Show message IDs for a fork boundary."),
                     new Entry("/compact", "Generate and save a summary; keep the full transcript."),
                     new Entry("/import PATH", "Import a validated JSON session archive."),
-                    new Entry("/changes, /diff", "Inspect recorded native file changes."),
+                    new Entry("/changes", "List recorded native file changes."),
+                    new Entry(
+                            "/diff",
+                            "Inspect source colors and before/after line numbers; n/p jumps change blocks, N/P jumps files. Arrows scroll/pan, Esc closes."),
                     new Entry(
                             "/undo, /redo",
                             "Restore recorded files after checking for external edits."),

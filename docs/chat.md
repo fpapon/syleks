@@ -50,7 +50,11 @@ Syleks displays headings, lists, quotes, emphasis, inline code, links, and fence
 
 Ask for a language label on code blocks to get syntax colors. Supported languages include Java, JavaScript/TypeScript, Markdown, AsciiDoc, XML/HTML, JSON, YAML, TOML, CSS, Python, Ruby, Kotlin, Go, Rust, C/C++, C#, SQL, Bash, and diffs. Common aliases such as `js`, `py`, and `sh` work too; unknown languages display as plain text. For example, ask: “Show the fix in a fenced Java code block, with the filename after the language.”
 
-Use `/demo` to preview code cards, tool activity, and a Java diff. The preview uses simulated content, does not read or change your files, and is excluded from model context. Rendering uses a lightweight Markdown implementation; complex tables and some Unicode character combinations may display imperfectly.
+Use `/demo` to preview code cards, tool activity, and a Java diff. The preview uses simulated content, does not read or change your files, and is excluded from model context. Rendering uses a lightweight Markdown implementation; pipe tables support column alignment (`:---`, `:---:`, `---:`), inline styles, escaped pipes (`\|`), and pipes inside code spans. Cells wrap to the available width; narrow screens stack labelled values. Tables inside fenced code and user messages remain literal. Some Unicode character combinations may display imperfectly.
+
+## Inspect recorded changes
+
+Run `/diff` to open the read-only snapshot viewer. Filenames select source-language colors, with separate old/new line numbers and colored addition/removal markers and backgrounds. Use `n`/`p` for next/previous change block, `N`/`P` for next/previous file, arrows to scroll or pan, PgUp/PgDn to page, and Home/End for the edges. Esc or `q` closes the viewer. It shows whole before/after snapshots (including child tasks), not a minimal patch, and does not modify files or add chat messages. `/changes` still lists recorded edits; `/undo` and `/redo` restore them subject to permissions.
 
 ## Save a readable copy
 
