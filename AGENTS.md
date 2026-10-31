@@ -30,7 +30,7 @@ Keep terminal output owned by `TerminalApp`; background generation should update
 
 ## Testing Guidelines
 
-Tests use JUnit Jupiter 5 and Maven Surefire. Name classes `*Test` and use descriptive behavior-oriented method names. Add regression tests for changed editor, terminal-cell, or stream-parsing behavior. Unit tests should run without a live Ollama server. No coverage threshold is configured. Manually check interactive rendering, resizing, and keyboard changes in a real terminal.
+Tests use JUnit Jupiter 6 and Maven Surefire. Name classes `*Test` and use descriptive behavior-oriented method names. Add regression tests for changed editor, terminal-cell, or stream-parsing behavior. Unit tests should run without a live Ollama server. No coverage threshold is configured. Manually check interactive rendering, resizing, and keyboard changes in a real terminal.
 
 ## Commit & Pull Request Guidelines
 
