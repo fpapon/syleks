@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.tui;
 
 import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
+import fr.openobject.ai.syleks.i18n.Messages;
 import java.util.*;
 
 /** All state belongs to the terminal thread; OAuth URLs and API keys never enter chat history. */
@@ -120,8 +121,9 @@ final class ProviderModal {
                 top + 2,
                 width,
                 kind == Kind.API_KEY
-                        ? "API key: " + "•".repeat(Math.min(query.length(), 40))
-                        : "Filter: " + query,
+                        ? Messages.text(
+                                "provider.api_key", "•".repeat(Math.min(query.length(), 40)))
+                        : Messages.text("provider.filter", query),
                 SUB);
         int visible = Math.max(0, height - 6);
         if (kind == Kind.AUTH || kind == Kind.MESSAGE || kind == Kind.API_KEY) {
@@ -148,11 +150,10 @@ final class ProviderModal {
                 left,
                 top + height - 1,
                 width,
-                kind == Kind.AUTH
-                        ? "↑↓ Scroll · C Copy URL · O Open browser · Esc Cancel"
-                        : kind == Kind.API_KEY
-                                ? "Enter Save · Esc Cancel · separate API billing"
-                                : "↑↓ Navigate · Enter Select · R Refresh · Esc Cancel",
+                Messages.text(
+                        kind == Kind.AUTH
+                                ? "provider.auth_help"
+                                : kind == Kind.API_KEY ? "provider.key_help" : "provider.help"),
                 SUB);
         return new ChatRenderer.Screen(canvas, 0, 0, false);
     }

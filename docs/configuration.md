@@ -17,6 +17,8 @@ The form uses the chat's terminal styling and prefills existing values. It asks 
 | Context / output limits | Limits supported by your model and server; output must fit within context |
 | Global round limit | Maximum model/tool rounds per message |
 | Plan / Build settings | Temperature and round limit for each agent |
+| Interface language | `system`, `en_US`, `fr_FR`, or another language tag such as `de_DE` |
+| Pass language to model context | `true` or `false`. `true` asks the model to reply in the selected language |
 
 **Editing controls:** type to replace a selected prefilled value; use Left/Right to edit within it. Enter, Tab, or Down advances, and Shift+Tab or Up returns to the previous field. Home/End move within the value; Backspace/Delete erase text or clear a selected value, including an API key. Keys are masked on screen. Esc, Ctrl+C, or Ctrl+D closes the form before saving.
 
@@ -160,7 +162,7 @@ Syleks appends `/api/chat` to the Ollama base URL. The built-in Ollama provider 
 
 | Variable | Effect |
 | --- | --- |
-| `AGENT_SYSTEM_PROMPT` | Replaces the shared default system prompt. Saved sessions retain their recorded instructions. |
+| `AGENT_SYSTEM_PROMPT` | Replaces the shared default system prompt. Saved sessions retain their recorded instructions. When `language_in_context` is true, the selected interface language is appended after this prompt. |
 | `SYLEKS_CONTEXT_WINDOW` | Fallback context window, default `8192` |
 | `SYLEKS_RESPONSE_TOKENS` | Fallback response reserve, default `2048`, capped at one quarter of the selected context window when no output limit is specified |
 | `SYLEKS_COMPACTION` | `automatic` (default) or `manual`; overrides `compaction.mode` |
@@ -221,6 +223,8 @@ Only the global `~/.config/syleks/agent-config.json` configures providers, agent
 | `model` | String, optional | Default `provider/model`; built-in providers are also valid prefixes |
 | `provider` | Object, empty | Named compatible servers, Ollama base URL, and built-in proxy overrides |
 | `default_agent` | Agent name, `build` | Enabled `primary` or `all` agent to select on startup/restart |
+| `language` | String, `system` | Interface language. `system` follows `LC_ALL`, then `LC_MESSAGES`, then `LANG`, then the JVM default. Shipped catalogs are `en_US` and `fr_FR`; `en` and `fr` select those catalogs. A missing key is looked up in the active catalog, then `en_US`, then `fr_FR`. Other tags such as `de_DE` stay in the model instruction but the interface uses that fallback. Applied at startup and after `/restart` |
+| `language_in_context` | Boolean, `false` | When `true`, append one sentence to the shared system prompt naming the selected language. When `false`, the prompt is unchanged |
 | `max_rounds` | Integer, `12` | `-1` or 1–1000 rounds per turn; agents may override |
 | `permission` | Decision or object | Overlay on built-in permissions; not a replacement unless using a blanket decision |
 | `agent` | Object, built-ins retained | Agent definitions/overrides keyed by filename-compatible name |
@@ -229,6 +233,8 @@ Only the global `~/.config/syleks/agent-config.json` configures providers, agent
 | `mcp_trusted_projects` | Array, empty, deprecated | Legacy path list; ignored for authority. Use the local trust CLI to review and pin content |
 
 There are no `providers`, `tools`, `system_prompt`, `instructions` or `agents` top-level settings. Use singular `provider` / `agent`, `permission`, `AGENT_SYSTEM_PROMPT`, and instruction files. Unknown settings are rejected by the schema; use it for editor checks. Startup also checks semantic constraints that JSON Schema cannot resolve, including agent/model references and incompatible MCP authentication options.
+
+`language` accepts `system` or a language tag (`en_US`, `fr-FR`, `de_DE`). Do not include an encoding such as `.UTF-8` in the saved value; that suffix is stripped only from the operating-system locale. A blank or malformed value is rejected at startup. Text shown before that validation, such as `--help` when the file cannot be read, follows the operating system instead. Changing the language does not translate command names, tool names, stored chat, or Markdown exports. Restart the chat after saving so the interface and, when enabled, the model instruction use the new value.
 
 ### Provider and model fields
 

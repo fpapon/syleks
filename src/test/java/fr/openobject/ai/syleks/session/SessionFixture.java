@@ -40,7 +40,7 @@ public final class SessionFixture implements AutoCloseable {
     }
 
     public SessionFixture(Path root, Path workspace) throws Exception {
-        this(root, workspace, Map.of());
+        this(root, workspace, Map.of("LANG", "en_US.UTF-8"));
     }
 
     public SessionFixture(

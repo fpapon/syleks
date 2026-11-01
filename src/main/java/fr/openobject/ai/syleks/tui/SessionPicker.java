@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.tui;
 
 import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
+import fr.openobject.ai.syleks.i18n.Messages;
 import fr.openobject.ai.syleks.session.model.Session;
 import java.util.List;
 import java.util.Locale;
@@ -155,8 +156,8 @@ final class SessionPicker {
                 top + 1,
                 width,
                 pendingDeletion == null
-                        ? "Sessions · " + query + "▌"
-                        : "Delete session · " + pendingDeletion.title(),
+                        ? Messages.text("picker.title", query) + "▌"
+                        : Messages.text("picker.delete_title", pendingDeletion.title()),
                 BLUE,
                 INPUT);
         line(
@@ -164,9 +165,7 @@ final class SessionPicker {
                 left,
                 top + 2,
                 width,
-                pendingDeletion == null
-                        ? "↑↓ PgUp/PgDn Home/End · Enter open · Del delete · Esc · filter title/ID/model"
-                        : "Enter delete permanently · Esc cancel",
+                Messages.text(pendingDeletion == null ? "picker.help" : "picker.delete_help"),
                 SUB,
                 INPUT);
         if (error != null) line(canvas, left, top + 3, width, error, SUB, INPUT);
@@ -178,23 +177,15 @@ final class SessionPicker {
                 left,
                 top + height - 1,
                 width,
-                (list.isEmpty() ? 0 : selected + 1)
-                        + " / "
-                        + list.size()
-                        + " matches · "
-                        + sessions.size()
-                        + " sessions",
+                Messages.text(
+                        "picker.count",
+                        list.isEmpty() ? 0 : selected + 1,
+                        list.size(),
+                        sessions.size()),
                 SUB,
                 INPUT);
         if (list.isEmpty())
-            line(
-                    canvas,
-                    left,
-                    top + 4,
-                    width,
-                    "No matching sessions · /new to create one",
-                    SUB,
-                    INPUT);
+            line(canvas, left, top + 4, width, Messages.text("picker.empty"), SUB, INPUT);
         for (int i = begin; i < Math.min(list.size(), begin + visible); i++) {
             var session = list.get(i);
             String text =

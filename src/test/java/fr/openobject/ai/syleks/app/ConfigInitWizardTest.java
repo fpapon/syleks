@@ -110,6 +110,8 @@ class ConfigInitWizardTest {
                                             "",
                                             "",
                                             "",
+                                            "",
+                                            "",
                                             ""),
                                     new PrintStream(output));
             var root = new JsonIO().parse(content);
@@ -178,7 +180,9 @@ class ConfigInitWizardTest {
                                             "0.5",
                                             "12",
                                             "0.3",
-                                            "15"),
+                                            "15",
+                                            "",
+                                            ""),
                                     new PrintStream(new ByteArrayOutputStream()));
             var config = new JsonIO().parse(content);
             assertEquals("team/team/reasoner", config.path("model").asText());
@@ -222,6 +226,8 @@ class ConfigInitWizardTest {
                                             "3",
                                             "",
                                             "0",
+                                            "",
+                                            "",
                                             ""),
                                     new PrintStream(output));
             var config = new JsonIO().parse(content);
@@ -252,6 +258,27 @@ class ConfigInitWizardTest {
                                                     new BufferedReader(new StringReader("")),
                                                     new PrintStream(new ByteArrayOutputStream())));
             assertTrue(error.getMessage().contains("cancelled"));
+        }
+    }
+
+    @Test
+    void roundTripsLanguageAndKeepsUnrelatedSettings() throws Exception {
+        try (var container = ConfiguringContainer.of().start();
+                var mapper = container.lookup(io.yupiik.fusion.json.JsonMapper.class)) {
+            var form =
+                    new ConfigInitWizard(mapper.instance())
+                            .form(
+                                    """
+                                    {"model":"local/qwen3.8-27b","permission":{"chat":"allow"},"language":"fr_FR","language_in_context":true}
+                                    """);
+            assertEquals("fr_FR", form.value(13));
+            assertEquals("true", form.value(14));
+            form.value(13, "de_DE");
+            form.value(14, "");
+            var root = new JsonIO().parse(form.configuration());
+            assertEquals("de_DE", root.path("language").asText());
+            assertFalse(root.path("language_in_context").asBoolean());
+            assertEquals("allow", root.path("permission").path("chat").asText());
         }
     }
 

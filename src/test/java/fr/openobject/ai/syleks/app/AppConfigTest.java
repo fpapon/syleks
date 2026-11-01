@@ -258,6 +258,52 @@ class AppConfigTest {
         assertTrue(failure.getMessage().contains("Security configuration"));
     }
 
+    @Test
+    void followsTheOperatingSystemLanguageUnlessSettingsChooseOne() throws IOException {
+        var fromOs = config(Map.of("LANG", "fr_FR.UTF-8"));
+        assertEquals("fr_FR", fromOs.interfaceLanguage().tag());
+        assertEquals("fr_FR", fromOs.interfaceLanguage().catalog());
+        assertFalse(fromOs.languageInContext());
+        assertFalse(fromOs.systemPrompt().contains("Répondez"));
+
+        writeConfig("{\"language\":\"en_US\"}");
+        var explicit = config(Map.of("LANG", "fr_FR.UTF-8", "LC_ALL", "de_DE.UTF-8"));
+        assertEquals("en_US", explicit.interfaceLanguage().tag());
+        assertEquals("en_US", explicit.interfaceLanguage().catalog());
+    }
+
+    @Test
+    void appendsTheInterfaceLanguageToTheSystemPromptOnlyWhenAsked() throws IOException {
+        writeConfig("{\"language\":\"fr_FR\",\"language_in_context\":true}");
+        var french = config(Map.of("AGENT_SYSTEM_PROMPT", "Custom prompt", "LANG", "en_US.UTF-8"));
+        assertTrue(french.systemPrompt().startsWith("Custom prompt\n\n"));
+        assertTrue(french.systemPrompt().contains("Répondez"));
+        assertTrue(french.systemPrompt().contains("(fr_FR)"));
+
+        writeConfig("{\"language\":\"de_DE\",\"language_in_context\":true}");
+        var fallback = config(Map.of("AGENT_SYSTEM_PROMPT", "Custom prompt"));
+        assertTrue(fallback.systemPrompt().contains("Reply in German (de_DE)"));
+        assertTrue(fallback.systemPrompt().startsWith("Custom prompt\n\n"));
+
+        writeConfig("{\"language\":\"fr_FR\",\"language_in_context\":false}");
+        assertEquals(
+                "Custom prompt",
+                config(Map.of("AGENT_SYSTEM_PROMPT", "Custom prompt")).systemPrompt());
+    }
+
+    @Test
+    void rejectsAMalformedInterfaceLanguage() throws IOException {
+        var file = writeConfig("{\"language\":\"\"}");
+        var blank = assertThrows(IllegalStateException.class, () -> config(Map.of()));
+        assertTrue(blank.getMessage().contains("language"));
+        assertTrue(blank.getMessage().contains(file.toString()));
+        writeConfig("{\"language\":\"!!!\"}");
+        assertThrows(IllegalStateException.class, () -> config(Map.of()));
+        writeConfig("{\"language_in_context\":\"true\"}");
+        var flag = assertThrows(IllegalStateException.class, () -> config(Map.of()));
+        assertTrue(flag.getMessage().contains("language_in_context"));
+    }
+
     private AppConfig config(Map<String, String> environment) {
         return new AppConfig(mapper.instance(), home, environment);
     }

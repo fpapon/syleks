@@ -88,6 +88,17 @@
         "target": {"type": "integer", "minimum": 1, "maximum": 99, "default": 60}
       }
     },
+    "language": {
+      "type": "string",
+      "default": "system",
+      "pattern": "^(system|[A-Za-z]{2,3}([_-][A-Za-z0-9]{2,8})*)$",
+      "description": "Interface language. system follows LC_ALL, then LC_MESSAGES, then LANG, then the JVM default. Shipped catalogs are en_US and fr_FR. en and fr select those catalogs. Other tags use per-key fallback: active, en_US, then fr_FR. Applied at startup and after /restart."
+    },
+    "language_in_context": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, append the selected interface language to the shared system prompt sent to the model. The prompt is otherwise unchanged."
+    },
     "max_rounds": {
       "$ref": "#/$defs/rounds",
       "default": 12

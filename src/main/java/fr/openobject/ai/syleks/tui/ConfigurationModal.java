@@ -18,6 +18,7 @@ package fr.openobject.ai.syleks.tui;
 import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
 import fr.openobject.ai.syleks.app.ConfigInitWizard;
+import fr.openobject.ai.syleks.i18n.Messages;
 
 /** Pure UI state. No disk access, console reads, or network calls. */
 final class ConfigurationModal {
@@ -220,7 +221,7 @@ final class ConfigurationModal {
             canvas.text(
                     0,
                     0,
-                    ChatRenderer.fit("Resize terminal (min 35 × 15)", canvas.width()),
+                    ChatRenderer.fit(Messages.text("config.resize"), canvas.width()),
                     YELLOW,
                     BG,
                     false);
@@ -240,7 +241,7 @@ final class ConfigurationModal {
                 x,
                 y + 1,
                 width,
-                "Syleks · " + (form.updating() ? "Update configuration" : "Create configuration"),
+                "Syleks · " + Messages.text(form.updating() ? "config.update" : "config.create"),
                 BLUE);
         int cursorX = x + 3, cursorY = y + 6;
         if (stage == Stage.FIELDS) {
@@ -249,12 +250,11 @@ final class ConfigurationModal {
                     x,
                     y + 3,
                     width,
-                    "Step "
-                            + (field + 1)
-                            + "/"
-                            + ConfigInitWizard.FIELDS.size()
-                            + " · "
-                            + ConfigInitWizard.FIELDS.get(field).label(),
+                    Messages.text(
+                            "config.step",
+                            field + 1,
+                            ConfigInitWizard.FIELDS.size(),
+                            ConfigInitWizard.FIELDS.get(field).label()),
                     WHITE);
             boolean secret = ConfigInitWizard.FIELDS.get(field).secret();
             String value =
@@ -282,51 +282,62 @@ final class ConfigurationModal {
                     x,
                     y + 10,
                     width,
-                    replace
-                            ? "Type to replace · ←/→ edit current value"
-                            : "←/→ move cursor · Backspace erase",
+                    Messages.text(replace ? "config.replace" : "config.edit"),
                     SUB);
             line(
                     canvas,
                     x,
                     y + height - 3,
                     width,
-                    width < 60
-                            ? "Enter next · ↑ back · Esc"
-                            : "Enter/Tab next · Shift+Tab/↑ back · Esc cancel",
+                    Messages.text(width < 60 ? "config.next.short" : "config.next"),
                     SUB);
         } else if (stage == Stage.REVIEW) {
-            line(canvas, x, y + 3, width, "Review · " + form.value(0) + "/" + form.value(4), WHITE);
+            line(
+                    canvas,
+                    x,
+                    y + 3,
+                    width,
+                    Messages.text("config.review", form.value(0), form.value(4)),
+                    WHITE);
             line(canvas, x, y + 5, width, form.value(2), SUB);
             line(
                     canvas,
                     x,
                     y + 6,
                     width,
-                    "Context "
-                            + form.value(6)
-                            + " · Output "
-                            + form.value(7)
-                            + " · Rounds "
-                            + form.value(8),
+                    Messages.text("config.limits", form.value(6), form.value(7), form.value(8)),
                     SUB);
             line(
                     canvas,
                     x,
                     y + 8,
                     width,
-                    form.updating()
-                            ? "Save updates this config; other providers and permissions stay intact."
-                            : "Save creates config, schema and default agent files.",
+                    Messages.text(form.updating() ? "config.save_update" : "config.save_create"),
                     SUB);
-            buttons(canvas, x, y + height - 3, width, new String[] {"Save", "Back", "Cancel"});
+            buttons(
+                    canvas,
+                    x,
+                    y + height - 3,
+                    width,
+                    new String[] {
+                        Messages.text("config.save"),
+                        Messages.text("config.back"),
+                        Messages.text("config.cancel")
+                    },
+                    new String[] {null, null, null});
         } else if (stage == Stage.SAVING) {
-            line(canvas, x, y + 5, width, "◌ Saving configuration…", BLUE);
+            line(canvas, x, y + 5, width, Messages.text("config.saving"), BLUE);
         } else if (stage == Stage.SAVED) {
-            line(canvas, x, y + 4, width, "✓ Configuration saved", GREEN);
-            line(canvas, x, y + 6, width, "Restart chat to use the new settings?", WHITE);
-            line(canvas, x, y + 8, width, "Your conversation and unsent draft will be kept.", SUB);
-            buttons(canvas, x, y + height - 3, width, new String[] {"Restart chat", "Later"});
+            line(canvas, x, y + 4, width, Messages.text("config.saved"), GREEN);
+            line(canvas, x, y + 6, width, Messages.text("config.restart_prompt"), WHITE);
+            line(canvas, x, y + 8, width, Messages.text("config.restart_keep"), SUB);
+            buttons(
+                    canvas,
+                    x,
+                    y + height - 3,
+                    width,
+                    new String[] {Messages.text("config.restart"), Messages.text("config.later")},
+                    new String[] {Messages.text("config.restart.short"), null});
         }
         if (!form.warning().isEmpty() && stage != Stage.SAVED)
             line(canvas, x, y + height - 5, width, form.warning(), YELLOW);
@@ -338,10 +349,11 @@ final class ConfigurationModal {
                 stage == Stage.FIELDS);
     }
 
-    private void buttons(TerminalCanvas canvas, int x, int y, int width, String[] labels) {
+    private void buttons(
+            TerminalCanvas canvas, int x, int y, int width, String[] labels, String[] shortLabels) {
         int left = x + 3;
         for (int i = 0; i < labels.length; i++) {
-            String label = width < 50 && labels[i].equals("Restart chat") ? "Restart" : labels[i];
+            String label = width < 50 && shortLabels[i] != null ? shortLabels[i] : labels[i];
             String text = (i == choice ? "[" : " ") + label + (i == choice ? "]" : " ");
             if (left + text.length() < x + width - 1)
                 canvas.text(left, y, text, i == choice ? GREEN : SUB, INPUT, i == choice);

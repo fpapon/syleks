@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.tui;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import fr.openobject.ai.syleks.i18n.Messages;
 import org.junit.jupiter.api.Test;
 
 class HelpModalTest {
@@ -89,6 +90,23 @@ class HelpModalTest {
                 if (width >= 35 && height >= 15) assertTrue(text.contains("Syleks · Help"));
             }
         }
+    }
+
+    @Test
+    void paintsTheFrenchHelpTitleAndRestoresEnglish() {
+        var previous = Messages.current();
+        try {
+            Messages.install(Messages.forCatalog("fr_FR"));
+            var text = text(new HelpModal().paint(new TerminalCanvas(100, 30)).canvas());
+            assertTrue(text.contains("Syleks · Aide"));
+            assertTrue(text.contains("Discussion et sessions"));
+            assertFalse(text.contains("Syleks · Help"));
+        } finally {
+            Messages.install(previous);
+        }
+        assertTrue(
+                text(new HelpModal().paint(new TerminalCanvas(100, 30)).canvas())
+                        .contains("Syleks · Help"));
     }
 
     private String text(TerminalCanvas canvas) {

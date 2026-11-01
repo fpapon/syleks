@@ -15,6 +15,8 @@
  */
 package fr.openobject.ai.syleks.app;
 
+import fr.openobject.ai.syleks.i18n.InterfaceLanguage;
+import fr.openobject.ai.syleks.i18n.Messages;
 import fr.openobject.ai.syleks.session.SessionService;
 import fr.openobject.ai.syleks.tui.TerminalApp;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
@@ -79,52 +81,12 @@ public final class Main {
 
     public static int run(String[] args, PrintStream out, PrintStream error) {
         try {
+            Messages.install(
+                    Messages.forCatalog(
+                            InterfaceLanguage.load(ConfigInitializer.home(), System.getenv())
+                                    .catalog()));
             if (Arrays.asList(args).contains("--help") || Arrays.asList(args).contains("-h")) {
-                out.println(
-                        """
-                        Syleks — persistent local AI sessions
-                        Usage: syleks [chat] [-c|--continue | -s|--session <id> | --new | --fork <id>]
-                               syleks config init [--defaults]
-                               syleks config update
-                               syleks secrets migrate|encrypt
-                               syleks secrets rotate <reference-or-encrypted-value>
-                               syleks secrets revoke <syleks-secret:uuid>
-                               syleks trust inspect|revoke
-                               syleks trust grant <reviewed-sha256>
-                               syleks session list
-                               syleks session delete <id>
-                               syleks session export <id>
-                               syleks session import <file>
-                               syleks session fork <id> [message-id]
-                               syleks session messages|changes|diff|undo|redo <id>
-                               syleks auth login|logout chatgpt [account-id]
-                               syleks auth login openai-api
-                               syleks auth status|accounts
-                               syleks auth use <account-id>
-                               syleks provider list|use <provider-id>
-                               syleks model list|use <model-id>
-                               syleks mcp list|tools
-                               syleks mcp auth|logout <server-id>
-                        No option: open the TUI and offer this project's sessions.
-                        -c: resume the latest session; create one if this project has none.
-                        config update: refresh the bundled schema and migrate global settings, backing up changed files.
-                        config init: open the configuration TUI to create/update provider and model settings.
-                        In chat: /config (Ctrl+G) opens setup; Save offers to restart with the new settings.
-                        Redirected input uses line prompts; --defaults and redirected setup preserve existing files.
-                        Secrets: migrate global provider keys/MCP headers and environment to destination-bound references.
-                        encrypt stores inline ciphertext using the Base64 32-byte key in SYLEKS_CONFIG_KEY.
-                        rotate reads a replacement from the console (masked) or one line on stdin; revoke is local removal.
-                        Keyring required for new references unless SYLEKS_CREDENTIAL_BACKEND=file explicitly permits unencrypted files.
-                        Restart chats after migration/rotation/revocation. See docs/secret-storage.md.
-                        Remote HTTP: review insecure_http_origins in global agent-config.json; restart to apply/revoke.
-                        Web tools: public destinations by default; global web_private_origins grants private services.
-                        Commands: restricted Linux isolation by default; global command_sandbox controls mode/network.
-                        Approvals: /approve remember grants the exact action for 15 minutes; /approvals lists/revokes grants.
-                        Unavailable sandbox enforcement refuses commands; unrestricted mode is an explicit global choice.
-                        --defaults: skip questions and use the bundled provider/model settings without an API key.
-                        Exports are JSON on stdout and may contain confidential content. Redirect explicitly.
-                        Session IDs are restricted to the current project. Use --help for this message.
-                        """);
+                out.println(Messages.text("cli.help"));
                 return 0;
             }
             if (args.length > 0 && args[0].equals("secrets")) {
@@ -220,16 +182,13 @@ public final class Main {
                         registry.mcp()
                                 .login(
                                         args[2],
-                                        uri ->
-                                                out.println(
-                                                        "Open this URL to authorize MCP (waiting up to 3 minutes):\n"
-                                                                + uri));
-                        out.println("MCP authorized");
+                                        uri -> out.println(Messages.text("cli.mcp.open", uri)));
+                        out.println(Messages.text("cli.mcp.authorized"));
                         return 0;
                     }
                     if (args[1].equals("logout")) {
                         registry.mcp().logout(args[2]);
-                        out.println("MCP credentials removed");
+                        out.println(Messages.text("cli.mcp.removed"));
                         return 0;
                     }
                     var tools = registry.forAgent(registryConfigAgent(container));
@@ -297,8 +256,9 @@ public final class Main {
                         }
                         for (var result : instance.instance().initialize(home, configuration)) {
                             out.println(
-                                    (result.created() ? "Created " : "Skipped existing ")
-                                            + safe(result.path().toString()));
+                                    Messages.text(
+                                            result.created() ? "cli.created" : "cli.skipped",
+                                            safe(result.path().toString())));
                         }
                     }
                 }
@@ -326,7 +286,7 @@ public final class Main {
                     var service = instance.instance();
                     switch (operation) {
                         case "list" -> {
-                            out.println("ID\tTITLE\tUPDATED_AT\tMODEL\tMESSAGES\tSTATUS");
+                            out.println(Messages.text("cli.session_header"));
                             for (var s : service.list())
                                 out.println(
                                         s.id()
@@ -343,7 +303,7 @@ public final class Main {
                         }
                         case "delete" -> {
                             service.delete(args[2]);
-                            out.println("Deleted session " + args[2]);
+                            out.println(Messages.text("cli.deleted", args[2]));
                         }
                         case "export" -> out.println(service.export(args[2]));
                         case "import" ->
@@ -430,6 +390,6 @@ public final class Main {
     }
 
     private static String safe(String value) {
-        return value == null ? "Operation failed" : value.replaceAll("[\\p{Cc}]", " ");
+        return value == null ? Messages.text("cli.failed") : value.replaceAll("[\\p{Cc}]", " ");
     }
 }
