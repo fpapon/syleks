@@ -300,6 +300,8 @@ environment proxies. See the [policy matrix, scope inventory and migration examp
 ## Command sandbox
 
 `command_sandbox` is global-only and defaults to restricted Linux isolation with no network.
+`backend` selects `bubblewrap` (default), `docker`, or `podman`. Container backends
+require a preinstalled, digest-pinned `container_image`; see [command isolation](command-sandbox.md).
 Required enforcement failures refuse the command. See [command isolation](command-sandbox.md)
 for configuration, supported dependencies, resource limits and the explicit unrestricted choice.
 Project settings, approvals and environment variables cannot change it. `/permissions` shows the policy.

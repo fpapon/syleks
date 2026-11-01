@@ -19,7 +19,6 @@ import fr.openobject.ai.syleks.ai.*;
 import fr.openobject.ai.syleks.fs.SecureFiles;
 import fr.openobject.ai.syleks.session.storage.SqliteDatabase;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -279,38 +278,7 @@ public class FileChangeJournal {
     }
 
     public String diff(String session) {
-        var output = new StringBuilder();
-        for (var c : listTree(session)) {
-            output.append("--- ")
-                    .append(c.path())
-                    .append(" (before)\n+++ ")
-                    .append(c.path())
-                    .append(" (after, ")
-                    .append(c.state())
-                    .append(")\n");
-            for (var side :
-                    List.of(new Object[] {"-", c.before()}, new Object[] {"+", c.after()})) {
-                byte[] bytes = (byte[]) side[1];
-                if (bytes == null) continue;
-                String text;
-                try {
-                    text =
-                            StandardCharsets.UTF_8
-                                    .newDecoder()
-                                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                                    .decode(java.nio.ByteBuffer.wrap(bytes))
-                                    .toString();
-                } catch (java.nio.charset.CharacterCodingException e) {
-                    text = "[Binary snapshot: " + bytes.length + " bytes]";
-                }
-                for (var line : text.lines().toList()) {
-                    output.append(side[0]).append(line).append('\n');
-                    if (output.length() > 32000)
-                        return output.substring(0, 32000) + "\n[Diff truncated]";
-                }
-            }
-        }
-        return output.isEmpty() ? "No recorded native file changes" : output.toString();
+        return ChangeDiff.render(listTree(session));
     }
 
     private Path checked(String value) throws IOException {

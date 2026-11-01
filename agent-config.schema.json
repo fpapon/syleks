@@ -54,11 +54,17 @@
       "description": "Global-only OS command isolation. Restricted Linux backend fails closed when unavailable. Unrestricted explicitly grants host authority; never inferred from repository settings or approvals.",
       "properties": {
         "mode": {"enum": ["restricted", "unrestricted"], "default": "restricted"},
+        "backend": {"enum": ["bubblewrap", "docker", "podman"], "default": "bubblewrap"},
+        "container_image": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[a-f0-9]{64}$", "description": "Required for Docker/Podman. Trusted preinstalled image pinned by digest; never pulled automatically."},
         "network": {"enum": ["deny", "allow"], "default": "deny", "description": "Separate restricted-mode capability: all IPv4/IPv6 destinations when allowed; host Unix sockets remain denied."},
         "memory_mib": {"type": "integer", "minimum": 64, "maximum": 16384, "default": 1024},
         "processes": {"type": "integer", "minimum": 8, "maximum": 512, "default": 64},
         "cpu_percent": {"type": "integer", "minimum": 10, "maximum": 400, "default": 100}
-      }
+      },
+      "allOf": [{
+        "if": {"properties": {"backend": {"enum": ["docker", "podman"]}}, "required": ["backend"]},
+        "then": {"required": ["container_image"]}
+      }]
     },
     "command_environment": {
       "type": "object", "additionalProperties": false,

@@ -30,10 +30,12 @@ final class DiffModal {
             int background) {}
 
     private static final Pattern HUNK =
-            Pattern.compile("^@@ -(\\d+)(?:,\\d+)? \\+(\\d+)(?:,\\d+)? @@.*");
+            Pattern.compile("^@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@.*");
     private final List<Row> rows = new ArrayList<>();
     private final List<Integer> files = new ArrayList<>(), changes = new ArrayList<>();
     private int scroll, horizontal, visible = 1;
+    private int additions, deletions;
+    private final Map<Integer, String> fileNames = new TreeMap<>();
 
     DiffModal(String diff) {
         var lines = diff.split("\n", -1);
@@ -41,13 +43,16 @@ final class DiffModal {
         SyntaxHighlighter before = new SyntaxHighlighter("text"),
                 after = new SyntaxHighlighter("text");
         int oldLine = 1, newLine = 1;
+        int oldRemaining = 0, newRemaining = 0;
         boolean changing = false, unified = false;
         for (int i = 0; i < lines.length; i++) {
             String source = SecurityText.present(lines[i].replace("\t", "    "));
             if (source.startsWith("--- ")
+                    && !(unified && oldRemaining > 0 && newRemaining > 0)
                     && i + 1 < lines.length
                     && lines[i + 1].startsWith("+++ ")) {
                 files.add(rows.size());
+                fileNames.put(rows.size(), SecurityText.present(lines[i + 1].substring(4)));
                 beforePath = path(lines[i].substring(4));
                 afterPath = path(lines[i + 1].substring(4));
                 before = new SyntaxHighlighter(beforePath);
@@ -65,7 +70,9 @@ final class DiffModal {
                 after = new SyntaxHighlighter(afterPath);
                 // Oversized or malformed line numbers remain readable, without overflow.
                 oldLine = number(hunk.group(1));
-                newLine = number(hunk.group(2));
+                newLine = number(hunk.group(3));
+                oldRemaining = hunk.group(2) == null ? 1 : number(hunk.group(2));
+                newRemaining = hunk.group(4) == null ? 1 : number(hunk.group(4));
                 unified = true;
                 changing = true;
                 add(source, BLUE, -1, -1, CODE);
@@ -73,6 +80,13 @@ final class DiffModal {
                 if (!changing && !unified) changes.add(rows.size());
                 changing = true;
                 boolean added = source.charAt(0) == '+';
+                if (added) {
+                    additions++;
+                    newRemaining--;
+                } else {
+                    deletions++;
+                    oldRemaining--;
+                }
                 var tokens = new ArrayList<SyntaxHighlighter.Token>();
                 tokens.add(
                         new SyntaxHighlighter.Token(
@@ -87,6 +101,8 @@ final class DiffModal {
                                 added ? 0x19352A : 0x38232B));
             } else if (unified && source.startsWith(" ")) {
                 changing = false;
+                oldRemaining--;
+                newRemaining--;
                 before.highlight(source.substring(1));
                 var tokens = new ArrayList<SyntaxHighlighter.Token>();
                 tokens.add(new SyntaxHighlighter.Token(" ", SUB, false));
@@ -189,6 +205,15 @@ final class DiffModal {
         return rows.stream().mapToInt(r -> ChatRenderer.textWidth(r.source())).max().orElse(0);
     }
 
+    private String currentFile() {
+        String name = "←→ pan · ↑↓ scroll · PgUp/PgDn";
+        for (var entry : fileNames.entrySet()) {
+            if (entry.getKey() > scroll) break;
+            name = entry.getValue();
+        }
+        return name;
+    }
+
     ChatRenderer.Screen paint(TerminalCanvas canvas) {
         int width = canvas.width(), height = canvas.height();
         canvas.fill(0, 0, width, height, CODE);
@@ -198,7 +223,15 @@ final class DiffModal {
                 0,
                 0,
                 ChatRenderer.fit(
-                        "Diff · " + files.size() + " files · " + changes.size() + " change blocks",
+                        "Diff · "
+                                + files.size()
+                                + " files · +"
+                                + additions
+                                + " -"
+                                + deletions
+                                + " · "
+                                + changes.size()
+                                + " change blocks",
                         width),
                 BLUE,
                 INPUT,
@@ -239,11 +272,7 @@ final class DiffModal {
                     0,
                     height - 2,
                     ChatRenderer.fit(
-                            "Line "
-                                    + (scroll + 1)
-                                    + "/"
-                                    + rows.size()
-                                    + " · ←→ pan · ↑↓ scroll · PgUp/PgDn",
+                            "Line " + (scroll + 1) + "/" + rows.size() + " · " + currentFile(),
                             width),
                     SUB,
                     INPUT,

@@ -24,7 +24,7 @@ These are also the defaults when the setting is absent. Only the global file sup
 
 Restricted execution fails before the command starts if enforcement is unavailable. There is no automatic fallback. On an unsupported machine, the user can deliberately merge `"command_sandbox": {"mode": "unrestricted"}` into the global file and restart. This grants commands the user's host filesystem and network authority; only environment filtering, command permission checks, runtime/output bounds and best-effort descendant cleanup remain. It is a security downgrade, not a backend compatibility mode. Existing files are never rewritten to select it.
 
-## Supported Linux backend
+## Bubblewrap backend (default)
 
 The supported backend is Linux **x86-64**, Bubblewrap **0.8 or newer**, systemd **254 or newer** with a working per-user manager, unified cgroup v2 with delegated `memory`, `pids` and `cpu` controllers, and kernel user/PID/mount/network namespaces and seccomp BPF. Install distro packages (Debian/Ubuntu: `bubblewrap`, `systemd`, `dbus-user-session`) and use a login session with a running systemd user manager. Helpers are fixed at `/usr/bin/bwrap`, `/usr/bin/systemd-run` and `/usr/bin/systemctl`; repositories cannot provide helper arguments or replacements. System runtime/helper installations are trusted administrator-owned inputs. Native Syleks and JVM Syleks use the same backend.
 
@@ -32,7 +32,64 @@ A harmless probe runs with the same mounts, filter and limits before each comman
 
 The CI job on Ubuntu 24.04 requires these real tests (`SYLEKS_SANDBOX_TESTS=required`). It enables unprivileged user namespaces on its disposable runner and starts the user manager. Outside that supported test mode the backend integration class is explicitly skipped, not counted as passed. Production execution always probes; the test variable changes no application authority.
 
-## Enforced scope
+## Docker and Podman backends
+
+The global-only `backend` setting accepts `bubblewrap` (default), `docker`, or
+`podman`. There is no automatic backend selection or unrestricted fallback.
+Container backends require local Linux x86-64, cgroup v2, a working engine at
+`/usr/bin/docker` or `/usr/bin/podman`, and a trusted image already installed in
+that engine. Set `container_image` to its full `name@sha256:<64 lowercase hex digits>`
+reference. Tags and automatic pulls are rejected. Restart after changing policy.
+
+For example, merge these fields into your global `command_sandbox` object after
+replacing the image reference with your own installed digest:
+
+```json
+{
+  "backend": "podman",
+  "container_image": "registry.example.com/team/syleks-tools@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}
+```
+
+Docker uses the local `/var/run/docker.sock`; Podman disables remote execution and
+uses `keep-id` user mapping. Remote engines and Docker Desktop are unsupported.
+The container runs as the invoking UID/GID; Docker user namespace remapping must
+permit workspace writes. Engine installations, user engine configuration, and
+image contents are trusted administrator/user inputs. No engine socket is mounted
+into commands. The image supplies tools and must contain `/bin/bash`, GNU
+`/usr/bin/timeout`, and `/usr/bin/env`. Images should not declare volumes or contain
+credentials. Home-installed host SDKs are not exposed.
+
+Each command first runs a harmless probe with the same configuration. Both probe
+and payload validate kernel memory, swap, task, and CPU limits through the cgroup
+gate. The image root is read-only; the workspace is writable; root `.syleks` and
+existing `.git` metadata are masked. HOME and `/tmp` use private tmpfs mounts.
+The inherited seccomp profile denies Unix sockets, namespace creation, tracing,
+and kernel administration; only IPv4/IPv6 sockets are permitted with `network:
+"allow"`. All capabilities are dropped and new privileges are disabled. Workspace
+preflight restrictions are shared with Bubblewrap; container mount syntax also
+requires paths without commas or colons.
+
+A GNU timeout process supervises commands inside their private PID namespace.
+Closing execution forcibly removes the named container, including background
+children. Containers are created before attachment so cleanup can identify them.
+Engine failures surface as errors, including cleanup failures. Resource enforcement
+that the engine silently ignores is rejected by the kernel cgroup gate.
+
+Opt-in integration validation uses an existing trusted image:
+
+```sh
+SYLEKS_CONTAINER_TEST_BACKEND=docker \
+SYLEKS_CONTAINER_TEST_IMAGE='your-image@sha256:your-digest' \
+mvn -Dtest=ContainerCommandBackendTest test
+```
+
+Repeat with `podman` to validate that engine. Without the image variable the real
+engine test is explicitly skipped. See the official [Docker CLI reference](https://docs.docker.com/reference/cli/docker/container/run/)
+and [Podman CLI reference](https://docs.podman.io/en/stable/markdown/podman-run.1.html)
+for engine installation and resource controller requirements.
+
+## Bubblewrap enforced scope
 
 | Capability | Restricted behavior |
 | --- | --- |
@@ -59,4 +116,4 @@ Workspace symlinks cannot reach unmounted host files. Writing through an absolut
 
 This isolates arbitrary command descendants, not the entire Syleks JVM/native process. Trusted Java extensions can run their own code, and MCP stdio servers retain their separately documented OS authority. Kernel exploits, malicious administrator-installed helpers, hostile same-user host processes, side channels and disk exhaustion are outside the guarantees. Global policy and user trust records are never mounted into restricted commands.
 
-Backend references: [Bubblewrap security model](https://github.com/containers/bubblewrap#sandbox-security), [systemd transient services](https://www.freedesktop.org/software/systemd/man/latest/systemd-run.html), [cgroup v2 controllers](https://docs.kernel.org/admin-guide/cgroup-v2.html), [inherited seccomp filters](https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html).
+Bubblewrap backend references: [Bubblewrap security model](https://github.com/containers/bubblewrap#sandbox-security), [systemd transient services](https://www.freedesktop.org/software/systemd/man/latest/systemd-run.html), [cgroup v2 controllers](https://docs.kernel.org/admin-guide/cgroup-v2.html), [inherited seccomp filters](https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html).

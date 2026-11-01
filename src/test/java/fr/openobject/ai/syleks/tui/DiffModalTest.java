@@ -141,6 +141,18 @@ class DiffModalTest {
         assertFalse(text(canvas).contains("TAIL"));
     }
 
+    @Test
+    void sourceHeaderLookalikesRemainInsideTheCurrentHunk() {
+        var modal = new DiffModal("--- X.java\n+++ X.java\n@@ -1 +1 @@\n--- old\n+++ new");
+        assertEquals(1, modal.rows().get(3).oldLine());
+        assertEquals(1, modal.rows().get(4).newLine());
+        modal.key('N');
+        assertEquals(0, modal.scroll());
+        var canvas = new TerminalCanvas(100, 12);
+        modal.paint(canvas);
+        assertTrue(text(canvas).contains("1 files · +1 -1"));
+    }
+
     private int color(DiffModal.Row row, String fragment) {
         return row.tokens().stream()
                 .filter(t -> t.text().contains(fragment))

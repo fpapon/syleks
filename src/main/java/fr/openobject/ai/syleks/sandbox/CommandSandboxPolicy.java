@@ -21,9 +21,20 @@ import java.util.Set;
 
 /** Immutable global authority. No repository or model input may select a backend or its options. */
 public record CommandSandboxPolicy(
-        String mode, String network, int memoryMiB, int processes, int cpuPercent) {
+        String mode,
+        String network,
+        int memoryMiB,
+        int processes,
+        int cpuPercent,
+        String backend,
+        String containerImage) {
     public CommandSandboxPolicy {
-        if (!Set.of("restricted", "unrestricted").contains(mode)
+        if (!Set.of("bubblewrap", "docker", "podman").contains(backend)
+                || (!backend.equals("bubblewrap")
+                        && (containerImage == null
+                                || !containerImage.matches(
+                                        "[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[a-f0-9]{64}")))
+                || !Set.of("restricted", "unrestricted").contains(mode)
                 || !Set.of("deny", "allow").contains(network)
                 || memoryMiB < 64
                 || memoryMiB > 16384
@@ -34,9 +45,21 @@ public record CommandSandboxPolicy(
             throw new IllegalArgumentException("Invalid command_sandbox policy");
     }
 
+    public CommandSandboxPolicy(
+            String mode, String network, int memoryMiB, int processes, int cpuPercent) {
+        this(mode, network, memoryMiB, processes, cpuPercent, "bubblewrap", "");
+    }
+
     public static CommandSandboxPolicy parse(Object value) {
         if (!(value instanceof Map<?, ?> settings)
-                || !Set.of("mode", "network", "memory_mib", "processes", "cpu_percent")
+                || !Set.of(
+                                "mode",
+                                "network",
+                                "memory_mib",
+                                "processes",
+                                "cpu_percent",
+                                "backend",
+                                "container_image")
                         .containsAll(settings.keySet()))
             throw new IllegalArgumentException("Invalid command_sandbox settings");
         return new CommandSandboxPolicy(
@@ -44,7 +67,9 @@ public record CommandSandboxPolicy(
                 text(settings, "network", "deny"),
                 number(settings, "memory_mib", 1024),
                 number(settings, "processes", 64),
-                number(settings, "cpu_percent", 100));
+                number(settings, "cpu_percent", 100),
+                text(settings, "backend", "bubblewrap"),
+                text(settings, "container_image", ""));
     }
 
     private static String text(Map<?, ?> settings, String key, String fallback) {
@@ -64,7 +89,9 @@ public record CommandSandboxPolicy(
     public String description() {
         return mode.equals("unrestricted")
                 ? "UNRESTRICTED commands: host filesystem/network authority; no OS resource isolation"
-                : "Restricted Linux commands: workspace writes; private home/tmp; network "
+                : "Restricted "
+                        + backend
+                        + " commands: workspace writes; private home/tmp; network "
                         + network
                         + "; memory "
                         + memoryMiB
@@ -78,6 +105,8 @@ public record CommandSandboxPolicy(
     public CommandExecutionBackend backend(Path home) {
         return mode.equals("unrestricted")
                 ? CommandExecutionBackend.unrestricted()
-                : new LinuxCommandBackend(this, home);
+                : backend.equals("bubblewrap")
+                        ? new LinuxCommandBackend(this, home)
+                        : new ContainerCommandBackend(this, home);
     }
 }

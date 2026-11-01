@@ -107,7 +107,7 @@ public final class LinuxCommandBackend implements CommandExecutionBackend {
             throw new IOException("Restricted commands require cgroup v2");
     }
 
-    private void validateWorkspace(Path root) throws IOException, InterruptedException {
+    void validateWorkspace(Path root) throws IOException, InterruptedException {
         var realHome = Files.exists(home) ? home.toRealPath() : home;
         var security = home.resolve(".config/syleks");
         if (Files.exists(security) && security.toRealPath().startsWith(root))
