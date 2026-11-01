@@ -31,7 +31,7 @@ java --enable-native-access=ALL-UNNAMED -jar /path/to/syleks/target/syleks-0.1.0
 
 Append any [CLI option](commands.md) to that command. The historical `chat` argument still works. From the source directory, `mvn compile exec:exec` also launches chat in an interactive terminal.
 
-If you have a native Syleks executable, invoke it directly, for example `./target/syleks --help`, or run `./bin/install-native.sh` to install it as `~/.local/bin/syleks`. The installer prints PATH setup instructions when needed. Its chat commands and configuration are the same. Building that optional executable is covered in the repository [README](../README.md#native-executable-with-apache-arthur).
+If you have a native Syleks executable, invoke it directly, for example `./target/syleks --help`, or run `./bin/install-native.sh` to install it as `~/.local/bin/syleks`. The installer prints PATH setup instructions when needed. Its chat commands and configuration are the same. Building that optional executable is covered in the repository [README](https://github.com/fpapon/syleks/blob/main/README.md#native-executable-with-apache-arthur).
 
 ## Option A: use Ollama
 
@@ -100,6 +100,6 @@ Move `$HOME/.config/fusion-agent` to `$HOME/.config/syleks`, and project `.fusio
 
 ## Start from a complete example
 
-If you prefer editing files, choose the [Ollama example](../examples/agent-config-ollama.json) or [single compatible server example](../examples/agent-config-local.json). Follow the [copying instructions](../examples/README.md#install-a-json-example), including the local schema path and existing Markdown overrides. The [full reference](../examples/agent-config.json) also demonstrates multiple providers, proxies and MCP.
+If you prefer editing files, choose the [Ollama example](https://github.com/fpapon/syleks/blob/main/examples/agent-config-ollama.json) or [single compatible server example](https://github.com/fpapon/syleks/blob/main/examples/agent-config-local.json). Follow the [copying instructions](https://github.com/fpapon/syleks/blob/main/examples/README.md#install-a-json-example), including the local schema path and existing Markdown overrides. The [full reference](https://github.com/fpapon/syleks/blob/main/examples/agent-config.json) also demonstrates multiple providers, proxies and MCP.
 
-For specialists, install the [complete agent definitions](../examples/README.md#install-agent-and-subagent-definitions), restart, select `/agent build`, and try `@explore Find the application entry point and cite the file`. Check `/permissions` if file access is denied. Examples are independent of the more restrictive setup defaults.
+For specialists, install the [complete agent definitions](https://github.com/fpapon/syleks/blob/main/examples/README.md#install-agent-and-subagent-definitions), restart, select `/agent build`, and try `@explore Find the application entry point and cite the file`. Check `/permissions` if file access is denied. Examples are independent of the more restrictive setup defaults.

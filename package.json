@@ -1,0 +1,22 @@
+{
+  "name": "syleks-docs",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "docs:check": "node scripts/docs-check.mjs",
+    "docs:smoke": "node scripts/docs-smoke.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4",
+    "markdown-it": "14.3.3"
+  },
+  "overrides": {
+    "vite": "6.4.5"
+  }
+}

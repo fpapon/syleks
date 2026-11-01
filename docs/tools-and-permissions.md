@@ -203,7 +203,7 @@ The **last matching rule wins**. Put broad rules first and narrower exceptions a
 
 ## Complete policies to adapt
 
-The [full JSON reference](../examples/agent-config.json) lists all native operations plus MCP and custom-tool examples. The [Build definition](../examples/agents/build.md) permits inspection and asks before edits, patches and commands; [Plan](../examples/agents/plan.md), [Explore](../examples/agents/explore.md) and [Reviewer](../examples/agents/reviewer.md) deny those effects. These policies are examples and differ from setup defaults. See the [installation guide](../examples/README.md) to reconcile existing Markdown overrides.
+The [full JSON reference](https://github.com/fpapon/syleks/blob/main/examples/agent-config.json) lists all native operations plus MCP and custom-tool examples. The [Build definition](https://github.com/fpapon/syleks/blob/main/examples/agents/build.md) permits inspection and asks before edits, patches and commands; [Plan](https://github.com/fpapon/syleks/blob/main/examples/agents/plan.md), [Explore](https://github.com/fpapon/syleks/blob/main/examples/agents/explore.md) and [Reviewer](https://github.com/fpapon/syleks/blob/main/examples/agents/reviewer.md) deny those effects. These policies are examples and differ from setup defaults. See the [installation guide](https://github.com/fpapon/syleks/blob/main/examples/README.md) to reconcile existing Markdown overrides.
 
 For an approval-gated patch, permit `apply_patch` **and** `edit` for updates, or `write` for additions/deletions. For a delegated read/search task, the parent and child must both permit the necessary operations. A custom permission name only authorizes an already registered Java tool; it does not create one.
 

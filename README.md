@@ -72,6 +72,20 @@ mvn -q compile exec:exec
 
 The plugin launches a separate Java process, selects the `chat` command automatically, and uses the same environment variables as the JAR launch. Exit with Ctrl+D or `/quit`.
 
+## Documentation Website
+
+The VitePress website uses the existing Markdown in `docs/`. Node.js 22.14+ (CI: 24 LTS) and npm are required only for documentation development, not the Java CLI.
+
+```sh
+npm ci
+npm run docs:dev      # live development
+npm run docs:check    # source links, assets, titles and navigation
+npm run docs:build    # static output in docs/.vitepress/dist
+npm run docs:preview  # preview the generated site
+```
+
+The independent [documentation workflow](.github/workflows/docs.yml) validates pull requests and deploys successful `main` builds through GitHub Pages. The configured destination is <https://fpapon.github.io/syleks/>; public deployment is not yet verified. Select **GitHub Actions** in repository **Settings → Pages** before the first deployment. See [documentation contributions](docs/contributing-docs.md) and [Pages setup and production validation](docs/development/github-pages.md).
+
 ## Source formatting
 
 Spotless formats production and test Java sources with Google Java Format's four-space AOSP style. Generated files under `target/` are excluded.
@@ -377,7 +391,6 @@ The app supports streaming conversations, persisted root/child sessions, declare
 ## Suggested next increments
 
 1. Encryption at rest.
-2. Additional command sandbox backends and richer change review.
-3. Fuzzy search, configurable keymap, terminal themes.
+2. Fuzzy search, configurable keymap, terminal themes.
 
 Licensed Apache-2.0 (see LICENSE).

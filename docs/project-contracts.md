@@ -8,7 +8,7 @@ The v1 contract is **proposed and awaiting public API approval**. The current im
 
 ## Create a project registry
 
-1. Open the [project registry example](../examples/engineering/project-registry.json). Copy its contents into `~/.config/syleks/engineering-projects.json`, or merge its project entry into an existing registry. Preserve existing entries and keep a private backup before editing.
+1. Open the [project registry example](https://github.com/fpapon/syleks/blob/main/examples/engineering/project-registry.json). Copy its contents into `~/.config/syleks/engineering-projects.json`, or merge its project entry into an existing registry. Preserve existing entries and keep a private backup before editing.
 2. Replace `root_path` with your project's existing absolute directory and choose unique project and budget IDs. Keep `allow_cloud: false` and `provenance: "PRIVATE"` for confidential work.
 3. Keep the registry outside every enrolled project. Protect its directory and file with private filesystem permissions; on POSIX systems, use `0700` for the directory and `0600` for the file. Registry and pack paths must not contain symlinks.
 4. Leave `technology_packs` and `local_routes` empty initially. No template is installed, and no inference endpoint is authorized by the example.
@@ -28,7 +28,7 @@ The file is a `project_registry` envelope with `schema_version: 1`, a `projects`
 | `technology_packs` | References to separately maintained, version/hash-pinned local packs, or `[]` |
 | `token_budget` | The versioned budget declaration shown in the example; aggregate spending enforcement is not implemented yet |
 
-Use the separate [Engineering schema](../src/main/resources/engineering/contracts-v1.schema.json) for editor validation. Unknown fields and unsupported versions are rejected. Unlike `agent-config.json`, these contracts do not accept a `$schema` property; associate the schema through your editor's settings instead.
+Use the separate [Engineering schema](https://github.com/fpapon/syleks/blob/main/src/main/resources/engineering/contracts-v1.schema.json) for editor validation. Unknown fields and unsupported versions are rejected. Unlike `agent-config.json`, these contracts do not accept a `$schema` property; associate the schema through your editor's settings instead.
 
 ## Review and authorize local inference
 
@@ -62,7 +62,7 @@ Framework, skill and workflow definitions belong in a separate local template ch
 | `local_path` | The absolute directory containing that manifest |
 | `manifest_sha256` | The lowercase SHA-256 of the manifest's exact bytes |
 
-The manifest also pins each referenced file's digest. Syleks verifies the selected pack's ID, version, paths and contents before accepting it. Changed content requires reviewed version/digest pins and a restart. Loading a pack does not install it into existing agent/skill directories or insert its contents into current chat prompts. See the [pack contract](engineering/CONTRACTS.md#local-template-repository-interface) for the manifest format and size limits.
+The manifest also pins each referenced file's digest. Syleks verifies the selected pack's ID, version, paths and contents before accepting it. Changed content requires reviewed version/digest pins and a restart. Loading a pack does not install it into existing agent/skill directories or insert its contents into current chat prompts. See the [pack contract](https://github.com/fpapon/syleks/blob/main/docs/engineering/CONTRACTS.md#local-template-repository-interface) for the manifest format and size limits.
 
 ## Understand the current restrictions
 
@@ -94,4 +94,4 @@ Restart after creating, changing or removing the registry, including changes for
 | `AUTHORIZED_RELEASE_REQUIRED` / `OFFICIAL_SUBSCRIPTION_REQUIRED` | Cloud execution is unavailable under the current Engineering boundary; changing credentials does not enable it. |
 | `EXTERNAL_TOOL_BLOCKED` | The requested tool can route data or execute outside the local tool boundary and is unavailable in Engineering mode. |
 
-This registry is separate from `.syleks/project.json`, which controls the existing provider cloud policy, and from `agent-config.json`, which configures providers, agents and ordinary permissions. Those policies still apply. For contract details and the pending design decision, see [Engineering contracts](engineering/CONTRACTS.md), [compatibility](engineering/COMPATIBILITY.md) and [ADR 0001](engineering/adr/0001-engineering-contracts.md).
+This registry is separate from `.syleks/project.json`, which controls the existing provider cloud policy, and from `agent-config.json`, which configures providers, agents and ordinary permissions. Those policies still apply. For contract details and the pending design decision, see [Engineering contracts](https://github.com/fpapon/syleks/blob/main/docs/engineering/CONTRACTS.md), [compatibility](https://github.com/fpapon/syleks/blob/main/docs/engineering/COMPATIBILITY.md) and [ADR 0001](https://github.com/fpapon/syleks/blob/main/docs/engineering/adr/0001-engineering-contracts.md).

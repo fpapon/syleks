@@ -76,6 +76,6 @@ Schema 6 adds indexed summary boundaries and a write-ahead native file-change jo
 
 ## Copying and sharing configuration
 
-The [configuration examples](../examples/README.md) contain placeholders, never working credentials. When adapting them, keep private backups of existing configuration and reconcile Markdown overrides rather than overwriting customized files. Custom provider `options.apiKey`, MCP literal `headers` and stdio `environment` can contain plaintext secrets. MCP `bearer_token_env` names a variable rather than storing its value in JSON.
+The [configuration examples](https://github.com/fpapon/syleks/blob/main/examples/README.md) contain placeholders, never working credentials. When adapting them, keep private backups of existing configuration and reconcile Markdown overrides rather than overwriting customized files. Custom provider `options.apiKey`, MCP literal `headers` and stdio `environment` can contain plaintext secrets. MCP `bearer_token_env` names a variable rather than storing its value in JSON.
 
 Agent prompts, global/project `AGENTS.md`, delegated task prompts and approved tool results can reach the selected model provider and persistent history. A specialist model override may select a different server. Inspect every configured provider and agent before using private project data. Setting `enabled: false` prevents an MCP connection, but its definition must still be valid.

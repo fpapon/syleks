@@ -141,7 +141,7 @@ Set `options.proxy` independently on each provider to route its API calls throug
 
 The proxy URL requires the `http` scheme, a hostname and an explicit port from `1` to `65535`. An optional trailing slash is allowed; credentials, other paths, query parameters and fragments are rejected. HTTPS API requests use the proxy's CONNECT tunnel. Proxy authentication is not supported. Omit `proxy` to keep the Java HTTP client's default proxy behavior. Ollama also accepts `options.baseURL`. Other built-in entries (`chatgpt`, `openai-api`, `spacexsi`, `openrouter`, `opencode`, `google`) accept only `options.proxy`; their endpoints and authentication remain configured through the existing settings. Proxy settings cover chat and model discovery, and do not change OAuth login or token refresh traffic. Restart after editing the file.
 
-`$schema` enables validation/completion in compatible editors using the schema beside the configuration. The repository also contains a [full configuration example](../examples/agent-config.json) and [schema](../agent-config.schema.json). Startup separately validates references and supported settings. Restart after hand edits.
+`$schema` enables validation/completion in compatible editors using the schema beside the configuration. The repository also contains a [full configuration example](https://github.com/fpapon/syleks/blob/main/examples/agent-config.json) and [schema](https://github.com/fpapon/syleks/blob/main/agent-config.schema.json). Startup separately validates references and supported settings. Restart after hand edits.
 
 ## Ollama configuration and environment variables
 
@@ -209,7 +209,7 @@ Configure stdio or Streamable HTTP servers in `mcp`. Project definitions require
 
 ## Complete configuration reference
 
-Use the [example catalog](../examples/README.md) to choose a full reference, a single-server configuration, or an Ollama configuration. Each is a complete JSON document; `permissions.json` is a merge fragment. The examples show supported combinations, rather than settings that every installation needs. Setup's bundled defaults differ from these examples.
+Use the [example catalog](https://github.com/fpapon/syleks/blob/main/examples/README.md) to choose a full reference, a single-server configuration, or an Ollama configuration. Each is a complete JSON document; `permissions.json` is a merge fragment. The examples show supported combinations, rather than settings that every installation needs. Setup's bundled defaults differ from these examples.
 
 Only the global `~/.config/syleks/agent-config.json` configures providers, agents, global permissions and child limits. A project `.syleks/agent-config.json` supplies **only MCP definitions**, and only for an explicitly trusted launch workspace. For project agent customization, use `.syleks/agents/NAME.md`; for instructions, use `AGENTS.md`.
 
@@ -251,7 +251,7 @@ Reserved entries `ollama`, `chatgpt`, `openai-api`, `spacexsi`, `openrouter`, `o
 
 Every [Markdown frontmatter field](agents.md#create-a-custom-agent) is also valid under `agent.NAME`: `description`, `mode`, `model`, `temperature`, `max_rounds`, `disable`, `hidden`, and `permission`. JSON additionally accepts `prompt`, a nonblank string containing the instructions. Markdown uses its body for the prompt and does not accept a `prompt:` frontmatter field.
 
-New agents default to their name as description, mode `all`, enabled and visible, no model/temperature/round override, and an empty prompt if JSON omits it. Existing agents retain omitted settings. Markdown requires a nonblank body unless `disable: true`. JSON string prompts can contain `\n` for line breaks. The [full JSON example](../examples/agent-config.json) and [complete Markdown definitions](../examples/README.md#install-agent-and-subagent-definitions) cover primary, subagent, all, hidden and disabled agents.
+New agents default to their name as description, mode `all`, enabled and visible, no model/temperature/round override, and an empty prompt if JSON omits it. Existing agents retain omitted settings. Markdown requires a nonblank body unless `disable: true`. JSON string prompts can contain `\n` for line breaks. The [full JSON example](https://github.com/fpapon/syleks/blob/main/examples/agent-config.json) and [complete Markdown definitions](https://github.com/fpapon/syleks/blob/main/examples/README.md#install-agent-and-subagent-definitions) cover primary, subagent, all, hidden and disabled agents.
 
 `permission` may be `"deny"` / `"ask"` / `"allow"`, an object mapping operation names to decisions, or operation names to ordered target maps. The full reference enumerates every native operation and demonstrates `custom_greeting` and MCP rules. Custom permission entries do not install executable tools; [Java extensions](tools.md#java-extensions) must already be registered. `*` addresses all operations; broad rules must precede narrower exceptions. See [permission targets and precedence](tools-and-permissions.md#write-targeted-rules).
 
@@ -275,6 +275,8 @@ Fields live at `mcp.SERVER`. IDs start with a lowercase letter and contain up to
 | `scope` | Optional nonblank scope string | HTTP with `oauth: true` |
 
 `command`/`environment` cannot be used on HTTP servers; `url`/`headers`/`bearer_token_env` cannot be used on stdio servers. OAuth is HTTP-only. Disabled definitions are still validated. See [MCP](mcp.md) for header restrictions, environment inheritance, credential handling and protocol limits.
+
+<a id="files-that-are-separate-from-agent-configjson"></a>
 
 ### Files that are separate from agent-config.json
 

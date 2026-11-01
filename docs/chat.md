@@ -68,7 +68,7 @@ For a complete structured export, use [session JSON export](sessions.md). Both f
 
 ## Try a specialist workflow
 
-With the [example configuration and agent definitions](../examples/README.md) installed, select `/agent build`, then send `@explore Find the configuration loader and explain its inputs, with file references`. A child runs with its explicit task and returns an answer. Use `/children` to open its history and `/parent` to return. `/permissions reviewer` shows another specialist's policy before invocation. Hidden agents such as the example Triage require their explicit name.
+With the [example configuration and agent definitions](https://github.com/fpapon/syleks/blob/main/examples/README.md) installed, select `/agent build`, then send `@explore Find the configuration loader and explain its inputs, with file references`. A child runs with its explicit task and returns an answer. Use `/children` to open its history and `/parent` to return. `/permissions reviewer` shows another specialist's policy before invocation. Hidden agents such as the example Triage require their explicit name.
 
 ## Input recall privacy
 

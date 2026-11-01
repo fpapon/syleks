@@ -117,7 +117,7 @@ Task answers returned to the parent are capped at 32,000 UTF-8 bytes for the agg
 
 ## Complete specialist definitions and a delegated workflow
 
-Install [explore.md](../examples/agents/explore.md) and [reviewer.md](../examples/agents/reviewer.md) in the same global/project `agents/` directory as primary definitions. Pair them with [build.md](../examples/agents/build.md) and the [full configuration](../examples/agent-config.json) or [single-server variant](../examples/agent-config-local.json). See the [installation instructions](../examples/README.md) before copying: Markdown overrides JSON, including model choice and permissions.
+Install [explore.md](https://github.com/fpapon/syleks/blob/main/examples/agents/explore.md) and [reviewer.md](https://github.com/fpapon/syleks/blob/main/examples/agents/reviewer.md) in the same global/project `agents/` directory as primary definitions. Pair them with [build.md](https://github.com/fpapon/syleks/blob/main/examples/agents/build.md) and the [full configuration](https://github.com/fpapon/syleks/blob/main/examples/agent-config.json) or [single-server variant](https://github.com/fpapon/syleks/blob/main/examples/agent-config-local.json). See the [installation instructions](https://github.com/fpapon/syleks/blob/main/examples/README.md) before copying: Markdown overrides JSON, including model choice and permissions.
 
 A useful task contains the objective, scope, required context and expected result:
 

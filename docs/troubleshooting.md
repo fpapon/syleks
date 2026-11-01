@@ -92,4 +92,4 @@ For a visual check without invoking tools, use `/demo`. Its content is simulated
 | Unlimited agent still hits a child limit | Shared child round/deadline/depth limits and durable root quotas still apply. Start a new root for a fresh durable budget. |
 | MCP example does not connect | Example entries are disabled. Configure a real endpoint/executable and credentials, then enable deliberately and restart. |
 
-Compare your installation with the [example catalog](../examples/README.md), [full field reference](configuration.md#complete-configuration-reference), and [complete Markdown definitions](agents.md#create-a-custom-agent).
+Compare your installation with the [example catalog](https://github.com/fpapon/syleks/blob/main/examples/README.md), [full field reference](configuration.md#complete-configuration-reference), and [complete Markdown definitions](agents.md#create-a-custom-agent).

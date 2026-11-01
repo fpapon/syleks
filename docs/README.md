@@ -9,7 +9,7 @@ Syleks is a terminal assistant for working on code. Chat with a model, ask it to
 | Install, connect a model, and send my first message | [Getting started](getting-started.md) |
 | Create or update settings without leaving chat | [Configuration](configuration.md) |
 | Enroll a private project, reference local technology packs and review inference routes | [Engineering project contracts](project-contracts.md) |
-| Copy complete JSON settings and primary/subagent Markdown definitions | [Example catalog](../examples/README.md) |
+| Copy complete JSON settings and primary/subagent Markdown definitions | [Example catalog](https://github.com/fpapon/syleks/blob/main/examples/README.md) |
 | Select Ollama, ChatGPT or OpenAI API models | [Providers](providers.md) |
 | Sign in, switch accounts and protect credentials | [Authentication](authentication.md) |
 | Write multiline messages, paste code, and use keyboard shortcuts | [Chat and terminal controls](chat.md) |
@@ -39,6 +39,6 @@ The examples use `syleks` on your `PATH`. [Getting started](getting-started.md) 
 
 ## Engineering project contracts
 
-Opt in to Engineering restrictions with a user-owned `~/.config/syleks/engineering-projects.json`. The [project contract guide](project-contracts.md) explains setup from the [JSON example](../examples/engineering/project-registry.json), pinned external template packs, reviewed local inference routes and restart behavior. The v1 public contract remains proposed; the current implementation blocks cloud inference and external tools for enrolled projects and does not yet execute workflows or enforce aggregate token budgets.
+Opt in to Engineering restrictions with a user-owned `~/.config/syleks/engineering-projects.json`. The [project contract guide](project-contracts.md) explains setup from the [JSON example](https://github.com/fpapon/syleks/blob/main/examples/engineering/project-registry.json), pinned external template packs, reviewed local inference routes and restart behavior. The v1 public contract remains proposed; the current implementation blocks cloud inference and external tools for enrolled projects and does not yet execute workflows or enforce aggregate token budgets.
 
 [Secret references and explicit migration](secret-storage.md) cover custom-provider keys and MCP header/environment values.

@@ -177,6 +177,6 @@ The picker filters titles, full or partial session IDs, and model names without 
 
 ## Configuration changes and specialist examples
 
-The [example workflow](../examples/README.md) installs configuration and Markdown independently from saved histories. `/restart` applies edited configuration/agent definitions and the configured default agent/model while retaining this conversation; ordinary resume uses the session's saved model. Project-instruction snapshots remain attached to existing histories: use `/new` for changed project `AGENTS.md` instructions.
+The [example workflow](https://github.com/fpapon/syleks/blob/main/examples/README.md) installs configuration and Markdown independently from saved histories. `/restart` applies edited configuration/agent definitions and the configured default agent/model while retaining this conversation; ordinary resume uses the session's saved model. Project-instruction snapshots remain attached to existing histories: use `/new` for changed project `AGENTS.md` instructions.
 
 Explore/Reviewer tasks create children under the current root. Use `/children` to inspect their history and `/parent` to return. Changing limits or deleting a child does not refund the root's durable task/round counters; start a new root when you need a fresh delegation budget. See [Subagents](subagents.md).
