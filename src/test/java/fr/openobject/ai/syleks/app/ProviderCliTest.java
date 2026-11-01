@@ -40,7 +40,7 @@ class ProviderCliTest {
                         .contains("Selected ollama/offline-model"));
         assertTrue(run("auth", "status").contains("ollama/offline-model"));
         assertTrue(run("auth", "accounts").contains("Active provider: ollama"));
-        assertTrue(run("--help").contains("syleks auth"));
+        assertTrue(run("--help").contains("auth login chatgpt [account-id]"));
         assertFalse(Files.exists(root.resolve("config/syleks/auth/accounts")));
     }
 

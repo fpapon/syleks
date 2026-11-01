@@ -86,7 +86,106 @@ public final class Main {
                             InterfaceLanguage.load(ConfigInitializer.home(), System.getenv())
                                     .catalog()));
             if (Arrays.asList(args).contains("--help") || Arrays.asList(args).contains("-h")) {
-                out.println(Messages.text("cli.help"));
+                out.println(
+                        """
+                        Syleks - AI coding agent with persistent sessions
+
+                        Usage:
+                          syleks [chat] [option]
+                          syleks <command> [arguments]
+
+                        Quick start:
+                          syleks config init               Set up your provider and model
+                          syleks                           Open chat and choose a project session
+                          syleks --continue                Resume your latest project session
+
+                        Chat options:
+                          -c, --continue                   Resume the latest session, or create one
+                          -s, --session <id>               Open an existing session
+                              --new                        Start a new session
+                              --fork <id>                  Fork an existing session and open chat
+                          -h, --help                       Show this help
+
+                        Configuration:
+                          config init [--defaults]         Set up provider and model settings
+                          config update                    Refresh schema and migrate settings
+
+                        Sessions (current project):
+                          session list                     List saved sessions
+                          session delete <id>              Delete a session
+                          session export <id>              Write a session as JSON to stdout
+                          session import <file>            Import a JSON session archive
+                          session fork <id> [message-id]   Fork a session, optionally at a message
+                          session messages <id>            Show session messages
+                          session changes <id>             List file changes
+                          session diff <id>                Show file diffs
+                          session undo <id>                Undo session file changes
+                          session redo <id>                Reapply session file changes
+
+                        Providers and models:
+                          provider list                    List available providers
+                          provider use <provider-id>       Select a provider
+                          model list                       List available models
+                          model use <model-id>             Select a model
+
+                        Authentication:
+                          auth login chatgpt [account-id]  Sign in with ChatGPT
+                          auth login <provider-id>         Sign in to an API key provider
+                          auth logout <provider-id> [account-id]
+                                                           Remove saved credentials
+                          auth status                      Show authentication status
+                          auth accounts                    List saved accounts
+                          auth use <account-id>            Select an account
+
+                        MCP servers:
+                          mcp list                         Show configured servers and status
+                          mcp tools                        List available MCP tools
+                          mcp auth <server-id>             Authorize a server
+                          mcp logout <server-id>           Remove server credentials
+
+                        Secrets and project trust:
+                          secrets migrate                  Move global secrets to bound references
+                          secrets encrypt                  Encrypt secrets in global configuration
+                          secrets rotate <reference-or-encrypted-value>
+                                                           Replace a secret from console or stdin
+                          secrets revoke <syleks-secret:uuid>
+                                                           Remove a local secret reference
+                          trust inspect                    Review project definitions and digest
+                          trust grant <reviewed-sha256>    Trust the reviewed project definitions
+                          trust revoke                     Revoke project trust
+
+                        Examples:
+                          syleks --session <id>
+                          syleks model use ollama/<model-name>
+                          syleks session export <id> > session.json
+
+                        Setup and chat:
+                          With no options, chat offers sessions for the current project.
+                          The optional 'chat' command is supported for compatibility.
+                          In chat, /config (Ctrl+G) opens setup; saving offers a restart.
+                          Redirected setup uses line prompts and preserves existing files.
+                          --defaults skips questions, uses bundled settings without an API key,
+                          and preserves existing files. 'config update' backs up changed files.
+                          Session exports may contain confidential content; redirect explicitly.
+
+                        Security and advanced settings:
+                          Secret migration covers global provider keys, MCP headers and environment.
+                          New references require a keyring unless SYLEKS_CREDENTIAL_BACKEND=file
+                          explicitly permits unencrypted files. Inline encryption requires a
+                          Base64-encoded 32-byte key in SYLEKS_CONFIG_KEY.
+                          Rotation reads masked console input or one line from stdin.
+                          Revocation removes the local reference only. Restart chats after secret
+                          migration, rotation or revocation. See docs/secret-storage.md.
+
+                          Global agent-config.json settings:
+                            insecure_http_origins  Allow reviewed remote HTTP; restart to apply/revoke
+                            web_private_origins    Allow private services; default is public only
+                            command_sandbox        Configure command isolation and network access
+                          Commands use restricted Linux isolation by default and are refused when
+                          enforcement is unavailable. Unrestricted mode requires a global opt-in.
+                          In chat, /approve remember grants the exact action for 15 minutes;
+                          /approvals lists and revokes grants.
+                        """);
                 return 0;
             }
             if (args.length > 0 && args[0].equals("secrets")) {
