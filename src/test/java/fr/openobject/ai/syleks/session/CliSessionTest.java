@@ -169,7 +169,9 @@ class CliSessionTest {
                                             "0.2",
                                             "30",
                                             "0.1",
-                                            "30"))
+                                            "30",
+                                            "system",
+                                            "false"))
                             + "\n");
         }
         assertTrue(process.waitFor(12, TimeUnit.SECONDS));
@@ -288,6 +290,8 @@ class CliSessionTest {
         var builder = new ProcessBuilder(command).directory(root.resolve("project").toFile());
         builder.environment().put("SYLEKS_DATA_DIR", root.resolve("data").toString());
         builder.environment().put("HOME", root.resolve("home").toString());
+        builder.environment().put("LC_ALL", "en_US.UTF-8");
+        builder.environment().put("LANG", "en_US.UTF-8");
         builder.environment().remove("OLLAMA_MODEL");
         builder.environment().remove("AGENT_SYSTEM_PROMPT");
         return builder.start();

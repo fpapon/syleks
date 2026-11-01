@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.tui;
 
 import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
+import fr.openobject.ai.syleks.i18n.Messages;
 import fr.openobject.ai.syleks.usage.*;
 import java.util.*;
 
@@ -57,18 +58,18 @@ final class UsageModal {
                         TokenUsageSidebar.lines(snapshot, provider, model, Math.max(1, width - 4)));
         lines.add("");
         if (limits != null) {
-            lines.add("CONFIGURED REQUEST BUDGET");
-            lines.add("Context window: " + limits.window());
-            lines.add("Response reserve: " + limits.responseReserve());
-            lines.add("Input allowance: " + limits.inputAllowance());
-            lines.add("Instructions, history and tool schemas share this allowance.");
-            lines.add("Admission uses a conservative UTF-8 estimate; not live token usage.");
-            lines.add("Use /compact to summarize older exchanges.");
+            lines.add(Messages.text("usage.budget"));
+            lines.add(Messages.text("usage.window", Long.toString(limits.window())));
+            lines.add(Messages.text("usage.reserve", Long.toString(limits.responseReserve())));
+            lines.add(Messages.text("usage.allowance", Long.toString(limits.inputAllowance())));
+            lines.add(Messages.text("usage.share"));
+            lines.add(Messages.text("usage.estimate"));
+            lines.add(Messages.text("usage.compact"));
             lines.add("");
         }
-        lines.add("BY PROVIDER (total tokens)");
+        lines.add(Messages.text("usage.by_provider"));
         snapshot.providers().forEach((k, v) -> lines.add(k + ": " + TokenUsageSidebar.counter(v)));
-        lines.add("BY MODEL (total tokens)");
+        lines.add(Messages.text("usage.by_model"));
         snapshot.models().forEach((k, v) -> lines.add(k + ": " + TokenUsageSidebar.counter(v)));
         var wrapped =
                 new ArrayList<>(
@@ -93,7 +94,7 @@ final class UsageModal {
         canvas.text(
                 x + 1,
                 y + height - 1,
-                ChatRenderer.fit("↑↓ PgUp/PgDn Home/End · Esc close", Math.max(0, width - 2)),
+                ChatRenderer.fit(Messages.text("usage.close"), Math.max(0, width - 2)),
                 BLUE,
                 INPUT,
                 false);

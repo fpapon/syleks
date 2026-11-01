@@ -76,6 +76,8 @@ class ProviderCliTest {
         command.addAll(Arrays.asList(args));
         var builder = new ProcessBuilder(command).redirectErrorStream(true);
         builder.environment().put("HOME", root.resolve("home").toString());
+        builder.environment().put("LC_ALL", "en_US.UTF-8");
+        builder.environment().put("LANG", "en_US.UTF-8");
         builder.environment().put("XDG_CONFIG_HOME", root.resolve("config").toString());
         builder.environment().put("SYLEKS_CREDENTIAL_BACKEND", "file");
         builder.environment()

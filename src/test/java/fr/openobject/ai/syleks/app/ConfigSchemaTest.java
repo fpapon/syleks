@@ -188,7 +188,11 @@ class ConfigSchemaTest {
                         "{\"model\":\"ollama/qwen3:8b\",\"provider\":{\"ollama\":{\"options\":{\"baseURL\":\"http://localhost:11434\"}}}}",
                         "{\"permission\":\"ALLOW\",\"max_rounds\":1000}",
                         "{\"agent\":{\"reviewer\":{\"mode\":\"SUBAGENT\",\"model\":\"qwen3:8b\",\"prompt\":\"Review code\",\"max_rounds\":1,\"permission\":{\"*\":{\"*\":\"DENY\"}}}}}",
-                        "{\"provider\":{\"local\":{\"options\":{\"baseURL\":\"http://[::1]:8000/v1/\"},\"models\":{\"team/model\":{}}}}}")) {
+                        "{\"provider\":{\"local\":{\"options\":{\"baseURL\":\"http://[::1]:8000/v1/\"},\"models\":{\"team/model\":{}}}}}",
+                        "{\"language\":\"system\",\"language_in_context\":false}",
+                        "{\"language\":\"fr_FR\",\"language_in_context\":true}",
+                        "{\"language\":\"de_DE\"}",
+                        "{\"language\":\"en-US\"}")) {
             var errors = schema.validate(json.parse(content));
             assertTrue(errors.isEmpty(), () -> content + ": " + errors);
         }
@@ -224,7 +228,11 @@ class ConfigSchemaTest {
                         "{\"agent\":{\"build\":{\"max_rounds\":-2}}}",
                         "{\"agent\":{\"build\":{\"unknown\":true}}}",
                         "{\"provider\":{\"bad/id\":{}}}",
-                        "{\"provider\":{\"local\":{\"models\":{}}}}")) {
+                        "{\"provider\":{\"local\":{\"models\":{}}}}",
+                        "{\"language\":\"\"}",
+                        "{\"language\":\"en_US.UTF-8\"}",
+                        "{\"language\":1}",
+                        "{\"language_in_context\":\"true\"}")) {
             assertFalse(schema.validate(json.parse(content)).isEmpty(), content);
         }
     }

@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.tui;
 
 import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
+import fr.openobject.ai.syleks.i18n.Messages;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.usage.*;
@@ -176,13 +177,7 @@ public final class ChatRenderer {
         width = canvas.width();
         height = canvas.height();
         if (height < 15 || width < 35) {
-            canvas.text(
-                    0,
-                    0,
-                    fit("Please resize the terminal (min 35 × 15)", width),
-                    YELLOW,
-                    BG,
-                    false);
+            canvas.text(0, 0, fit(Messages.text("chat.resize"), width), YELLOW, BG, false);
             return new Screen(canvas, 0, 0, snapshot.permission() == null);
         }
         int fullWidth = width;
@@ -232,7 +227,7 @@ public final class ChatRenderer {
             paintLine(canvas, transcript.get(index), left, y, bodyWidth);
         }
         if (scroll > 0 && maxScroll > 0) {
-            var hint = "↑ " + Math.min(scroll, maxScroll) + " lines";
+            var hint = Messages.text("chat.lines", Math.min(scroll, maxScroll));
             canvas.text(right - textWidth(hint) + 1, layout.composer() - 1, hint, SUB, BG, false);
         }
 
@@ -266,17 +261,17 @@ public final class ChatRenderer {
                     false);
         }
         if (editor.text().isEmpty())
-            canvas.text(textLeft, inputTop + 1, "Ask anything…", SUB, INPUT, false);
+            canvas.text(
+                    textLeft, inputTop + 1, Messages.text("chat.placeholder"), SUB, INPUT, false);
         String controls =
                 awaitingPermission
-                        ? (width >= 65
-                                ? "/approve once · /approve remember · /deny"
-                                : "/approve once|remember · /deny")
+                        ? Messages.text(width >= 65 ? "chat.approve.wide" : "chat.approve.narrow")
                         : width >= 65
-                                ? (snapshot.busy()
-                                        ? "Esc cancel · Tab mode"
-                                        : "Enter send · Tab mode")
-                                : "Enter · Tab mode";
+                                ? Messages.text(
+                                        snapshot.busy()
+                                                ? "chat.controls.busy"
+                                                : "chat.controls.send")
+                                : Messages.text("chat.controls.narrow");
         int labelWidth = Math.max(1, bodyWidth - textWidth(controls) - 7);
         String agent =
                 Character.toUpperCase(snapshot.agent().charAt(0)) + snapshot.agent().substring(1);
@@ -291,12 +286,12 @@ public final class ChatRenderer {
 
         var status =
                 awaitingPermission
-                        ? "◌ Awaiting permission"
+                        ? Messages.text("status.awaiting")
                         : snapshot.busy()
                                 ? snapshot.status().equals("Running command")
-                                        ? "◌ Running command"
-                                        : "◌ Generating"
-                                : "● " + snapshot.status();
+                                        ? Messages.text("status.running")
+                                        : Messages.text("status.generating")
+                                : Messages.text("status.ready", statusText(snapshot.status()));
         int statusColor =
                 snapshot.busy() || awaitingPermission || snapshot.status().equals("Denied")
                         ? YELLOW
@@ -309,13 +304,14 @@ public final class ChatRenderer {
                             + snapshot.elapsedTime();
         else status = fit(status, statusWidth);
         String shortcuts =
-                width >= 100
-                        ? "Ctrl+P commands · Esc cancel · PgUp/PgDn scroll"
-                        : width >= 60 ? "Ctrl+P commands · Esc cancel" : "Ctrl+P · Ctrl+D exit";
+                Messages.text(
+                        width >= 100
+                                ? "chat.shortcuts.wide"
+                                : width >= 60 ? "chat.shortcuts" : "chat.shortcuts.narrow");
         int footerWidth = fullBody - textWidth(status) - 2;
         if (snapshot.busy() && !awaitingPermission && snapshot.permission() == null) {
             paintProgress(canvas, left, layout.footer(), agentAccent);
-            var hint = width >= 65 ? "Esc interrupt · Ctrl+P commands" : "Esc cancel";
+            var hint = Messages.text(width >= 65 ? "chat.interrupt.wide" : "chat.interrupt");
             canvas.text(
                     left + 9,
                     layout.footer(),
@@ -406,12 +402,17 @@ public final class ChatRenderer {
         for (int y = top; y < top + height; y++)
             canvas.text(left, y, "▎", orange, background, false);
         canvas.text(
-                left + 2, top, fit("△ Permission required", width - 4), orange, background, true);
+                left + 2,
+                top,
+                fit(Messages.text("permission.title"), width - 4),
+                orange,
+                background,
+                true);
         var scope =
                 switch (prompt.selected()) {
-                    case 1 -> "Exact action for 15 minutes; changed arguments/context need review.";
-                    case 2 -> "Reject this request and return a refusal to the agent.";
-                    default -> "Allow this request once.";
+                    case 1 -> Messages.text("permission.always");
+                    case 2 -> Messages.text("permission.reject");
+                    default -> Messages.text("permission.once");
                 };
         canvas.text(left + 2, top + 1, fit(scope, width - 4), SUB, background, false);
         var lines = new ArrayList<String>();
@@ -439,8 +440,16 @@ public final class ChatRenderer {
         canvas.fill(left + 1, buttons, width - 1, 2, bar);
         String[] labels =
                 width >= 50
-                        ? new String[] {"Allow once", "Remember exact", "Reject"}
-                        : new String[] {"Once", "Exact", "Reject"};
+                        ? new String[] {
+                            Messages.text("permission.allow"),
+                            Messages.text("permission.allow_always"),
+                            Messages.text("permission.reject_button")
+                        }
+                        : new String[] {
+                            Messages.text("permission.once_short"),
+                            Messages.text("permission.always_short"),
+                            Messages.text("permission.reject_button")
+                        };
         int x = left + 2;
         for (int index = 0; index < labels.length; index++) {
             if (index == 1 && !request.alwaysAllowed()) continue;
@@ -456,11 +465,10 @@ public final class ChatRenderer {
             x += textWidth(label) + 1;
         }
         String help =
-                width >= 80
-                        ? "←/→ select · Enter confirm · Esc cancel · Ctrl+F expand · ↑/↓ details"
-                        : width >= 50
-                                ? "←/→ select · Enter confirm · Ctrl+F expand"
-                                : "←/→ select · Enter confirm";
+                Messages.text(
+                        width >= 80
+                                ? "permission.help.wide"
+                                : width >= 50 ? "permission.help" : "permission.help.short");
         canvas.text(left + 2, buttons + 1, fit(help, width - 4), SUB, bar, false);
         if (lines.size() > available) {
             var position = " ↓ " + (prompt.scroll() + 1) + "/" + lines.size() + " ";
@@ -585,7 +593,7 @@ public final class ChatRenderer {
                     lines.add(line(segment, WHITE, BG, 2, true, false));
                 }
             }
-            lines.add(line("You · " + message.time(), SUB, BG, 2, true, false));
+            lines.add(line(Messages.text("chat.you", message.time()), SUB, BG, 2, true, false));
         } else {
             boolean code = false;
             String fence = "";
@@ -616,7 +624,7 @@ public final class ChatRenderer {
                         lines.add(line("", SUB, CODE, 2, false, false));
                         lines.add(
                                 line(
-                                        label.isEmpty() ? "Code" : label,
+                                        label.isEmpty() ? Messages.text("chat.code") : label,
                                         BLUE,
                                         CODE,
                                         2,
@@ -896,10 +904,29 @@ public final class ChatRenderer {
                 x, y + height - 1, "╰" + "─".repeat(width - 2) + "╯", border, background, false);
     }
 
+    private static String statusText(String status) {
+        return switch (status) {
+            case "Awaiting permission" -> Messages.text("status.awaiting_permission");
+            case "Running command" -> Messages.text("status.running_command");
+            case "Generating" -> Messages.text("status.generating_plain");
+            case "Denied" -> Messages.text("status.denied");
+            case "Ready" -> Messages.text("status.ready_plain");
+            case "Awaiting answer" -> Messages.text("status.awaiting_answer");
+            case "Cancelled" -> Messages.text("status.cancelled");
+            case "Summarizing" -> Messages.text("status.summarizing");
+            case "Restoring files" -> Messages.text("status.restoring");
+            default -> {
+                if (status.startsWith("Subagent "))
+                    yield Messages.text("status.subagent", status.substring("Subagent ".length()));
+                yield status;
+            }
+        };
+    }
+
     private static String sessionTitle(List<ChatMessage> messages) {
         return messages.stream().anyMatch(message -> message.role().equals("user"))
-                ? "Session · Conversation"
-                : "Session · New conversation";
+                ? Messages.text("chat.session")
+                : Messages.text("chat.session_new");
     }
 
     private static String workspacePath() {

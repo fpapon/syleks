@@ -18,6 +18,7 @@ package fr.openobject.ai.syleks.ai;
 import fr.openobject.ai.syleks.app.AppConfig;
 import fr.openobject.ai.syleks.app.PermissionPolicy;
 import fr.openobject.ai.syleks.fs.SecureFiles;
+import fr.openobject.ai.syleks.i18n.Messages;
 import fr.openobject.ai.syleks.model.ChatMessage;
 import fr.openobject.ai.syleks.model.ChatSnapshot;
 import fr.openobject.ai.syleks.model.PermissionRequest;
@@ -120,10 +121,7 @@ public class ChatSession {
         this.config = config;
         this.agent = config.defaultAgent();
         this.model = config.agentModel(agent, config.defaultModel());
-        messages.add(
-                ChatMessage.now(
-                        "system",
-                        "Bienvenue dans Syleks. Écris un message pour commencer. /help affiche les commandes."));
+        messages.add(ChatMessage.now("system", text("chat.welcome")));
     }
 
     public synchronized AgentState executionState() {
@@ -1494,7 +1492,7 @@ public class ChatSession {
         }
         if (!pending.isEmpty())
             messages.add(ChatMessage.now("assistant", responsePrefix + pending));
-        messages.add(ChatMessage.now("system", "Génération annulée."));
+        messages.add(ChatMessage.now("system", text("chat.generation_cancelled")));
         pending = new StringBuilder();
         task = null;
         status = "Cancelled";
@@ -1538,7 +1536,7 @@ public class ChatSession {
             toolGrants.clear();
             model = value;
             if (persistence != null) updateMetadata();
-            info("Modèle sélectionné : " + model);
+            info(text("chat.model_selected", model));
         }
     }
 
@@ -1590,32 +1588,14 @@ public class ChatSession {
                     "Finish generation or resolve the pending permission before opening the demo.");
         preview =
                 List.of(
-                        ChatMessage.now(
-                                "system",
-                                "Visual demo · simulated results; no files are read or modified."),
-                        ChatMessage.now(
-                                "user",
-                                "Analyse le service UserService.java et propose des améliorations."),
-                        ChatMessage.now(
-                                "system",
-                                "✓ [demo] Read src/main/java/UserService.java\n✓ [demo] Read src/test/java/UserServiceTest.java\n◌ [demo] Analyzing source code…"),
-                        ChatMessage.now(
-                                "assistant",
-                                """
-                J'ai identifié plusieurs améliorations :
+                        ChatMessage.now("system", text("demo.notice")),
+                        ChatMessage.now("user", text("demo.request")),
+                        ChatMessage.now("system", text("demo.tools")),
+                        ChatMessage.now("assistant", text("demo.reply")));
+    }
 
-                - Simplifier la validation des paramètres
-
-                - Extraire la logique de mapping
-
-                - Ajouter des tests unitaires
-
-                ```java UserService.java
-                + public User findById(long id) {
-                    return repository.findById(id)
-                        .orElseThrow();
-                  }
-                ```"""));
+    private String text(String key, Object... args) {
+        return Messages.forCatalog(config.interfaceLanguage().catalog()).get(key, args);
     }
 
     public synchronized void info(String message) {
@@ -1861,6 +1841,10 @@ public class ChatSession {
 
     public Path configurationHome() {
         return config.home();
+    }
+
+    public void installInterfaceLanguage() {
+        Messages.install(Messages.forCatalog(config.interfaceLanguage().catalog()));
     }
 
     public String configuredModel() {

@@ -16,6 +16,8 @@
 package fr.openobject.ai.syleks.app;
 
 import fr.openobject.ai.syleks.fs.SecureFiles;
+import fr.openobject.ai.syleks.i18n.InterfaceLanguage;
+import fr.openobject.ai.syleks.i18n.Messages;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import java.io.BufferedReader;
@@ -41,23 +43,29 @@ public class ConfigInitWizard {
         this.json = json;
     }
 
-    public record Field(String label, boolean secret) {}
+    public record Field(String key, boolean secret) {
+        public String label() {
+            return Messages.text(key);
+        }
+    }
 
     public static final List<Field> FIELDS =
             List.of(
-                    new Field("Provider ID", false),
-                    new Field("Provider display name", false),
-                    new Field("Base URL", false),
-                    new Field("API key or secret reference (optional)", true),
-                    new Field("Model ID", false),
-                    new Field("Model display name", false),
-                    new Field("Context token limit", false),
-                    new Field("Output token limit", false),
-                    new Field("Global max rounds", false),
-                    new Field("Plan temperature", false),
-                    new Field("Plan max rounds", false),
-                    new Field("Build temperature", false),
-                    new Field("Build max rounds", false));
+                    new Field("config.field.provider", false),
+                    new Field("config.field.provider_name", false),
+                    new Field("config.field.url", false),
+                    new Field("config.field.key", true),
+                    new Field("config.field.model", false),
+                    new Field("config.field.model_name", false),
+                    new Field("config.field.context", false),
+                    new Field("config.field.output", false),
+                    new Field("config.field.rounds", false),
+                    new Field("config.field.plan_temperature", false),
+                    new Field("config.field.plan_rounds", false),
+                    new Field("config.field.build_temperature", false),
+                    new Field("config.field.build_rounds", false),
+                    new Field("config.field.language", false),
+                    new Field("config.field.context_language", false));
 
     public Form load(Path home) throws IOException {
         Path path = home.resolve(".config/syleks/agent-config.json");
@@ -99,8 +107,7 @@ public class ConfigInitWizard {
                     if (!(parsed instanceof Map<?, ?>)) throw new IllegalArgumentException();
                     existing = object(parsed);
                 } catch (RuntimeException invalid) {
-                    warning =
-                            "Invalid existing JSON. Save will replace it; Cancel keeps the original.";
+                    warning = Messages.text("config.warning.invalid_json");
                 }
             }
             base = existing == null ? object(defaults) : existing;
@@ -133,7 +140,11 @@ public class ConfigInitWizard {
                             scalar(plan, "temperature", "0.2"),
                             scalar(plan, "max_rounds", original == null ? "30" : rounds),
                             scalar(build, "temperature", "0.1"),
-                            scalar(build, "max_rounds", original == null ? "30" : rounds)));
+                            scalar(build, "max_rounds", original == null ? "30" : rounds),
+                            languageValue(base),
+                            base.get("language_in_context") instanceof Boolean enabled && enabled
+                                    ? "true"
+                                    : "false"));
         }
 
         public String original() {
@@ -164,36 +175,41 @@ public class ConfigInitWizard {
         public String validation(int field) {
             String value = value(field);
             if (value.codePoints().anyMatch(Character::isISOControl))
-                return "Control characters are not allowed.";
+                return Messages.text("config.error.control");
             return switch (field) {
                 case 0 ->
                         value.matches("[A-Za-z0-9._-]{1,238}")
                                 ? ""
-                                : "Use letters, digits, dots, underscores or hyphens.";
-                case 1, 5 -> value.isBlank() ? "Enter a display name." : "";
-                case 2 ->
-                        validURL(value, transport)
-                                ? ""
-                                : "Enter an HTTPS URL (HTTP needs loopback or a global origin exception), without credentials, query or fragment.";
+                                : Messages.text("config.error.id");
+                case 1, 5 -> value.isBlank() ? Messages.text("config.error.name") : "";
+                case 2 -> validURL(value, transport) ? "" : Messages.text("config.error.url");
                 case 3 -> "";
                 case 4 ->
                         value.matches("[A-Za-z0-9._:/-]{1,240}")
                                         && value(0).length() + 1 + value.length() <= 240
                                 ? ""
-                                : "Enter a valid model ID; provider/model must fit in 240 characters.";
+                                : Messages.text("config.error.model");
                 case 6 ->
                         integer(value, 1, Integer.MAX_VALUE)
                                 ? ""
-                                : "Enter a positive integer token limit.";
+                                : Messages.text("config.error.tokens");
                 case 7 ->
                         integer(value, 1, intValue(value(6), 0))
                                 ? ""
-                                : "Output must be a positive integer no greater than context.";
+                                : Messages.text("config.error.output");
                 case 8, 10, 12 ->
                         value.equals("-1") || integer(value, 1, 1000)
                                 ? ""
-                                : "Enter -1 (unlimited) or an integer from 1 to 1000.";
-                case 9, 11 -> temperature(value) ? "" : "Enter a temperature from 0 to 2.";
+                                : Messages.text("config.error.rounds");
+                case 9, 11 -> temperature(value) ? "" : Messages.text("config.error.temperature");
+                case 13 ->
+                        value.isBlank() || InterfaceLanguage.wellFormed(value)
+                                ? ""
+                                : Messages.text("config.error.language");
+                case 14 ->
+                        value.isBlank() || value.equals("true") || value.equals("false")
+                                ? ""
+                                : Messages.text("config.error.flag");
                 default -> throw new IllegalArgumentException("Unknown configuration field");
             };
         }
@@ -254,6 +270,8 @@ public class ConfigInitWizard {
                 agents.put(entry.getKey(), agent);
             }
             config.put("agent", agents);
+            config.put("language", value(13).isBlank() ? "system" : value(13).strip());
+            config.put("language_in_context", value(14).equals("true"));
             return pretty(config, 0) + "\n";
         }
     }
@@ -267,8 +285,7 @@ public class ConfigInitWizard {
 
     public String configure(BufferedReader input, PrintStream output) throws IOException {
         var form = form(null);
-        output.println(
-                "Configure an OpenAI-compatible provider. Enter accepts a default; EOF cancels initialization.");
+        output.println(Messages.text("config.intro"));
         for (int i = 0; i < FIELDS.size(); i++) {
             String fallback = form.value(i);
             while (true) {
@@ -278,9 +295,7 @@ public class ConfigInitWizard {
                                 + ": ");
                 output.flush();
                 String line = input.readLine();
-                if (line == null)
-                    throw new IOException(
-                            "Configuration initialization cancelled: input ended. Use --defaults for unattended initialization.");
+                if (line == null) throw new IOException(Messages.text("config.cancelled"));
                 form.value(i, line.isBlank() ? fallback : line);
                 String error = form.validation(i);
                 if (error.isEmpty()) break;
@@ -320,6 +335,11 @@ public class ConfigInitWizard {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    private static String languageValue(Map<String, Object> map) {
+        String value = string(map, "language", "system");
+        return InterfaceLanguage.wellFormed(value) ? value : "system";
     }
 
     private static String string(Map<String, Object> map, String key, String fallback) {

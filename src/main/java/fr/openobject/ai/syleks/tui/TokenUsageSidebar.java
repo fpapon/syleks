@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.tui;
 
 import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
+import fr.openobject.ai.syleks.i18n.Messages;
 import fr.openobject.ai.syleks.usage.*;
 import java.util.*;
 
@@ -29,13 +30,19 @@ public final class TokenUsageSidebar {
     }
 
     public static String format(Long value) {
-        if (value == null) return "N/A";
+        if (value == null) return Messages.text("usage.na");
         if (value < 1000) return value.toString();
         return String.format(
                 Locale.ROOT,
                 "%.1f%s",
                 value / (value < 1_000_000 ? 1000d : 1_000_000d),
                 value < 1_000_000 ? "K" : "M");
+    }
+
+    private static String usageStatus(LlmUsageEvent.Status status) {
+        String key = "usage.status." + status.name();
+        String value = Messages.text(key);
+        return value.equals(key) ? status.name() : value;
     }
 
     public static String counter(TokenUsageAggregator.Counter value) {
@@ -67,20 +74,20 @@ public final class TokenUsageSidebar {
     public static List<String> lines(
             TokenUsageAggregator.Snapshot s, String provider, String model, int width) {
         var lines = new ArrayList<String>();
-        lines.add("TOKEN USAGE");
+        lines.add(Messages.text("usage.title"));
         lines.add(
                 s.last() != null && s.last().status() == LlmUsageEvent.Status.RUNNING
-                        ? "Generating · counting pending"
+                        ? Messages.text("usage.pending")
                         : "");
-        lines.add("SESSION TOTAL");
-        lines.add(row("Total", counter(s.total()), width));
-        lines.add(row("Input", counter(s.input()), width));
-        lines.add(row("Output", counter(s.output()), width));
-        lines.add(row("Cached", counter(s.cached()), width));
-        lines.add(row("Reasoning", counter(s.reasoning()), width));
-        lines.add(row("Requests", Long.toString(s.requests()), width));
+        lines.add(Messages.text("usage.session"));
+        lines.add(row(Messages.text("usage.total"), counter(s.total()), width));
+        lines.add(row(Messages.text("usage.input"), counter(s.input()), width));
+        lines.add(row(Messages.text("usage.output"), counter(s.output()), width));
+        lines.add(row(Messages.text("usage.cached"), counter(s.cached()), width));
+        lines.add(row(Messages.text("usage.reasoning"), counter(s.reasoning()), width));
+        lines.add(row(Messages.text("usage.requests"), Long.toString(s.requests()), width));
         lines.add("");
-        lines.add("CONTEXT WINDOW");
+        lines.add(Messages.text("usage.context"));
         var context = ContextMetricsService.snapshot(s.last(), provider, model);
         lines.add(
                 row(
@@ -93,7 +100,7 @@ public final class TokenUsageSidebar {
                                 + " / "
                                 + format(context.capacity()),
                         context.percentage() == null
-                                ? "N/A"
+                                ? Messages.text("usage.na")
                                 : String.format(Locale.ROOT, "%.0f%%", context.percentage()),
                         width));
         int filled =
@@ -102,70 +109,78 @@ public final class TokenUsageSidebar {
                         : (int) Math.round(Math.clamp(context.percentage(), 0, 100) * width / 100d);
         lines.add(
                 context.percentage() == null
-                        ? "N/A"
+                        ? Messages.text("usage.na")
                         : "█".repeat(filled) + "░".repeat(width - filled));
-        lines.add("Last sent input; not live context");
-        lines.add(row("Remaining", format(context.remaining()), width));
+        lines.add(Messages.text("usage.last_input"));
+        lines.add(row(Messages.text("usage.remaining"), format(context.remaining()), width));
         lines.add("");
-        lines.add("LAST REQUEST");
+        lines.add(Messages.text("usage.last"));
         var last = s.last();
         var usage = last == null ? TokenUsage.unavailable() : last.usage();
         String marker = usage.source() == TokenUsage.Source.ESTIMATED ? "~" : "";
-        lines.add(last == null ? "N/A" : last.status().name());
-        lines.add(row("Input", marker + format(usage.inputTokens()), width));
-        lines.add(row("Output", marker + format(usage.outputTokens()), width));
+        lines.add(last == null ? Messages.text("usage.na") : usageStatus(last.status()));
+        lines.add(row(Messages.text("usage.input"), marker + format(usage.inputTokens()), width));
+        lines.add(row(Messages.text("usage.output"), marker + format(usage.outputTokens()), width));
         if (usage.cachedInputTokens() != null)
-            lines.add(row("Cached", marker + format(usage.cachedInputTokens()), width));
+            lines.add(
+                    row(
+                            Messages.text("usage.cached"),
+                            marker + format(usage.cachedInputTokens()),
+                            width));
         if (usage.reasoningOutputTokens() != null)
-            lines.add(row("Reasoning", marker + format(usage.reasoningOutputTokens()), width));
-        lines.add(row("Total", marker + format(usage.totalTokens()), width));
+            lines.add(
+                    row(
+                            Messages.text("usage.reasoning"),
+                            marker + format(usage.reasoningOutputTokens()),
+                            width));
+        lines.add(row(Messages.text("usage.total"), marker + format(usage.totalTokens()), width));
         lines.add("");
-        lines.add("PERFORMANCE");
+        lines.add(Messages.text("usage.performance"));
         lines.add(
                 row(
-                        "Speed "
-                                + (last != null
+                        Messages.text(
+                                last != null
                                                 && last.generationDurationNs() != null
                                                 && last.generationDurationNs() > 0
-                                        ? "provider"
-                                        : "client"),
+                                        ? "usage.speed_provider"
+                                        : "usage.speed_client"),
                         last == null || last.tokensPerSecond() == null
-                                ? "N/A"
+                                ? Messages.text("usage.na")
                                 : String.format(Locale.ROOT, "%.1f tok/s", last.tokensPerSecond()),
                         width));
         lines.add(
                 row(
-                        "Total client",
+                        Messages.text("usage.total_client"),
                         last == null || last.durationMs() == null
-                                ? "N/A"
+                                ? Messages.text("usage.na")
                                 : last.durationMs() + " ms",
                         width));
         lines.add(
                 row(
-                        "First useful (client)",
+                        Messages.text("usage.first"),
                         last == null || last.firstTokenLatencyMs() == null
-                                ? "N/A"
+                                ? Messages.text("usage.na")
                                 : last.firstTokenLatencyMs() + " ms",
                         width));
         if (last != null && last.providerDurationNs() != null)
             lines.add(
                     row(
-                            "Total provider",
+                            Messages.text("usage.total_provider"),
                             String.format(Locale.ROOT, "%.3f s", last.providerDurationNs() / 1e9),
                             width));
         if (last != null && last.generationDurationNs() != null)
             lines.add(
                     row(
-                            "Generation provider",
+                            Messages.text("usage.generation_provider"),
                             String.format(Locale.ROOT, "%.3f s", last.generationDurationNs() / 1e9),
                             width));
         lines.add("");
-        lines.add("PROVIDER / MODEL");
+        lines.add(Messages.text("usage.provider"));
         lines.add(
                 last == null
                         ? provider + " / " + model
                         : last.providerId() + " / " + last.modelId());
-        lines.add("* partial · ~ estimated");
+        lines.add(Messages.text("usage.legend"));
         return List.copyOf(lines);
     }
 
@@ -186,42 +201,44 @@ public final class TokenUsageSidebar {
             var compact = new ArrayList<String>();
             compact.add(lines.get(0));
             if (snapshot.last() != null && snapshot.last().status() == LlmUsageEvent.Status.RUNNING)
-                compact.add("Generating · counting pending");
-            compact.add("SESSION TOTAL");
+                compact.add(Messages.text("usage.pending"));
+            compact.add(Messages.text("usage.session"));
             compact.add(lines.get(3));
             compact.add(lines.get(4));
             compact.add(lines.get(5));
             compact.add(lines.get(8));
-            compact.add("CONTEXT WINDOW");
+            compact.add(Messages.text("usage.context"));
             compact.add(lines.get(11));
             compact.add(lines.get(12));
-            compact.add("Last sent input");
-            compact.add("LAST REQUEST");
+            compact.add(Messages.text("usage.last_input_short"));
+            compact.add(Messages.text("usage.last"));
             var last = snapshot.last();
             var u = last == null ? TokenUsage.unavailable() : last.usage();
             compact.add(
                     row(
-                            "Input / Output",
+                            Messages.text("usage.input_output"),
                             (u.source() == TokenUsage.Source.ESTIMATED ? "~" : "")
                                     + format(u.inputTokens())
                                     + " / "
                                     + format(u.outputTokens()),
                             width - 3));
-            compact.add("PERFORMANCE");
-            int perf = lines.indexOf("PERFORMANCE");
+            compact.add(Messages.text("usage.performance"));
+            int perf = lines.indexOf(Messages.text("usage.performance"));
             compact.add(lines.get(perf + 1));
             compact.add(lines.get(perf + 2));
             compact.add(lines.get(perf + 3));
-            compact.add("PROVIDER / MODEL");
+            compact.add(Messages.text("usage.provider"));
             compact.add(lines.get(lines.size() - 2));
-            compact.add("/usage for all metrics");
+            compact.add(Messages.text("usage.more"));
             lines = compact;
         }
         for (int y = 0; y < height; y++) canvas.text(left, top + y, "│", BORDER, BG, false);
         // On short terminals retain session totals and context; /usage provides the full detail.
         for (int i = 0; i < Math.min(height, lines.size()); i++) {
             String line =
-                    i == height - 1 && lines.size() > height ? "/usage for details" : lines.get(i);
+                    i == height - 1 && lines.size() > height
+                            ? Messages.text("usage.details")
+                            : lines.get(i);
             int color =
                     line.startsWith("█") || line.startsWith("░")
                             ? context.percentage() != null && context.percentage() > critical
@@ -231,12 +248,12 @@ public final class TokenUsageSidebar {
                                             ? 0xFDBA74
                                             : BLUE
                             : Set.of(
-                                                    "TOKEN USAGE",
-                                                    "SESSION TOTAL",
-                                                    "CONTEXT WINDOW",
-                                                    "LAST REQUEST",
-                                                    "PERFORMANCE",
-                                                    "PROVIDER / MODEL")
+                                                    Messages.text("usage.title"),
+                                                    Messages.text("usage.session"),
+                                                    Messages.text("usage.context"),
+                                                    Messages.text("usage.last"),
+                                                    Messages.text("usage.performance"),
+                                                    Messages.text("usage.provider"))
                                             .contains(line)
                                     ? BLUE
                                     : SUB;

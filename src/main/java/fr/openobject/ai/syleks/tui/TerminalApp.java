@@ -21,6 +21,8 @@ import fr.openobject.ai.syleks.app.ConfigInitializer;
 import fr.openobject.ai.syleks.app.ProviderCommands;
 import fr.openobject.ai.syleks.auth.AuthenticationService;
 import fr.openobject.ai.syleks.auth.BrowserLauncher;
+import fr.openobject.ai.syleks.i18n.InterfaceLanguage;
+import fr.openobject.ai.syleks.i18n.Messages;
 import fr.openobject.ai.syleks.provider.ProviderException;
 import fr.openobject.ai.syleks.usage.*;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
@@ -155,6 +157,7 @@ public class TerminalApp implements AutoCloseable {
     }
 
     public void initialize(fr.openobject.ai.syleks.app.Main.Options options) {
+        session.installInterfaceLanguage();
         session.initializeProviders();
         if (options.action().equals("default")) {
             // Startup occurs before entering the UI loop. Opening a picker never creates an empty
@@ -274,7 +277,13 @@ public class TerminalApp implements AutoCloseable {
                 }
                 if (sessionLoading)
                     screen.canvas()
-                            .text(2, 0, "Loading…", TerminalCanvas.BLUE, TerminalCanvas.BG, false);
+                            .text(
+                                    2,
+                                    0,
+                                    Messages.text("cmd.loading"),
+                                    TerminalCanvas.BLUE,
+                                    TerminalCanvas.BG,
+                                    false);
                 if (configurationModal != null) screen = configurationModal.paint(screen.canvas());
                 if (providerModal != null) screen = providerModal.paint(screen.canvas());
                 if (palette) screen = helpModal.paint(screen.canvas());
@@ -870,7 +879,7 @@ public class TerminalApp implements AutoCloseable {
                                 arg.isBlank() ? session.providers().active().accountId() : arg);
                 case "/config" -> {
                     if (!arg.isBlank() && !arg.equals("init") && !arg.equals("edit"))
-                        session.info("Usage: /config [init|edit]");
+                        session.info(Messages.text("cmd.config"));
                     else openConfiguration();
                 }
                 case "/history" -> {
@@ -927,14 +936,17 @@ public class TerminalApp implements AutoCloseable {
                                     usagePreferences.select(arg);
                                 } catch (Exception e) {
                                     completions.add(
-                                            () -> session.info("Sidebar: " + e.getMessage()));
+                                            () ->
+                                                    session.info(
+                                                            Messages.text(
+                                                                    "cmd.sidebar",
+                                                                    e.getMessage())));
                                 }
                             });
                 }
                 case "/help" -> openHelp();
                 case "/model" -> {
-                    if (arg.isEmpty())
-                        session.info("Utilisation: /model provider/model (ou un modèle Ollama)");
+                    if (arg.isEmpty()) session.info(Messages.text("cmd.model"));
                     else changeModel(arg);
                 }
                 case "/agent" -> {
@@ -949,16 +961,16 @@ public class TerminalApp implements AutoCloseable {
                 case "/answer" -> session.answer(arg);
                 case "/subagent" -> {
                     var request = arg.split("\\s+", 2);
-                    if (request.length < 2) session.info("Usage: /subagent name task");
+                    if (request.length < 2) session.info(Messages.text("cmd.subagent"));
                     else if (!session.subagent(request[0], request[1]))
-                        session.info("Wait for the current generation to finish.");
+                        session.info(Messages.text("cmd.subagent_busy"));
                 }
                 case "/quit", "/exit" -> running = false;
                 case "/demo" -> {
                     session.demo();
                 }
                 case "/save" -> export(arg);
-                default -> session.info("Commande inconnue: " + name + " (essaie /help)");
+                default -> session.info(Messages.text("cmd.unknown", name));
             }
         } catch (IllegalArgumentException | IllegalStateException ex) {
             session.info(ex.getMessage());
@@ -998,7 +1010,7 @@ public class TerminalApp implements AutoCloseable {
         if (session.snapshot().busy()
                 || session.snapshot().permission() != null
                 || sessionLoading) {
-            session.info("Finish generation or resolve its permission before changing providers.");
+            session.info(Messages.text("provider.busy_providers"));
             return false;
         }
         return true;
@@ -1016,21 +1028,21 @@ public class TerminalApp implements AutoCloseable {
 
     private static String apiKeyTitle(String provider) {
         return switch (provider) {
-            case "spacexsi" -> "SpaceXSI API key";
-            case "openrouter" -> "OpenRouter API key";
-            case "opencode" -> "OpenCode API key";
-            case "google" -> "Gemini API key";
-            default -> "OpenAI API key";
+            case "spacexsi" -> Messages.text("provider.key.spacexsi");
+            case "openrouter" -> Messages.text("provider.key.openrouter");
+            case "opencode" -> Messages.text("provider.key.opencode");
+            case "google" -> Messages.text("provider.key.google");
+            default -> Messages.text("provider.key.openai");
         };
     }
 
     private static String apiKeyNotice(String provider) {
         return switch (provider) {
-            case "spacexsi" -> "This key uses SpaceXSI credits.";
-            case "openrouter" -> "This key uses OpenRouter credits.";
-            case "opencode" -> "This key uses OpenCode Console credits.";
-            case "google" -> "This key uses Gemini API billing.";
-            default -> "This key uses API billing independently of your ChatGPT plan.";
+            case "spacexsi" -> Messages.text("provider.notice.spacexsi");
+            case "openrouter" -> Messages.text("provider.notice.openrouter");
+            case "opencode" -> Messages.text("provider.notice.opencode");
+            case "google" -> Messages.text("provider.notice.google");
+            default -> Messages.text("provider.notice.openai");
         };
     }
 
@@ -1040,8 +1052,8 @@ public class TerminalApp implements AutoCloseable {
                         .get(session.providers().active().providerId())
                         .capabilities()
                         .local()
-                ? "Ollama · Local"
-                : ProviderCommands.CLOUD_NOTICE;
+                ? Messages.text("provider.ollama")
+                : ProviderCommands.cloudNotice();
     }
 
     private void applyProviderModel() {
@@ -1062,25 +1074,31 @@ public class TerminalApp implements AutoCloseable {
                                                     p.id(),
                                                     p.displayName(),
                                                     p.id().equals("chatgpt")
-                                                            ? "Continue with ChatGPT"
+                                                            ? Messages.text("provider.chatgpt")
                                                             : p.capabilities().local()
-                                                                    ? "Local provider"
+                                                                    ? Messages.text(
+                                                                            "provider.local_provider")
                                                                     : p.requiresAccount()
-                                                                            ? "API key · separate API billing"
-                                                                            : "Configured provider"))
+                                                                            ? Messages.text(
+                                                                                    "provider.api_billing")
+                                                                            : Messages.text(
+                                                                                    "provider.configured")))
                             .toList();
             providerModal =
                     new ProviderModal(
                             kind,
                             kind == ProviderModal.Kind.CONNECT
-                                    ? "Connect to a provider"
-                                    : "Select a provider",
+                                    ? Messages.text("provider.connect")
+                                    : Messages.text("provider.select"),
                             entries);
             return;
         }
         long revision = ++providerRevision;
         providerModal =
-                new ProviderModal(ProviderModal.Kind.MESSAGE, "Loading…", java.util.List.of());
+                new ProviderModal(
+                        ProviderModal.Kind.MESSAGE,
+                        Messages.text("provider.loading"),
+                        java.util.List.of());
         providerTask =
                 sessionWorker.submit(
                         () -> {
@@ -1099,9 +1117,12 @@ public class TerminalApp implements AutoCloseable {
                                                                                                     .equals(
                                                                                                             session.snapshot()
                                                                                                                     .model())
-                                                                                            ? " · current"
+                                                                                            ? Messages
+                                                                                                    .text(
+                                                                                                            "provider.current_model")
                                                                                             : "")
-                                                                                    + " · model capabilities: unknown"))
+                                                                                    + Messages.text(
+                                                                                            "provider.capabilities")))
                                                     .toList();
                                 } else {
                                     var list = new java.util.ArrayList<ProviderModal.Entry>();
@@ -1127,13 +1148,14 @@ public class TerminalApp implements AutoCloseable {
                                                                                         providers
                                                                                                 .active()
                                                                                                 .accountId())
-                                                                        ? " · active"
+                                                                        ? Messages.text(
+                                                                                "provider.active_suffix")
                                                                         : "")));
                                     list.add(
                                             new ProviderModal.Entry(
                                                     "add",
-                                                    "Add account",
-                                                    "Continue with ChatGPT or API key"));
+                                                    Messages.text("provider.add"),
+                                                    Messages.text("provider.add_detail")));
                                     entries = java.util.List.copyOf(list);
                                 }
                                 completions.add(
@@ -1143,14 +1165,15 @@ public class TerminalApp implements AutoCloseable {
                                                         new ProviderModal(
                                                                 kind,
                                                                 kind == ProviderModal.Kind.MODELS
-                                                                        ? "Models · "
-                                                                                + providers
+                                                                        ? Messages.text(
+                                                                                "provider.models",
+                                                                                providers
                                                                                         .active()
-                                                                                        .providerId()
-                                                                                + " · "
-                                                                                + session.snapshot()
-                                                                                        .model()
-                                                                        : "Accounts",
+                                                                                        .providerId(),
+                                                                                session.snapshot()
+                                                                                        .model())
+                                                                        : Messages.text(
+                                                                                "provider.accounts"),
                                                                 entries);
                                         });
                             } catch (Exception e) {
@@ -1158,7 +1181,8 @@ public class TerminalApp implements AutoCloseable {
                                         () -> {
                                             if (revision == providerRevision)
                                                 providerMessage(
-                                                        "Provider unavailable", e.getMessage());
+                                                        Messages.text("provider.unavailable"),
+                                                        e.getMessage());
                                         });
                             }
                         });
@@ -1173,8 +1197,11 @@ public class TerminalApp implements AutoCloseable {
         if (!providerIdle()) return;
         long revision = ++providerRevision;
         providerModal =
-                new ProviderModal(ProviderModal.Kind.MESSAGE, "Connecting…", java.util.List.of());
-        providerModal.message("Please wait. Esc cancels.");
+                new ProviderModal(
+                        ProviderModal.Kind.MESSAGE,
+                        Messages.text("provider.connecting"),
+                        java.util.List.of());
+        providerModal.message(Messages.text("provider.wait"));
         sessionLoading = true;
         providerTask =
                 sessionWorker.submit(
@@ -1190,7 +1217,8 @@ public class TerminalApp implements AutoCloseable {
                                     () -> {
                                         if (revision == providerRevision) {
                                             sessionLoading = false;
-                                            providerMessage("Provider", result);
+                                            providerMessage(
+                                                    Messages.text("provider.result"), result);
                                         }
                                     });
                         });
@@ -1209,10 +1237,10 @@ public class TerminalApp implements AutoCloseable {
                         var c = authentication.apiKey(apiKeyProvider, key);
                         session.providers().useAccount(c.account().id());
                         applyProviderModel();
-                        return "Connected to "
-                                + session.providers().registry().get(apiKeyProvider).displayName()
-                                + " · separate API billing. "
-                                + cloudNotice();
+                        return Messages.text(
+                                "provider.connected_to",
+                                session.providers().registry().get(apiKeyProvider).displayName(),
+                                cloudNotice());
                     });
             return;
         }
@@ -1229,7 +1257,7 @@ public class TerminalApp implements AutoCloseable {
                                     apiKeyTitle(entry.id()),
                                     java.util.List.of());
                     providerModal.message(
-                            ProviderCommands.CLOUD_NOTICE + "\n" + apiKeyNotice(entry.id()));
+                            ProviderCommands.cloudNotice() + "\n" + apiKeyNotice(entry.id()));
                 } else
                     providerWork(
                             () -> {
@@ -1249,7 +1277,8 @@ public class TerminalApp implements AutoCloseable {
                     providerWork(
                             () -> {
                                 session.model(entry.id());
-                                return "Selected " + entry.id() + "\n" + cloudNotice();
+                                return Messages.text(
+                                        "provider.model_selected", entry.id(), cloudNotice());
                             });
             case ACCOUNTS -> {
                 if (entry.id().equals("add")) openProviderModal(ProviderModal.Kind.CONNECT);
@@ -1262,14 +1291,17 @@ public class TerminalApp implements AutoCloseable {
                                     java.util.List.of(
                                             new ProviderModal.Entry(
                                                     "use",
-                                                    "Select account",
-                                                    "Preserve conversation"),
+                                                    Messages.text("provider.action.use"),
+                                                    Messages.text("provider.action.use_detail")),
                                             new ProviderModal.Entry(
-                                                    "login", "Reconnect", "Saved registration"),
+                                                    "login",
+                                                    Messages.text("provider.action.login"),
+                                                    Messages.text("provider.action.login_detail")),
                                             new ProviderModal.Entry(
                                                     "logout",
-                                                    "Sign out",
-                                                    "Revoke and clear this account's tokens")));
+                                                    Messages.text("provider.action.logout"),
+                                                    Messages.text(
+                                                            "provider.action.logout_detail"))));
                 }
             }
             case ACCOUNT_ACTIONS -> {
@@ -1281,7 +1313,8 @@ public class TerminalApp implements AutoCloseable {
                             () -> {
                                 session.providers().useAccount(id);
                                 applyProviderModel();
-                                return "Selected account " + id + "\n" + cloudNotice();
+                                return Messages.text(
+                                        "provider.account_selected", id, cloudNotice());
                             });
             }
             default -> {}
@@ -1290,7 +1323,7 @@ public class TerminalApp implements AutoCloseable {
 
     private void logoutAccount(String id) {
         if (id == null) {
-            session.info("No active account. Use /accounts.");
+            session.info(Messages.text("provider.none"));
             return;
         }
         providerWork(
@@ -1300,21 +1333,25 @@ public class TerminalApp implements AutoCloseable {
                                     .filter(c -> c.account().id().equals(id))
                                     .findFirst()
                                     .orElseThrow(
-                                            () -> new IllegalArgumentException("Unknown account"));
+                                            () ->
+                                                    new IllegalArgumentException(
+                                                            Messages.text(
+                                                                    "provider.unknown_account")));
                     boolean revoked = session.providers().logout(id);
                     if (fr.openobject.ai.syleks.app.AppConfig.apiKeyProvider(
                             account.account().providerId()))
-                        return "Signed out. API key removed locally; revoke it separately in the provider console.";
+                        return Messages.text("provider.signed_out_key");
                     return revoked
-                            ? "Signed out. Renewable session revoked."
-                            : "Signed out locally. Remote revocation was not confirmed; disconnect Syleks in ChatGPT Settings.";
+                            ? Messages.text("provider.signed_out_session")
+                            : Messages.text("provider.signed_out_remote");
                 });
     }
 
     private void authorizationReady(
             long revision, fr.openobject.ai.syleks.auth.ChatGptOAuthService.Attempt attempt) {
         var manual = attempt.manualUri();
-        completions.add(() -> showAuthorization(revision, manual, "Waiting for authorization…"));
+        completions.add(
+                () -> showAuthorization(revision, manual, Messages.text("provider.waiting")));
         browser.open(attempt.authorizationUri())
                 .thenAccept(
                         opened ->
@@ -1325,8 +1362,10 @@ public class TerminalApp implements AutoCloseable {
                                                         revision,
                                                         manual,
                                                         opened
-                                                                ? "Browser opened. Waiting for authorization…"
-                                                                : "Browser unavailable. Open or copy this URL manually.");
+                                                                ? Messages.text(
+                                                                        "provider.browser_open")
+                                                                : Messages.text(
+                                                                        "provider.browser_unavailable"));
                                         }));
     }
 
@@ -1335,7 +1374,7 @@ public class TerminalApp implements AutoCloseable {
                 || providerModal == null
                 || providerModal.kind() != ProviderModal.Kind.AUTH) return;
         manualAuthorization = manual;
-        providerModal.message(message + "\n" + ProviderCommands.CLOUD_NOTICE + "\n\n" + manual);
+        providerModal.message(message + "\n" + ProviderCommands.cloudNotice() + "\n\n" + manual);
     }
 
     private void startProviderLogin(String accountId) {
@@ -1343,10 +1382,10 @@ public class TerminalApp implements AutoCloseable {
         long revision = ++providerRevision;
         providerModal =
                 new ProviderModal(
-                        ProviderModal.Kind.AUTH, "ChatGPT Authentication", java.util.List.of());
-        providerModal.message(
-                "Opening browser…\nAuthenticate with your ChatGPT account and authorize Syleks.\n"
-                        + ProviderCommands.CLOUD_NOTICE);
+                        ProviderModal.Kind.AUTH,
+                        Messages.text("provider.auth_title"),
+                        java.util.List.of());
+        providerModal.message(Messages.text("provider.opening", ProviderCommands.cloudNotice()));
         providerTask =
                 sessionWorker.submit(
                         () -> {
@@ -1361,20 +1400,23 @@ public class TerminalApp implements AutoCloseable {
                                     applyProviderModel();
                                 } catch (Exception e) {
                                     catalog =
-                                            "\nCredentials saved. Model selection pending: "
-                                                    + ProviderException.safe(e.getMessage());
+                                            Messages.text(
+                                                    "provider.pending",
+                                                    ProviderException.safe(e.getMessage()));
                                 }
                                 String result =
-                                        "✓ Connected to ChatGPT\nAccount: "
-                                                + c.account().label()
-                                                + "\n"
-                                                + ProviderCommands.status(c)
-                                                + catalog;
+                                        Messages.text(
+                                                "provider.chatgpt_connected",
+                                                c.account().label(),
+                                                ProviderCommands.status(c),
+                                                catalog);
                                 completions.add(
                                         () -> {
                                             if (revision == providerRevision) {
                                                 manualAuthorization = null;
-                                                providerMessage("ChatGPT Authentication", result);
+                                                providerMessage(
+                                                        Messages.text("provider.auth_title"),
+                                                        result);
                                             }
                                         });
                             } catch (Exception e) {
@@ -1384,9 +1426,9 @@ public class TerminalApp implements AutoCloseable {
                                             if (revision == providerRevision) {
                                                 manualAuthorization = null;
                                                 providerMessage(
-                                                        "Authentication failed",
-                                                        message
-                                                                + "\nUse /connect or /accounts to retry.");
+                                                        Messages.text("provider.auth_failed"),
+                                                        Messages.text(
+                                                                "provider.auth_retry", message));
                                             }
                                         });
                             }
@@ -1395,7 +1437,7 @@ public class TerminalApp implements AutoCloseable {
 
     private void openConfiguration() {
         if (session.snapshot().busy() || session.snapshot().permission() != null) {
-            session.info("Finish generation or resolve its permission before configuring Syleks.");
+            session.info(Messages.text("provider.busy_config"));
             return;
         }
         sessionLoading = true;
@@ -1443,7 +1485,7 @@ public class TerminalApp implements AutoCloseable {
                     configurationModal.stage() == ConfigurationModal.Stage.CLOSED
                             && configurationSaved;
             configurationModal = null;
-            if (saved) session.info("Configuration saved. Use /restart when ready to apply it.");
+            if (saved) session.info(Messages.text("provider.saved"));
             configurationSaved = false;
         }
     }
@@ -1461,7 +1503,7 @@ public class TerminalApp implements AutoCloseable {
 
     void restartChat() {
         if (session.snapshot().busy() || session.snapshot().permission() != null) {
-            session.info("Finish generation or resolve its permission before restarting chat.");
+            session.info(Messages.text("provider.busy_restart"));
             return;
         }
         restartRequest =
@@ -1477,6 +1519,10 @@ public class TerminalApp implements AutoCloseable {
     public static ConfigurationResult configure(
             ConfigInitializer initializer, ConfigInitWizard wizard, TerminalHandle handle)
             throws Exception {
+        Messages.install(
+                Messages.forCatalog(
+                        InterfaceLanguage.load(ConfigInitializer.home(), System.getenv())
+                                .catalog()));
         var modal = new ConfigurationModal(wizard.load(ConfigInitializer.home()));
         var terminal = handle.terminal;
         boolean savedConfig = false;
@@ -1564,7 +1610,7 @@ public class TerminalApp implements AutoCloseable {
 
     private void openSessions(boolean children) {
         if (session.snapshot().busy() || session.snapshot().permission() != null) {
-            session.info("Finish generation or resolve its permission before changing sessions.");
+            session.info(Messages.text("provider.busy_sessions"));
             return;
         }
         sessionLoading = true;
@@ -1650,7 +1696,7 @@ public class TerminalApp implements AutoCloseable {
     private void changeSession(String action, String argument) {
         sessionViews.identifyInitial(session.snapshot().sessionId());
         if (session.snapshot().busy() || session.snapshot().permission() != null) {
-            session.info("Finish generation or resolve its permission before changing sessions.");
+            session.info(Messages.text("provider.busy_sessions"));
             return;
         }
         sessionLoading = true;
@@ -1679,7 +1725,7 @@ public class TerminalApp implements AutoCloseable {
 
     private void export(String arg) throws Exception {
         if (arg.isBlank()) {
-            session.info("Utilisation: /save chemin/vers/session.md");
+            session.info(Messages.text("cmd.save"));
             return;
         }
         session.save(Path.of(arg));

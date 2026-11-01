@@ -17,6 +17,7 @@ package fr.openobject.ai.syleks.tui;
 
 import static fr.openobject.ai.syleks.tui.TerminalCanvas.*;
 
+import fr.openobject.ai.syleks.i18n.Messages;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,112 +29,75 @@ final class HelpModal {
 
     private static final List<Entry> ENTRIES =
             List.of(
-                    new Entry("Chat & sessions", ""),
-                    new Entry("/new · /clear", "Start a new chat; keep the previous session."),
-                    new Entry(
-                            "/sessions",
-                            "Filter saved sessions by title, ID or model; PgUp/PgDn and Home/End navigate."),
-                    new Entry("/session ID", "Open a saved session by ID."),
-                    new Entry("/children · /parent", "Browse child tasks or return to the parent."),
-                    new Entry("/resume", "Open the latest session."),
-                    new Entry("/rename TITLE", "Rename this session."),
-                    new Entry(
-                            "/fork [message-id]",
-                            "Copy this conversation, optionally through a selected message."),
-                    new Entry("/messages", "Show message IDs for a fork boundary."),
-                    new Entry("/compact", "Generate and save a summary; keep the full transcript."),
-                    new Entry("/import PATH", "Import a validated JSON session archive."),
-                    new Entry("/changes", "List recorded native file changes."),
-                    new Entry(
-                            "/diff",
-                            "Inspect source colors and before/after line numbers; n/p jumps change blocks, N/P jumps files. Arrows scroll/pan, Esc closes."),
-                    new Entry(
-                            "/undo, /redo",
-                            "Restore recorded files after checking for external edits."),
-                    new Entry("Files & attachments", ""),
-                    new Entry(
-                            "/files [DIRECTORY] · Ctrl+F",
-                            "Browse workspace files; Ctrl+F keeps your draft."),
-                    new Entry(
-                            "/attach [PATH]",
-                            "Append a UTF-8 file snapshot to the editable draft; no path opens the browser."),
-                    new Entry(
-                            "File browser",
-                            "Type to filter; arrows and PgUp/PgDn navigate; Right previews/opens, Left goes up; Space marks files across directories; Enter attaches; Ctrl+H toggles hidden files; Esc closes preview/browser."),
-                    new Entry("Models & accounts", ""),
-                    new Entry("/connect", "Connect a provider or account."),
-                    new Entry("/providers [ID]", "Choose a provider."),
-                    new Entry("/models", "Browse and select a model."),
-                    new Entry("/model MODEL", "Select a provider/model or an Ollama model ID."),
-                    new Entry("/accounts", "Manage connected accounts."),
-                    new Entry("/logout [ACCOUNT]", "Sign out of the active or named account."),
-                    new Entry("Agents", ""),
-                    new Entry("/agents · /agent", "List available agents and their modes."),
-                    new Entry("/agent NAME", "Switch to a primary agent."),
-                    new Entry("/subagent NAME TASK", "Ask a subagent to handle a task."),
-                    new Entry("@NAME TASK", "Another way to call a subagent."),
-                    new Entry("Permissions & exports", ""),
-                    new Entry(
-                            "/permissions [NAME]",
-                            "Show permissions for the active or named agent."),
-                    new Entry(
-                            "/approve [once|remember]",
-                            "Allow once or remember the exact action for 15 minutes."),
-                    new Entry(
-                            "/approvals [revoke ID|all]",
-                            "List or revoke exact remembered actions."),
-                    new Entry("/deny", "Reject the pending action."),
-                    new Entry(
-                            "/answer TEXT", "Answer a tool question; option numbers are accepted."),
-                    new Entry("/save PATH", "Export displayed chat as Markdown; never overwrite."),
-                    new Entry("Settings & help", ""),
-                    new Entry("/config [init|edit]", "Open the configuration form."),
-                    new Entry("/restart", "Reload settings; keep this conversation and draft."),
-                    new Entry(
-                            "/sidebar [auto|show|hide]",
-                            "Toggle the token sidebar; saved preference."),
-                    new Entry(
-                            "/usage",
-                            "Inspect token totals, configured input/output budgets and request timings."),
-                    new Entry("/help", "Open this reference."),
-                    new Entry("/demo", "Preview tool cards and code highlighting."),
-                    new Entry("/quit · /exit", "Close Syleks."),
-                    new Entry(
-                            "/history [clear|on|off]",
-                            "Clear recall or save collection preference; off clears existing entries."),
-                    new Entry(
-                            "Leading space",
-                            "Exclude a submission from recall; prompts can still be saved and sent to providers."),
-                    new Entry("Keyboard shortcuts", ""),
-                    new Entry("Enter", "Send a message or run a command."),
-                    new Entry("Ctrl+O", "Insert a newline."),
-                    new Entry("←/→ · Backspace · Delete", "Move the cursor or edit your draft."),
-                    new Entry("↑/↓", "Recall older/newer prompts; Down restores your draft."),
-                    new Entry("Ctrl+X", "Clear input recall; keep visible text and cursor."),
-                    new Entry("PgUp/PgDn", "Scroll the conversation."),
-                    new Entry(
-                            "Mouse wheel · Shift/Ctrl+↑/↓",
-                            "Scroll response lines; keep your draft."),
-                    new Entry(
-                            "Mouse drag",
-                            "Select output; copy automatically on release or when movement stops."),
-                    new Entry("Ctrl+Home/End", "Jump to the start/latest response."),
-                    new Entry("Tab", "Cycle primary agents while idle."),
-                    new Entry("Ctrl+P", "Open or close this help popup; keep your draft."),
-                    new Entry("Ctrl+G", "Open configuration; keep your draft."),
-                    new Entry("Ctrl+R", "Browse sessions; keep your draft."),
-                    new Entry(
-                            "Esc",
-                            "Clear output selection, dismiss a popup or cancel active work."),
-                    new Entry(
-                            "Ctrl+C",
-                            "Copy selected output; otherwise cancel work or exit when idle."),
-                    new Entry("Ctrl+D", "Exit Syleks."),
-                    new Entry("Approval controls", ""),
-                    new Entry("Tab · ←/→", "Choose Once, Remember exact or Reject."),
-                    new Entry("Enter", "Confirm the selected approval action."),
-                    new Entry("Ctrl+F", "Expand or collapse the approval details."),
-                    new Entry("↑/↓ · PgUp/PgDn", "Scroll approval details."));
+                    new Entry("help.section.sessions", ""),
+                    new Entry("/new · /clear", "help.new"),
+                    new Entry("/sessions", "help.sessions"),
+                    new Entry("/session ID", "help.session"),
+                    new Entry("/children · /parent", "help.children"),
+                    new Entry("/resume", "help.resume"),
+                    new Entry("/rename TITLE", "help.rename"),
+                    new Entry("/fork [message-id]", "help.fork"),
+                    new Entry("/messages", "help.messages"),
+                    new Entry("/compact", "help.compact"),
+                    new Entry("/import PATH", "help.import"),
+                    new Entry("/changes", "help.changes"),
+                    new Entry("/diff", "help.diff"),
+                    new Entry("/undo, /redo", "help.undo"),
+                    new Entry("help.section.files", ""),
+                    new Entry("/files [DIRECTORY] · Ctrl+F", "help.files"),
+                    new Entry("/attach [PATH]", "help.attach"),
+                    new Entry("File browser", "help.browser"),
+                    new Entry("help.section.models", ""),
+                    new Entry("/connect", "help.connect"),
+                    new Entry("/providers [ID]", "help.providers"),
+                    new Entry("/models", "help.models"),
+                    new Entry("/model MODEL", "help.model"),
+                    new Entry("/accounts", "help.accounts"),
+                    new Entry("/logout [ACCOUNT]", "help.logout"),
+                    new Entry("help.section.agents", ""),
+                    new Entry("/agents · /agent", "help.agents"),
+                    new Entry("/agent NAME", "help.agent"),
+                    new Entry("/subagent NAME TASK", "help.subagent"),
+                    new Entry("@NAME TASK", "help.at"),
+                    new Entry("help.section.permissions", ""),
+                    new Entry("/permissions [NAME]", "help.permissions"),
+                    new Entry("/approve [once|remember]", "help.approve"),
+                    new Entry("/approvals [revoke ID|all]", "help.approvals"),
+                    new Entry("/deny", "help.deny"),
+                    new Entry("/answer TEXT", "help.answer"),
+                    new Entry("/save PATH", "help.save"),
+                    new Entry("help.section.settings", ""),
+                    new Entry("/config [init|edit]", "help.config"),
+                    new Entry("/restart", "help.restart"),
+                    new Entry("/sidebar [auto|show|hide]", "help.sidebar"),
+                    new Entry("/usage", "help.usage"),
+                    new Entry("/help", "help.help"),
+                    new Entry("/demo", "help.demo"),
+                    new Entry("/quit · /exit", "help.quit"),
+                    new Entry("/history [clear|on|off]", "help.history"),
+                    new Entry("Leading space", "help.leading_space"),
+                    new Entry("help.section.keys", ""),
+                    new Entry("Enter", "help.key.enter"),
+                    new Entry("Ctrl+O", "help.key.newline"),
+                    new Entry("←/→ · Backspace · Delete", "help.key.edit"),
+                    new Entry("↑/↓", "help.key.recall"),
+                    new Entry("Ctrl+X", "help.key.clear_recall"),
+                    new Entry("PgUp/PgDn", "help.key.page"),
+                    new Entry("Mouse wheel · Shift/Ctrl+↑/↓", "help.key.wheel"),
+                    new Entry("Mouse drag", "help.key.drag"),
+                    new Entry("Ctrl+Home/End", "help.key.jump"),
+                    new Entry("Tab", "help.key.tab"),
+                    new Entry("Ctrl+P", "help.key.help"),
+                    new Entry("Ctrl+G", "help.key.config"),
+                    new Entry("Ctrl+R", "help.key.sessions"),
+                    new Entry("Esc", "help.key.esc"),
+                    new Entry("Ctrl+C", "help.key.interrupt"),
+                    new Entry("Ctrl+D", "help.key.exit"),
+                    new Entry("help.section.approval", ""),
+                    new Entry("Tab · ←/→", "help.key.choose"),
+                    new Entry("Enter", "help.key.confirm"),
+                    new Entry("Ctrl+F", "help.key.expand"),
+                    new Entry("↑/↓ · PgUp/PgDn", "help.key.details"));
 
     private int scroll;
     private int visible = 1;
@@ -161,7 +125,7 @@ final class HelpModal {
             canvas.text(
                     0,
                     0,
-                    ChatRenderer.fit("Resize terminal (min 35 × 15)", canvas.width()),
+                    ChatRenderer.fit(Messages.text("help.resize"), canvas.width()),
                     YELLOW,
                     BG,
                     false);
@@ -178,15 +142,13 @@ final class HelpModal {
             canvas.text(left + width - 1, top + row, "│", BORDER, INPUT, false);
         }
         canvas.text(left, top + height - 1, "╰" + "─".repeat(width - 2) + "╯", BLUE, INPUT, false);
-        line(canvas, left, top + 1, width, "Syleks · Help", BLUE, true);
+        line(canvas, left, top + 1, width, Messages.text("help.title"), BLUE, true);
         line(
                 canvas,
                 left,
                 top + 2,
                 width,
-                width < 65
-                        ? "CAPS=value · []=optional"
-                        : "Type a command in chat · CAPS = your value · [brackets] = optional",
+                Messages.text(width < 65 ? "help.hint.short" : "help.hint"),
                 SUB,
                 false);
         var lines = lines(width - 6);
@@ -209,8 +171,9 @@ final class HelpModal {
                         + lines.size()
                         + " · "
                         + (width < 45
-                                ? (scroll < lastScroll ? "More" : "End")
-                                : (scroll < lastScroll ? "More below" : "End of help")),
+                                ? Messages.text(
+                                        scroll < lastScroll ? "help.more.short" : "help.end.short")
+                                : Messages.text(scroll < lastScroll ? "help.more" : "help.end")),
                 SUB,
                 false);
         line(
@@ -218,11 +181,10 @@ final class HelpModal {
                 left,
                 top + height - 2,
                 width,
-                width < 45
-                        ? "↑↓ Scroll · Esc Close"
-                        : width < 65
-                                ? "↑↓ Scroll · Esc/Enter Close"
-                                : "↑↓ Scroll · PgUp/PgDn Page · Home/End · Esc/Enter Close",
+                Messages.text(
+                        width < 45
+                                ? "help.keys.short"
+                                : width < 65 ? "help.keys.mid" : "help.keys"),
                 SUB,
                 false);
         return new ChatRenderer.Screen(canvas, 0, 0, false);
@@ -230,7 +192,11 @@ final class HelpModal {
 
     private List<Line> lines(int width) {
         var lines = new ArrayList<Line>();
-        for (var entry : ENTRIES) {
+        for (var source : ENTRIES) {
+            var entry =
+                    source.description().isEmpty()
+                            ? new Entry(Messages.text(source.command()), "")
+                            : new Entry(source.command(), Messages.text(source.description()));
             if (entry.description().isEmpty()) {
                 if (!lines.isEmpty()) lines.add(new Line("", WHITE, false));
                 lines.add(new Line(entry.command(), BLUE, true));
