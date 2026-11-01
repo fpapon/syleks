@@ -20,10 +20,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /** One execution loop for every provider. Transport adapters only produce complete turns. */
 @DefaultScoped
 public class AgentRuntime {
+    private static final Logger LOGGER = Logger.getLogger(AgentRuntime.class.getName());
+
     public record Turn(String content, String reasoning, List<ToolCall> calls) {
         public Turn {
             calls = List.copyOf(calls);
@@ -91,6 +94,7 @@ public class AgentRuntime {
                     } catch (Exception e) {
                         if (Thread.currentThread().isInterrupted())
                             throw new InterruptedException("Tool cancelled");
+                        LOGGER.fine("Tool execution failed: " + e.getClass().getName());
                         result = ToolResult.failed(e);
                     }
                     if (observer != null) observer.toolResult(call, result);
@@ -117,6 +121,7 @@ public class AgentRuntime {
                 throw cancelled;
             }
             state(observer, AgentState.FAILED);
+            LOGGER.warning("Agent execution failed: " + e.getClass().getName());
             throw e;
         }
     }
@@ -127,6 +132,7 @@ public class AgentRuntime {
     }
 
     private static void state(AgentObserver observer, AgentState state) {
+        LOGGER.fine(() -> "Agent state: " + state);
         if (observer != null) observer.state(state);
     }
 }

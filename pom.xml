@@ -29,6 +29,7 @@
 
         <!-- technical stack -->
         <fusion.version>1.2.0</fusion.version>
+        <yupiik-logging.version>1.0.9</yupiik-logging.version>
         <jline.version>4.4.8</jline.version>
         <sqlite.version>3.53.2.0</sqlite.version>
 
@@ -39,6 +40,12 @@
         <spotless.version>3.10.4</spotless.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>io.yupiik.logging</groupId>
+            <artifactId>yupiik-logging-jul</artifactId>
+            <version>${yupiik-logging.version}</version>
+            <scope>runtime</scope>
+        </dependency>
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
@@ -177,6 +184,10 @@
                 <version>3.6.1</version>
                 <configuration>
                     <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+                    <systemPropertyVariables>
+                        <java.util.logging.manager>io.yupiik.logging.jul.YupiikLogManager</java.util.logging.manager>
+                        <java.util.logging.config.file>syleks-logging.properties</java.util.logging.config.file>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>
@@ -315,7 +326,11 @@ under the License.
                             <initializeAtRunTime>
                                 <class>org.jline</class>
                             </initializeAtRunTime>
+                            <initializeAtBuildTime>
+                                <class>io.yupiik.logging.jul.YupiikLogManager</class>
+                            </initializeAtBuildTime>
                             <customOptions>
+                                <option>-Djava.util.logging.manager=io.yupiik.logging.jul.YupiikLogManager</option>
                                 <option>--enable-url-protocols=http,https</option>
                                 <option>--enable-native-access=ALL-UNNAMED</option>
                             </customOptions>

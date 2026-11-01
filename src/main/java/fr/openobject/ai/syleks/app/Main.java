@@ -20,9 +20,23 @@ import fr.openobject.ai.syleks.tui.TerminalApp;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import java.io.PrintStream;
 import java.util.Arrays;
+import java.util.logging.Logger;
 
 /** Argument routing around the generated Fusion container. Legacy `chat` remains supported. */
 public final class Main {
+    static {
+        // Select the manager before Fusion or any application logger initializes JUL.
+        String manager = "io.yupiik.logging.jul.YupiikLogManager";
+        if (System.getProperty("java.util.logging.manager") == null)
+            System.setProperty("java.util.logging.manager", manager);
+        if (manager.equals(System.getProperty("java.util.logging.manager"))
+                && System.getProperty("java.util.logging.config.file") == null
+                && System.getenv("JAVA_UTIL_LOGGING_CONFIG_FILE") == null)
+            System.setProperty("java.util.logging.config.file", "syleks-logging.properties");
+    }
+
+    private static final Logger LOGGER = Logger.getLogger(Main.class.getName());
+
     private Main() {}
 
     public static void main(String[] args) {
@@ -361,9 +375,11 @@ public final class Main {
             }
             return 0;
         } catch (IllegalArgumentException e) {
+            LOGGER.fine("Command rejected: " + e.getClass().getName());
             error.println("Syleks: " + safe(e.getMessage()));
             return 2;
         } catch (Exception e) {
+            LOGGER.warning("Command failed: " + e.getClass().getName());
             error.println("Syleks: " + safe(e.getMessage()));
             return 1;
         }

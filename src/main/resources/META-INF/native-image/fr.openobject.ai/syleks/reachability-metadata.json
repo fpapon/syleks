@@ -1,5 +1,6 @@
 {
   "resources": [
+    { "glob": "syleks-logging.properties" },
     { "glob": "META-INF/services/**" },
     { "glob": "db/migrations/**" },
     { "glob": "defaults/**" },

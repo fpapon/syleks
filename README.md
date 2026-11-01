@@ -44,6 +44,7 @@ A responsive right sidebar shows persisted session token totals, the last LLM re
 
 - **Yupiik Fusion 1.2.0** (`fusion-api`, `fusion-cli`): annotation-generated dependency injection and `@Command` launcher.
 - **Fusion JSON** (`fusion-json`): request serialization and streamed JSON response parsing.
+- **Yupiik Logging 1.0.9**: JUL log manager for CLI and agent diagnostics, configurable at runtime.
 - **Nimbus JOSE+JWT 10.10**: signed OIDC ID-token validation and JWKS caching.
 - **Java 25**, virtual thread for LLM generation, Java `HttpClient` streaming.
 - **JLine 3.30.3**: raw terminal, unicode input, alternate screen and resize.
@@ -71,6 +72,30 @@ mvn -q compile exec:exec
 ```
 
 The plugin launches a separate Java process, selects the `chat` command automatically, and uses the same environment variables as the JAR launch. Exit with Ctrl+D or `/quit`.
+
+## Logging
+
+Syleks selects Yupiik's JUL log manager before starting Fusion. Logging has no handlers
+by default to keep background messages off the terminal. Enable file diagnostics with
+a private logging configuration outside your repository, for example:
+
+```properties
+.handlers=file
+.level=INFO
+fr.openobject.ai.syleks.level=FINE
+io.yupiik.logging.jul.handler.LocalFileHandler.filenamePattern=/absolute/private/path/syleks-%s.%d.log
+```
+
+```sh
+java -Djava.util.logging.config.file=/absolute/path/logging.properties \
+  --enable-native-access=ALL-UNNAMED -jar target/syleks-0.1.0-SNAPSHOT.jar chat
+```
+
+`JAVA_UTIL_LOGGING_CONFIG_FILE` also selects the configuration for JAR and native
+launches. Explicit `java.util.logging.manager` settings are preserved. Application
+logs contain agent states and failure class names; prompts, tool arguments, exception
+messages and credentials are omitted. CLI errors still appear on stderr. Keep logs
+private; enabling additional library loggers may include sensitive transport data.
 
 ## Documentation Website
 
