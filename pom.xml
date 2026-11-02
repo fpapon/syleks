@@ -31,7 +31,7 @@
         <fusion.version>1.2.0</fusion.version>
         <yupiik-logging.version>1.0.9</yupiik-logging.version>
         <jline.version>4.4.8</jline.version>
-        <sqlite.version>3.53.2.0</sqlite.version>
+        <sqlite.version>3.54.1.0</sqlite.version>
 
         <!-- test, build, quality -->
         <junit.version>6.1.3</junit.version>
